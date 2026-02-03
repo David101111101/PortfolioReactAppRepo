@@ -94,17 +94,7 @@ export default function App() {
                   ))}
                 </section>
 
-                <div style={{ marginTop: 16, borderTop: "1px solid var(--soft)", paddingTop: 14 }}>
-                  <h3 style={{ margin: 0, fontSize: 14, color: "var(--muted)", fontWeight: 600 }}>
-                    Core principles
-                  </h3>
-                  <ul style={{ margin: "10px 0 0", paddingLeft: 18 }}>
-                    <li>Risk-based coverage on critical user journeys</li>
-                    <li>Test design that survives UI changes</li>
-                    <li>Actionable reporting (debug fast, fix fast)</li>
-                    <li>CI-ready execution & predictable runtime</li>
-                  </ul>
-                </div>
+                
               </div>
             </div>
 

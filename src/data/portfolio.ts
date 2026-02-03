@@ -39,7 +39,7 @@ export const profile = {
   email: "davidstevenabril@gmail.com",
   linkedin: "https://www.linkedin.com/in/david-abril-189099138",
   github: "https://github.com/David101111101",
-  resume: "/resume.pdf" // optional: put resume.pdf in /public
+  resume: "public/DAVID ABRIL QA Automation Engineer CV..pdf" // optional: put resume.pdf in /public
 };
 
 export const stats: Stat[] = [
@@ -52,14 +52,12 @@ export const stats: Stat[] = [
 export const skills: { group: string; items: string[] }[] = [
   {
     group: "Test Automation",
-    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks"]
+    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks", "Backend Testing", "BDD with Gherkin","Predictive forecasting","Parallel execution","Cross-browser testing"]
   },
   {
     group: "Testing & Strategy",
     items: [
       "API testing",
-      "Backend testing",
-      "Test strategy",
       "Exploratory",
       "Integration",
       "Regression",
@@ -68,29 +66,33 @@ export const skills: { group: string; items: string[] }[] = [
       "Usability",
       "Compatibility",
       "Security",
-      "Accessibility"
+      "Accessibility",
+      "Performance",
+      "Mobile/responsive testing"
     ]
   },
   {
     group: "CI/CD & Tooling",
     items: [
-      "Git",
+      "CI pipelines",
+      "Github Actions",
       "Azure DevOps",
       "REST/JSON",
       "Postman",
-      "Docker",
+      "Docker Compose",
       "Allure reporting",
-      "Data analysis",
-      "Predictive forecasting"
+      "Jmeter",
+      "Node.js",
+      "Branching strategy (PRs)"
     ]
   },
   {
     group: "Languages",
-    items: ["Java", "JavaScript", "TypeScript", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Node", "Gherkin"]
+    items: ["Java", "JavaScript", "TypeScript", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin"]
   },
   {
     group: "Delivery",
-    items: ["Agile methodologies", "Documentation", "Cross-team collaboration"]
+    items: ["Agile/Scrum", "Documentation", "Cross-team collaboration", "Ownership","Stakeholder Communication"]
   }
 ];
 
@@ -147,6 +149,18 @@ export const projects: Project[] = [
     ],
     tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"]
   },
+    {
+    title: "Cypress Backend Testing Framework",
+    oneLiner: "API validation with SQL/MySQL + NoSQL and content-type/data integrity checks.",
+    description:
+      "Developer/Tester (2025). Mixed API testing tooling and data stores to validate status codes, headers, schemas, and CRUD integrity.",
+    highlights: [
+      "API testing with Postman/devtools; status codes, headers, content-type validation",
+      "GraphQL practice with PokeAPI; CRUD with MongoDB + SQL/MySQL",
+      "JSON Server usage to simulate and validate backend behavior"
+    ],
+    tech: ["Cypress", "Postman", "REST/JSON", "GraphQL", "SQL/MySQL", "MongoDB"]
+  },
   {
     title: "Playwright E2E Store Flow",
     oneLiner: "End-to-end automation of an e-commerce user flow with traceable debugging.",
@@ -158,18 +172,6 @@ export const projects: Project[] = [
       "Debugging tools integrated for fast failure diagnosis"
     ],
     tech: ["Playwright", "TypeScript", "E2E Testing"]
-  },
-  {
-    title: "Cypress Backend Testing Framework",
-    oneLiner: "API validation with SQL/MySQL + NoSQL and content-type/data integrity checks.",
-    description:
-      "Developer/Tester (2025). Mixed API testing tooling and data stores to validate status codes, headers, schemas, and CRUD integrity.",
-    highlights: [
-      "API testing with Postman/devtools; status codes, headers, content-type validation",
-      "GraphQL practice with PokeAPI; CRUD with MongoDB + SQL/MySQL",
-      "JSON Server usage to simulate and validate backend behavior"
-    ],
-    tech: ["Cypress", "Postman", "REST/JSON", "GraphQL", "SQL/MySQL", "MongoDB"]
   }
 ];
 
@@ -212,33 +214,33 @@ export const diplomas: Diploma[] = [
     category: "Engineering",
     proof: { label: "View Certificate", 
     href: "https://drive.google.com/file/d/1ecQsbP8TfKjDRvH4kld4rpQGBcyK6iL5/view?usp=sharing"}, 
-    image: "/diplomas/TechnologistDegree.png"
+    image: "public/diplomas/TechnologistDegree.png"
   },
   { title: "Azure DevOps: CI/CD", 
     issuer: "Platzi", 
     category: "Engineering",  
     proof: { label: "View Certificate", href: "https://cert.efset.org/dbRhNU"}, 
-    image: "/diplomas/AzureDevOps.png" 
+    image: "public/diplomas/AzureDevOps.png" 
   },
   { title: "QA Automation Engineer", 
     issuer: "Platzi", 
     category: "Engineering",
     proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/ruta/7632-ruta/diploma/detalle/"}, 
-    image: "/diplomas/QaAutomationEngineer.png" 
+    image: "public/diplomas/QaAutomationEngineer.png" 
   },
   { title: "Software Quality Assurance Bootcamp",
      issuer: "Jala University",
      category: "QA",   
     proof: { label: "View Certificate", 
     href: "https://drive.google.com/file/d/1xl59g1H-h9vil5txBcSl4fhigCzxZM6n/view?usp=sharing"}, 
-    image: "/diplomas/QaBootcamp.png" },
+    image: "public/diplomas/QaBootcamp.png" },
   { 
     title: "Backend Test Automation Course with Cypress", 
     issuer: "Platzi", 
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/3076-course/diploma/detalle/" }, 
-    image: "/diplomas/CypressBackEndAutomation.png" 
+    image: "public/diplomas/CypressBackEndAutomation.png" 
   },
    { 
     title: "Advanced Test Automation with Puppeteer", 
@@ -246,7 +248,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2706-course/diploma/detalle/" }, 
-    image: "/diplomas/AdvancedPuppeteerAutomation.png" 
+    image: "public/diplomas/AdvancedPuppeteerAutomation.png" 
   },
    { 
     title: "Advanced Cypress Frameworks", 
@@ -254,7 +256,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/4760-course/diploma/detalle/" }, 
-    image: "/diplomas/AdvancedCypress.png" 
+    image: "public/diplomas/AdvancedCypress.png" 
   },
    { 
     title: "How to Get Feedback Audio Course", 
@@ -262,7 +264,7 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2482-course/diploma/detalle/" }, 
-    image: "/diplomas/HowToGetFeedback.png" 
+    image: "public/diplomas/HowToGetFeedback.png" 
   },
  
   { 
@@ -271,14 +273,14 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2060-course/diploma/detalle/" }, 
-    image: "/diplomas/EffectiveCommunication.png" 
+    image: "public/diplomas/EffectiveCommunication.png" 
   },
    { 
     title: "Fundamentals of Software Testing",
     issuer: "Platzi",
     category: "QA",  
     proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/curso/1421-course/diploma/detalle/"}, 
-    image: "/diplomas/TestingFundamentals.png" 
+    image: "public/diplomas/TestingFundamentals.png" 
     },
   { 
     title: "English (C2 Proficient)", 
@@ -286,7 +288,7 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://cert.efset.org/dbRhNU" }, 
-    image: "/diplomas/EfSetEnglish.png" 
+    image: "public/diplomas/EfSetEnglish.png" 
   },
   { 
     title: "Managing Emotions for Productivity and Organization", 
@@ -294,6 +296,6 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2496-course/diploma/detalle/" }, 
-    image: "/diplomas/Emotionalintelligence.png" 
+    image: "public/diplomas/Emotionalintelligence.png" 
   },
 ];
