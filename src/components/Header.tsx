@@ -38,8 +38,8 @@ export function Header() {
         top: 0,
         zIndex: 50,
         backdropFilter: "blur(10px)",
-        background: "rgba(0,0,0,0.18)",
-        borderBottom: "1px solid var(--soft)",
+        background: "rgba(0,0,0,0.02)",
+        boxShadow: "rgba(0, 0, 0, 0.4) 15px 5px 5px 1px",
       }}
     >
       <div

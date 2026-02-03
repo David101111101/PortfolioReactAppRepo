@@ -72,17 +72,24 @@ export default function App() {
 
               {/* TRUST PANEL */}
               <div className="card" style={{ padding: 18 }}>
-                <h2 style={{ margin: 0, fontSize: 18 }}>Signals employers care about</h2>
+                <div className="nda-badge-container">
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Overview of my Last Automation</h2>
+                  <span className="badge" >NDA-Safe</span>
+                </div>
+                
                 <p style={{ margin: "10px 0 0", color: "var(--muted)" }}>
-                  I optimize for stable, readable, and maintainable automation with measurable quality outcomes.
+                  A backlog of 300 websites, each one requiring 30 Minutes of Manual & repetitive set up workflows.
+
                 </p>
 
                 <section id="main-section-mini-cards" className="grid cols-2" style={{ marginTop: 14 }}>
                   {stats.map((s) => (
                     <div key={s.label} className="card">
-                      <div style={{ fontSize: 22, fontWeight: 800 }}>{s.value}</div>
-                      <div style={{ color: "var(--muted)" }}>{s.label}</div>
-                      {s.note ? <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{s.note}</div> : null}
+                      <div className="flex-row">
+                          <div style={{ fontSize: 22, fontWeight: 800 }}>{s.value}</div>
+                          <div style={{ color: "var(--muted)" }}>{s.label}</div>
+                      </div>  
+                          {s.note ? <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{s.note}</div> : null}     
                     </div>
                   ))}
                 </section>
@@ -132,6 +139,14 @@ export default function App() {
             ))}
           </div>
         </Section>
+        {/* DIPLOMAS */}
+        <Section
+          id="diplomas"
+          title="Diplomas & certifications"
+          lead="Structured learning across QA, automation, engineering, and leadership. Proof links can point to credential pages."
+        >
+          <DiplomaGrid diplomas={diplomas} />
+        </Section>
         {/* EXPERIENCE */}
         <Section
           id="experience"
@@ -165,14 +180,6 @@ export default function App() {
           </div>
         </Section>
 
-        {/* DIPLOMAS */}
-        <Section
-          id="diplomas"
-          title="Diplomas & certifications"
-          lead="Structured learning across QA, automation, engineering, and leadership. Proof links can point to credential pages, PDFs, or LinkedIn posts."
-        >
-          <DiplomaGrid diplomas={diplomas} />
-        </Section>
 
         {/* CONTACT */}
         <Section
