@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Diploma } from "../data/portfolio";
 
-const categories: Diploma["category"][] = ["QA", "Automation", "Engineering", "Leadership", "Other"];
+const categories: Diploma["category"][] = ["QA", "Automation", "Engineering", "Other"];
 
 export function DiplomaGrid({ diplomas }: { diplomas: Diploma[] }) {
   const [cat, setCat] = useState<Diploma["category"] | "All">("All");
@@ -65,7 +65,6 @@ export function DiplomaGrid({ diplomas }: { diplomas: Diploma[] }) {
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
               <span className="badge">{d.category}</span>
-              {d.year ? <span className="badge">{d.year}</span> : null}
             </div>
 
             <h3 style={{ margin: 0, fontSize: 16 }}>{d.title}</h3>

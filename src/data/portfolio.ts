@@ -3,21 +3,20 @@ export type Link = { label: string; href: string };
 
 export type Project = {
   title: string;
+  status?: "public" | "nda" | "private";
   oneLiner: string;
   description: string;
   highlights: string[];
   tech: string[];
   links?: Link[];
-  status?: "public" | "nda" | "private";
 };
 
 export type Diploma = {
   title: string;
   issuer: string;
-  year?: string;
-  category: "QA" | "Automation" | "Engineering" | "Leadership" | "Other";
+  category: "QA" | "Automation" | "Engineering" | "Other";
   proof?: Link;
-  image?: string; // optional: /diplomas/your-image.png (place in /public)
+  image?: string; 
 };
 
 export type Stat = { label: string; value: string; note?: string };
@@ -44,10 +43,10 @@ export const profile = {
 };
 
 export const stats: Stat[] = [
-  { label: "Workflows automated", value: "10", note: "site setup modules" },
-  { label: "Time saved", value: "175h", note: "manual work eliminated" },
-  { label: "Scale", value: "300 sites", note: "backlog forecast" },
-  { label: "UI automation load", value: "140k", note: "DOM interactions" }
+  { label: "Workflows automated", value: "11", note: "Site setup modules" },
+  { label: "Time saved", value: "150H", note: "Manual work eliminated" },
+  { label: "Lines Of Code", value: "1038", note: "Advanced dynamic framework" },
+  { label: "DOM interactions", value: "140K", note: "UI automation load" }
 ];
 
 export const skills: { group: string; items: string[] }[] = [
@@ -98,30 +97,31 @@ export const skills: { group: string; items: string[] }[] = [
 export const projects: Project[] = [
   {
     title: "Playwright Site-Setup Framework",
-    oneLiner: "Automated 10 website setup workflows and standardized execution across teams.",
+    status: "nda",
+    oneLiner: "Owner/Developer/Tester (2025)",
     description:
-      "Owner/Developer/Tester (2025). Built a custom framework (~1038 LOC) to automate repetitive site setup workflows and improve reliability and maintainability.",
+      "Built a custom framework (~1038 LOC) rendering tedious manual repetitive work obsolete across 3 teams.",
     highlights: [
-      "Automated 10 manual setup workflows; saved 175 hours and reduced repetitive work and burnout",
-      "Reusable utilities: async helpers, Page Object Models, centralized logging & error handling, fixtures",
+      "Saved 150 hours by Automating 11 manual setup workflows, reduced burnout & improved work satisfaction",
+      "Reusable utilities: async helpers, fixtures, Page Object Models, centralized logging & error handling",
       "Reliability focus: advanced assertions, flakiness reduction patterns, and debug-friendly structure"
     ],
-    tech: ["Playwright", "TypeScript", "Node.js", "Azure DevOps"],
-    status: "nda"
+    tech: ["Playwright", "TypeScript", "Node.js", "Azure DevOps"]
   },
   {
     title: "Azure DevOps: CI/CD",
-    oneLiner: "CI/CD pipeline to build and deploy apps with full version control.",
+        status: "public",
+    oneLiner: "Pipeline to build and deploy apps with full version control.",
     description:
         "Automated the entire development lifecycle of my React portfolio app using Azure DevOps.",
     highlights: [
-        "Configured build pipeline for repeatable installs, builds, and artifact generation",
+        "Built a CI pipeline triggered on commits to master that installs Node.js, runs the production build and generates release-ready outputs, it then automates staging &  packaging: by copying the compiled build files into a staging directory, compresses outputs into a .zip artifact, and finally publishes the artifact for downstream release.",
         "Integrated version control workflows (branches/PRs) to keep changes auditable and safe",
+        "Used scrum framework to plan, track, and deliver each step of the project",
         "Deployment pipeline publishes the built app directly to Azure for continuous delivery",
-        "Used scrum framework to plan, track, and deliver each step of the project"
+        
     ],
-    tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"],
-    status: "public"
+    tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"]
     },
     {
     title: "Cypress Framework",
@@ -207,13 +207,93 @@ export const otherExperience =
 
 export const diplomas: Diploma[] = [
   {
-    title: "Technologist — Analysis & Development of Computer Software",
-    issuer: "Credential / Institution",
-    category: "Engineering"
+    title: "Analysis & Development of Computer Software",
+    issuer: "Sena",
+    category: "Engineering",
+    proof: { label: "View Certificate", 
+    href: "https://drive.google.com/file/d/1ecQsbP8TfKjDRvH4kld4rpQGBcyK6iL5/view?usp=sharing"}, 
+    image: "/diplomas/TechnologistDegree.png"
   },
-  { title: "QA Automation Engineer", issuer: "Credential / Institution", category: "Automation" },
-  { title: "Azure DevOps: CI/CD", issuer: "Credential / Institution", category: "Engineering" },
-  { title: "Quality Assurance of Software Bootcamp", issuer: "Credential / Institution", category: "QA" },
-  { title: "Fundamentals of Software Testing", issuer: "Credential / Institution", category: "QA" },
-  { title: "EF SET English C2", issuer: "EF SET", category: "Other" }
+  { title: "Azure DevOps: CI/CD", 
+    issuer: "Platzi", 
+    category: "Engineering",  
+    proof: { label: "View Certificate", href: "https://cert.efset.org/dbRhNU"}, 
+    image: "/diplomas/AzureDevOps.png" 
+  },
+  { title: "QA Automation Engineer", 
+    issuer: "Platzi", 
+    category: "Engineering",
+    proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/ruta/7632-ruta/diploma/detalle/"}, 
+    image: "/diplomas/QaAutomationEngineer.png" 
+  },
+  { title: "Software Quality Assurance Bootcamp",
+     issuer: "Jala University",
+     category: "QA",   
+    proof: { label: "View Certificate", 
+    href: "https://drive.google.com/file/d/1xl59g1H-h9vil5txBcSl4fhigCzxZM6n/view?usp=sharing"}, 
+    image: "/diplomas/QaBootcamp.png" },
+  { 
+    title: "Backend Test Automation Course with Cypress", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/3076-course/diploma/detalle/" }, 
+    image: "/diplomas/CypressBackEndAutomation.png" 
+  },
+   { 
+    title: "Advanced Test Automation with Puppeteer", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/2706-course/diploma/detalle/" }, 
+    image: "/diplomas/AdvancedPuppeteerAutomation.png" 
+  },
+   { 
+    title: "Advanced Cypress Frameworks", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/4760-course/diploma/detalle/" }, 
+    image: "/diplomas/AdvancedCypress.png" 
+  },
+   { 
+    title: "How to Get Feedback Audio Course", 
+    issuer: "Platzi", 
+    category: "Other", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/2482-course/diploma/detalle/" }, 
+    image: "/diplomas/HowToGetFeedback.png" 
+  },
+ 
+  { 
+    title: "Effective Communication for Work Teams", 
+    issuer: "Platzi", 
+    category: "Other", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/2060-course/diploma/detalle/" }, 
+    image: "/diplomas/EffectiveCommunication.png" 
+  },
+   { 
+    title: "Fundamentals of Software Testing",
+    issuer: "Platzi",
+    category: "QA",  
+    proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/curso/1421-course/diploma/detalle/"}, 
+    image: "/diplomas/TestingFundamentals.png" 
+    },
+  { 
+    title: "English (C2 Proficient)", 
+    issuer: "EF SET", 
+    category: "Other", 
+    proof: { label: "View Certificate", 
+    href: "https://cert.efset.org/dbRhNU" }, 
+    image: "/diplomas/EfSetEnglish.png" 
+  },
+  { 
+    title: "Managing Emotions for Productivity and Organization", 
+    issuer: "Platzi", 
+    category: "Other", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/2496-course/diploma/detalle/" }, 
+    image: "/diplomas/Emotionalintelligence.png" 
+  },
 ];
