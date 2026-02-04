@@ -35,8 +35,7 @@ jobs:
 
       - name: Build
         run: npm run build
-         env:
-          VITE_BASE: ${{ vars.VITE_BASE }}
+        env: VITE_BASE: ${{ vars.VITE_BASE }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
