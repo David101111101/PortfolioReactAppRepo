@@ -51,12 +51,12 @@ export function Header() {
           padding: "14px 20px",
         }}
       >
-        <a href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
+        <a id="titleName" href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
           {profile.name}
         </a>
 
         <nav style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <a className="badge" href={profile.resume} target="_blank" rel="noreferrer">Resume</a>
+          <a className="badge" href={`${import.meta.env.BASE_URL}${profile.resume}`} target="_blank" rel="noreferrer">Resume</a>
           <a className="badge" href="#projects">Projects</a>
           <a className="badge" href="#diplomas">Diplomas</a>
           <a className="badge" href="#experience">Experience</a>
