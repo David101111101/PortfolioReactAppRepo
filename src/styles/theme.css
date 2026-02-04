@@ -32,7 +32,7 @@
   --accent: #6d28d9;
   --accent2: #0891b2;
   color-scheme: light;
-  text-shadow: 0.1px 0.2px 0px #00000057;
+  text-shadow: 0.1px 0.1px 0.5px #000;
 }
 
 * { box-sizing: border-box; }
@@ -46,6 +46,7 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
+#titleName {     text-shadow: 2px 2px 3px #000; }
 #content {
   position: relative;
   z-index: 1;
@@ -80,7 +81,8 @@ a { color: inherit; text-decoration: none; }
   font-size: 12px;
   line-height: 1;
   box-shadow: var(--minishadow);
-  text-shadow: 0px 0px 1px #000;
+  text-shadow: 1px 1px 1px #000;
+  max-height: 26px;
 }
 .nda-badge-container{
   display: flex;
@@ -102,14 +104,17 @@ a { color: inherit; text-decoration: none; }
   color: var(--text);
   cursor: pointer;
   box-shadow: var(--minishadow);
+  background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
+  backdrop-filter: blur(1px);
+  font-size: clamp(0.6rem, 3.4vw, 1rem);
 }
 .btn:hover { transform: translateY(-1px); }
 .btn:active { transform: translateY(0px); }
-.btn.primary {
-    background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
-    backdrop-filter: blur(1px);
+.ContainerOfBtn {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
-
 .section {
       padding: 72px 0;
 }
@@ -165,6 +170,9 @@ a { color: inherit; text-decoration: none; }
 /* When light theme is active, cross-fade */
 :root[data-theme="light"] .bg-dark { opacity: 0; }
 :root[data-theme="light"] .bg-light { opacity: 1; }
+:root[data-theme="light"] nav .btn, .badge { text-shadow: 0.1px 0.1px 1px #000; }
+:root[data-theme="light"] #titleName { text-shadow: 2px 2px 5px #07070757; }
+
 /* Smooth theme transitions (applied briefly on toggle) */
 .theme-transition,
 .theme-transition * {
@@ -173,6 +181,7 @@ a { color: inherit; text-decoration: none; }
     color 5s ease,
     border-color 2600ms ease-in,
     box-shadow 3s ease-in,
+    text-shadow 1.5s ease,
     fill 5s ease,
     stroke 5s ease,
     opacity 2s ease-in,
@@ -194,23 +203,43 @@ a { color: inherit; text-decoration: none; }
   .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 500px) {
-.nda-badge-container {
-  flex-direction: column;
+  .nda-badge-container {
+    flex-direction: column;
+  }
+  .nda-badge-container h2 {
+    min-width: fit-content;
+  }
+  .nda-badge-container .badge {
+    margin-left: 0;
+  }
+  #main-section-mini-cards .flex-row {
+    display: flex;
+    flex-direction: row;
+  }
+  #main-section-mini-cards .flex-row :nth-child(1) {
+    min-width: 3rem;
+  }
+  #main-section-mini-cards .flex-row :nth-last-child(1) {
+    margin-left: 0.3rem;
+  }
+    #section .ContainerOfBtn,  #contact .ContainerOfBtn {
+    flex-wrap: nowrap;
+  }
+  #diplomas .ContainerOfBtn, #diplomas .btn {
+    gap: unset;
+    margin: 0 0.1rem 0.1rem;
+  font-size: clamp(0.4rem, 2.5vw, 1rem);
+  }
+
 }
-.nda-badge-container h2 {
-  min-width: fit-content;
-}
-.nda-badge-container .badge {
-  margin-left: 0;
-}
-#main-section-mini-cards .flex-row {
-  display: flex;
-  flex-direction: row;
-}
-#main-section-mini-cards .flex-row :nth-child(1) {
-  min-width: 3rem;
- }
-#main-section-mini-cards .flex-row :nth-last-child(1) {
-  margin-left: 0.3rem;
- }
+
+@media (max-width: 630px) {
+  nav {
+        justify-content: flex-end;
+        gap: 10px !important;
+  }
+  nav .btn, nav a {
+    min-width: 3.9rem; 
+    max-height: 1.3rem;
+  }
 }

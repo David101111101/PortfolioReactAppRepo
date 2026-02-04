@@ -16,7 +16,7 @@ function MailToButton() {
   }
 
   return (
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+    <div  className="ContainerOfBtn">
       <a className="btn primary" href={`mailto:${profile.email}`}>
         Email me
       </a>
@@ -45,7 +45,7 @@ export default function App() {
 
       <main id="content">
         {/* HERO */}
-        <section className="section" style={{ paddingTop: 20 }}>
+        <section id="section" style={{ paddingTop: 20 }}>
           <div className="container">
             <div className="grid cols-2" style={{ alignItems: "start" }}>
               <div>
@@ -133,7 +133,7 @@ export default function App() {
         <Section
           id="diplomas"
           title="Diplomas & certifications"
-          lead="Structured learning across QA, automation, engineering, and leadership. Proof links can point to credential pages."
+          lead="Structured learning across QA, automation & engineering."
         >
           <DiplomaGrid diplomas={diplomas} />
         </Section>
