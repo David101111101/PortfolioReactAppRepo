@@ -4,11 +4,11 @@ export type Link = { label: string; href: string };
 export type Project = {
   title: string;
   status?: "public" | "nda" | "private";
+  links?: Link[];
   oneLiner: string;
   description: string;
   highlights: string[];
   tech: string[];
-  links?: Link[];
 };
 
 export type Diploma = {
@@ -81,13 +81,14 @@ export const skills: { group: string; items: string[] }[] = [
       "Docker Compose",
       "Allure reporting",
       "Jmeter",
-      "Node.js",
+      "Jira",
+      "Monday",
       "Branching strategy (PRs)"
     ]
   },
   {
     group: "Languages",
-    items: ["Java", "JavaScript", "TypeScript", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin"]
+    items: ["Java", "JavaScript", "TypeScript", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin","Node.js"]
   },
   {
     group: "Delivery",
@@ -107,11 +108,12 @@ export const projects: Project[] = [
       "Used best coding practices with reusable utilities like async helpers, Fixtures, Page Object Models, centralized logging & thorough documentation of errors per module for fast & accurate debugging",
       "Reliability focus: advanced assertions, flakiness reduction patterns, and debug-friendly structure with a very detailed README with logical & physical architecture diagrams",
     ],
-    tech: ["Playwright", "TypeScript", "Node.js", "Azure DevOps"]
+    tech: ["Playwright", "TypeScript", "Node.js", "Azure DevOps"],
   },
   {
     title: "Azure DevOps: CI/CD",
-        status: "public",
+    links: [{label: "GitHub Repo",
+           href: "https://github.com/David101111101/PortfolioReactAppRepo",}],
     oneLiner: "Pipeline to build and deploy apps with full version control.",
     description:
         "Automated the entire development lifecycle of my React portfolio app using Azure DevOps.",
@@ -121,7 +123,8 @@ export const projects: Project[] = [
         "Deployment pipeline publishes the built app directly to Azure for continuous delivery",
         
     ],
-    tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"]
+    tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"],
+
     },
     {
     title: "Cypress Framework",
@@ -133,7 +136,10 @@ export const projects: Project[] = [
       "Custom commands, fixtures, env variables, parallel testing, video reporting",
       "Docker + Node.js included for reproducible runs"
     ],
-    tech: ["Cypress", "JavaScript/TypeScript", "Node.js", "Docker"]
+    tech: ["Cypress", "JavaScript/TypeScript", "Node.js", "Docker"],
+    links: [{
+        label: "GitHub Repo",
+        href: "https://github.com/David101111101/Cypress-Automation-Framework",}],
   },
   {
     title: "Puppeteer Framework",
@@ -145,7 +151,10 @@ export const projects: Project[] = [
       "Screenshots for visual checks; parallel multi-browser execution",
       "Performance checks (page-load / first contentful paint) and BDD (Gherkin)"
     ],
-    tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"]
+    tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"],
+    links: [{
+        label: "GitHub Repo",
+        href: "https://github.com/David101111101/Puppeteer-Framework",}],
   },
     {
     title: "Cypress Backend Testing Framework",
@@ -157,7 +166,10 @@ export const projects: Project[] = [
       "GraphQL practice with PokeAPI; CRUD with MongoDB + SQL/MySQL",
       "JSON Server usage to simulate and validate backend behavior"
     ],
-    tech: ["Cypress", "Postman", "GraphQL", "SQL/MySQL", "MongoDB"]
+    tech: ["Cypress", "Postman", "GraphQL", "SQL/MySQL", "MongoDB"],
+    links: [{
+        label: "GitHub Repo",
+        href: "https://github.com/David101111101/cypress-backend-automation",}],
   },
   {
     title: "Playwright E2E Store Flow",
@@ -169,7 +181,10 @@ export const projects: Project[] = [
       "Tracing with screenshots and multi-browser usage",
       "Debugging tools integrated for fast failure diagnosis"
     ],
-    tech: ["Playwright", "TypeScript", "E2E Testing"]
+    tech: ["Playwright", "TypeScript", "E2E Testing"],
+    links: [{
+        label: "GitHub Repo",
+        href: "https://github.com/David101111101/playwright-demo",}],
   }
 ];
 
@@ -222,8 +237,8 @@ export const diplomas: Diploma[] = [
   { title: "Azure DevOps: CI/CD", 
     issuer: "Platzi", 
     category: "Engineering",  
-    proof: { label: "View Certificate", href: "https://cert.efset.org/dbRhNU"}, 
-    image: "diplomas/AzureDevOps.png" 
+    proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/curso/3275-course/diploma/detalle/"}, 
+    image: "diplomas/AzureDevopsCDCI-diploma.png" 
   },
   { title: "QA Automation Engineer", 
     issuer: "Platzi", 

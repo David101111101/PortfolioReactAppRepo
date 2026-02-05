@@ -74,7 +74,7 @@ export default function App() {
               <div className="card" style={{ padding: 18 }}>
                 <div className="nda-badge-container">
                   <h2 style={{ margin: 0, fontSize: 18 }}>Overview of my Last Automation</h2>
-                  <span className="badge" >NDA-Safe</span>
+                  <span className="badge" >NDA Protected</span>
                 </div>
                 
                 <p style={{ margin: "10px 0 0", color: "var(--muted)" }}>
