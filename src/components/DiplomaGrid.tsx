@@ -55,14 +55,6 @@ export function DiplomaGrid({ diplomas }: { diplomas: Diploma[] }) {
               <img
                 src={`${import.meta.env.BASE_URL}${d.image}`}
                 alt={`${d.title} certificate`}
-                style={{
-                  width: "100%",
-                  height: 140,
-                  objectFit: "cover",
-                  borderRadius: 12,
-                  border: "1px solid var(--soft)",
-                  marginBottom: 10,
-                }}
                 loading="lazy"
               />
             ) : (
