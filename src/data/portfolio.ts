@@ -34,7 +34,7 @@ export const profile = {
   location: "Remote • Colombia",
   languages: "English (C2) Certified",
   summary:
-    "Automation-focused QA engineer with software backend development experience and team leadership. I’m driven by challenges and bigger goals, and I’m pursuing an automation-first role while deepening engineering skills.",
+    "Automation focused QA Engineer with backend development and team leadership experience. Driven by challenges and a passion for continuous learning, I’m pursuing an automation first role while deepening my engineering skills.",
 
   email: "davidstevenabril@gmail.com",
   linkedin: "https://www.linkedin.com/in/david-abril-189099138",
@@ -58,7 +58,6 @@ export const skills: { group: string; items: string[] }[] = [
     group: "Testing & Strategy",
     items: [
       "API testing",
-      "Exploratory",
       "Integration",
       "Regression",
       "Smoke",
@@ -75,12 +74,12 @@ export const skills: { group: string; items: string[] }[] = [
     group: "CI/CD & Tooling",
     items: [
       "CI pipelines",
-      "Github Actions",
+      "GitHub Actions",
       "Azure DevOps",
       "Postman",
       "Docker Compose",
       "Allure reporting",
-      "Jmeter",
+      "K6",
       "Jira",
       "Monday",
       "Branching strategy (PRs)"
@@ -100,41 +99,55 @@ export const projects: Project[] = [
   {
     title: "Playwright Site-Setup Framework",
     status: "nda",
-    oneLiner: "Owner/Developer/Tester (2025)",
+    oneLiner: "Developer/Tester (2025)",
     description:
       "Built a custom framework (~1038 LOC) rendering tedious manual repetitive work obsolete across 3 teams.",
     highlights: [
-      "Saved 150 hours by Automating 11 manual setup workflows that reduced burnout & improved work satisfaction by focusing on higher value/complexity tasks instead",
+      "Saved 150 hours by Automating 11 manual setup workflows that reduced burnout & improved work satisfaction on 3 teams by focusing on higher value/complexity tasks instead",
       "Used best coding practices with reusable utilities like async helpers, Fixtures, Page Object Models, centralized logging & thorough documentation of errors per module for fast & accurate debugging",
       "Reliability focus: advanced assertions, flakiness reduction patterns, and debug-friendly structure with a very detailed README with logical & physical architecture diagrams",
     ],
     tech: ["Playwright", "TypeScript", "Node.js", "Azure DevOps"],
   },
-  {
+    {
     title: "Azure DevOps: CI/CD",
     links: [{label: "GitHub Repo",
            href: "https://github.com/David101111101/PortfolioReactAppRepo",}],
-    oneLiner: "Pipeline to build and deploy apps with full version control.",
+    oneLiner: "Owner/Developer/Tester (2026)",
     description:
-        "Automated the entire development lifecycle of my React portfolio app using Azure DevOps.",
+        "Automated the entire development lifecycle of my React portfolio app using Azure DevOps with full version control.",
     highlights: [
-        "Built a CI pipeline triggered on commits to master that installs Node.js, runs the production build, automates staging & packaging by copying the compiled build files into a staging directory, compresses outputs into a .zip artifact, and finally publishes the artifact for downstream release",
-        "Integrated version control workflows (branches/PRs) to keep changes auditable and safe using scrum framework to plan, track, and deliver each step of the project",
-        "Deployment pipeline publishes the built app directly to Azure for continuous delivery",
-        
+      "Integrated version control workflows (branches/PRs) to keep changes auditable and safe using scrum framework to plan, track, and deliver each step of the project for CI",
+      "Built a CD pipeline triggered on commits that installs Node.js in an ubuntu VM, runs the production build, automates staging & packaging by copying the compiled build files into a staging directory, compresses outputs into a (.zip) artifact, and finally publishes the artifact for downstream release",
+      "Deployment pipeline publishes the built app directly to Azure for Continuous Delivery",  
     ],
     tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"],
-
-    },
+  },
     {
-    title: "Cypress Framework",
-    oneLiner: "Advanced testing techniques packaged into a practical Cypress framework.",
+    title: "Performance Teststing with K6",
+    oneLiner: "Owner/Developer/Tester (2026)",
     description:
-      "Developer/Tester (2025). Framework covering backend automation practices, stability patterns, and execution features used in real-world suites.",
+      "Performance testing framework that gets triggered with Pull Requests and only merges to Main if it passes the Thresholds of API Req duration < 200ms & Req failure rate is < 10% .",
     highlights: [
-      "Covers cookies/local storage, retries, error interception, plugins, and Page Object Models",
-      "Custom commands, fixtures, env variables, parallel testing, video reporting",
-      "Docker + Node.js included for reproducible runs"
+      "Scheduled & Merged triggers an Ubuntu VM that publishes to K6 Cloud building a dashboard of trend graphs + historical results to detect performance regressions and bottlenecks early",      
+      "Smoke, Load, Stress, Spike & Soak testing to validate API performance under various conditions",
+      "Integration in CI through workflow YML Jobs, repository secrets & GitHub action rulesets for branch strategy with automated execution",
+
+    ],
+    tech: ["K6", "Node.js", "Postman", "K6 Cloud"],
+    links: [{
+        label: "GitHub Repo",
+        href: "https://github.com/David101111101/performance-testing-k6",}],
+  },
+  {
+    title: "Cypress Framework",
+    oneLiner: "Developer/Tester (2025).",
+    description:
+      "Framework covering backend automation practices used in real-world suites.",
+    highlights: [
+      "Strategic cookie/local storage management, retry mechanisms for flaky tests, error interception for debugging, custom plugins and Page Object Models for maintainable, scalable test architecture",
+      "Built reusable utilities including custom Cypress commands, fixtures, parallel test execution, and video recording with for test failure analysis",
+      "Containerized with Docker and Node.js for environment consistency, eliminating 'works on my machine' issues and enabling seamless CI/CD integration with guaranteed reproducible test runs across all environments"
     ],
     tech: ["Cypress", "JavaScript/TypeScript", "Node.js", "Docker"],
     links: [{
@@ -142,27 +155,12 @@ export const projects: Project[] = [
         href: "https://github.com/David101111101/Cypress-Automation-Framework",}],
   },
   {
-    title: "Puppeteer Framework",
-    oneLiner: "Automation framework exploring advanced browser automation and performance checks.",
-    description:
-      "Developer/Tester (2025). Built utilities for modern QA concerns: accessibility, performance, device emulation, and parallel execution.",
-    highlights: [
-      "Geolocation, PDF generation, incognito mode, device emulation & dynamic viewports",
-      "Screenshots for visual checks; parallel multi-browser execution",
-      "Performance checks (page-load / first contentful paint) and BDD (Gherkin)"
-    ],
-    tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"],
-    links: [{
-        label: "GitHub Repo",
-        href: "https://github.com/David101111101/Puppeteer-Framework",}],
-  },
-    {
     title: "Cypress Backend Testing Framework",
-    oneLiner: "API validation with SQL/MySQL + NoSQL and content-type/data integrity checks.",
+    oneLiner: "Developer/Tester (2025)",
     description:
-      "Developer/Tester (2025). Mixed API testing tooling and data stores to validate status codes, headers, schemas, and CRUD integrity.",
+      "Mixed API testing tooling and data stores to validate status codes, headers, schemas, and CRUD integrity with SQL/MySQL.",
     highlights: [
-      "API testing with Postman/devtools; status codes, headers, content-type validation",
+      "API testing with Postman/Devtools; status codes, headers, content-type validation",
       "GraphQL practice with PokeAPI; CRUD with MongoDB + SQL/MySQL",
       "JSON Server usage to simulate and validate backend behavior"
     ],
@@ -172,19 +170,19 @@ export const projects: Project[] = [
         href: "https://github.com/David101111101/cypress-backend-automation",}],
   },
   {
-    title: "Playwright E2E Store Flow",
-    oneLiner: "End-to-end automation of an e-commerce user flow with traceable debugging.",
+    title: "Puppeteer Framework",
+    oneLiner: "Developer/Tester (2025)",
     description:
-      "Developer/Tester (2025). Automated product search → add to cart → checkout/payment flow using assertions at each interaction.",
+      "Built utilities for modern QA concerns: accessibility, performance, device emulation, and parallel execution.",
     highlights: [
-      "Assertions per interaction to validate UI state and business flow",
-      "Tracing with screenshots and multi-browser usage",
-      "Debugging tools integrated for fast failure diagnosis"
+      "Geolocation, PDF generation, incognito mode, device emulation & dynamic viewports",
+      "Screenshots for visual checks; parallel multi-browser execution",
+      "Performance checks (page-load / first contentful paint) and BDD (Gherkin)"
     ],
-    tech: ["Playwright", "TypeScript", "E2E Testing"],
+    tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"],
     links: [{
         label: "GitHub Repo",
-        href: "https://github.com/David101111101/playwright-demo",}],
+        href: "https://github.com/David101111101/Puppeteer-Framework",}],
   }
 ];
 
@@ -262,20 +260,36 @@ export const diplomas: Diploma[] = [
     image: "diplomas/CypressBackEndAutomation.png" 
   },
    { 
-    title: "Advanced Test Automation with Puppeteer", 
-    issuer: "Platzi", 
-    category: "Automation", 
-    proof: { label: "View Certificate", 
-    href: "https://platzi.com/p/davidstevenabril/curso/2706-course/diploma/detalle/" }, 
-    image: "diplomas/AdvancedPuppeteerAutomation.png" 
-  },
-   { 
     title: "Advanced Cypress Frameworks", 
     issuer: "Platzi", 
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/4760-course/diploma/detalle/" }, 
     image: "diplomas/AdvancedCypress.png" 
+  },   
+  { 
+    title: "UI Test Automation with Cypress", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/3075-course/diploma/detalle/" }, 
+    image: "diplomas/UI-Test-Automation-Cypress.png" 
+  },  
+  { 
+    title: "Test Automation with Playwright", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/5679-course/diploma/detalle/" }, 
+    image: "diplomas/TestAutomationPlaywright.png" 
+  },
+    { 
+    title: "Advanced Test Automation with Puppeteer", 
+    issuer: "Platzi", 
+    category: "Automation", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/2706-course/diploma/detalle/" }, 
+    image: "diplomas/AdvancedPuppeteerAutomation.png" 
   },
    { 
     title: "How to Get Feedback Audio Course", 
@@ -316,5 +330,13 @@ export const diplomas: Diploma[] = [
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2496-course/diploma/detalle/" }, 
     image: "diplomas/Emotionalintelligence.png" 
+  },
+  { 
+    title: "Performance Testing with K6", 
+    issuer: "Platzi", 
+    category: "QA", 
+    proof: { label: "View Certificate", 
+    href: "https://platzi.com/p/davidstevenabril/curso/4657-course/diploma/detalle/" }, 
+    image: "diplomas/PerformanceTesting-k6.png" 
   },
 ];
