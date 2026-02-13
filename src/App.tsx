@@ -49,16 +49,16 @@ export default function App() {
           <div className="container">
             <div className="grid cols-2" style={{ alignItems: "start" }}>
               <div>
+                {/*
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                   <span className="badge">{profile.role}</span>
+                  <span className="badge">{profile.location}</span>
                   <span className="badge">{profile.languages}</span>
                 </div>
+                */}
 
                 <h1 style={{ margin: 0, fontSize: 44, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-                  Quality you can trust.
-                  <span style={{ display: "block", color: "var(--muted)", fontSize: 22, marginTop: 10 }}>
-                    Automation engineered for reliability, not noise.
-                  </span>
+                  Automation engineered for reliability.
                 </h1>
 
                 <p style={{ color: "var(--muted)", maxWidth: "68ch", marginTop: 16, fontSize: 16, lineHeight: 1.6 }}>
@@ -69,7 +69,6 @@ export default function App() {
                   <MailToButton />
                 </div>
               </div>
-
               {/* TRUST PANEL */}
               <div className="card" style={{ padding: 18 }}>
                 <div className="nda-badge-container">
@@ -121,7 +120,7 @@ export default function App() {
         <Section
           id="projects"
           title="Automation projects"
-          lead="Five focused projects that show how I design frameworks, reduce flakiness, and ship reliable quality signals."
+          lead=""
         >
           <div className="grid cols-2">
             {projects.map((p) => (
