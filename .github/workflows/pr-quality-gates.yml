@@ -51,7 +51,7 @@ jobs:
         if: always()
         uses: dorny/test-reporter@v1
         with:
-          name: Playwright (${{ matrix.browser }})
+          name: Junit Report (${{ matrix.browser }})
           path: playwright-report/junit.xml
           reporter: java-junit
 

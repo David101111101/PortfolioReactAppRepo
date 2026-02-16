@@ -61,7 +61,7 @@ export default function App() {
                   Automation engineered for reliability.
                 </h1>
 
-                <p style={{ color: "var(--muted)", maxWidth: "68ch", marginTop: 16, fontSize: 16, lineHeight: 1.6 }}>
+                <p>
                   {profile.summary}
                 </p>
 

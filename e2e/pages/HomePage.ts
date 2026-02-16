@@ -31,7 +31,7 @@ export class HomePage {
     return this.page.getByRole("link", { name: /resume/i });
   }
 
-  async expectHeadingInViewport(title: string, ratio = 0.2) {
-    await expect(this.heading(title)).toBeInViewport({ ratio }); // viewport assertion
+  async expectUrlHasSlug(slug: string) { 
+    await expect(this.page).toHaveURL(new RegExp(`#${slug}$`)); 
   }
 }

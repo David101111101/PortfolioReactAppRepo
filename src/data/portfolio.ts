@@ -230,34 +230,34 @@ export const diplomas: Diploma[] = [
       label: "View Certificate", 
       href: "https://drive.google.com/file/d/1ecQsbP8TfKjDRvH4kld4rpQGBcyK6iL5/view?usp=sharing"
     }, 
-    image: "diplomas/TechnologistDegree.png"
+    image: "diplomas/TechnologistDegree.webp"
   },
   { title: "Azure DevOps: CI/CD", 
     issuer: "Platzi", 
     category: "Engineering",  
     proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/curso/3275-course/diploma/detalle/"}, 
-    image: "diplomas/AzureDevopsCDCI-diploma.png" 
+    image: "diplomas/AzureDevopsCDCI-diploma.webp" 
   },
   { title: "QA Automation Engineer", 
     issuer: "Platzi", 
     category: "Engineering",
     proof: { label: "View Certificate",
     href: "https://platzi.com/p/davidstevenabril/ruta/7632-ruta/diploma/detalle/"}, 
-    image: "diplomas/QaAutomationEngineer.png" 
+    image: "diplomas/QaAutomationEngineer.webp" 
   },
   { title: "Software Quality Assurance Bootcamp",
      issuer: "Jala University",
      category: "QA",   
     proof: { label: "View Certificate", 
     href: "https://drive.google.com/file/d/1xl59g1H-h9vil5txBcSl4fhigCzxZM6n/view?usp=sharing"}, 
-    image: "diplomas/QaBootcamp.png" },
+    image: "diplomas/QaBootcamp.webp" },
   { 
     title: "Backend Test Automation Course with Cypress", 
     issuer: "Platzi", 
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/3076-course/diploma/detalle/" }, 
-    image: "diplomas/CypressBackEndAutomation.png" 
+    image: "diplomas/CypressBackEndAutomation.webp" 
   },
    { 
     title: "Advanced Cypress Frameworks", 
@@ -265,7 +265,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/4760-course/diploma/detalle/" }, 
-    image: "diplomas/AdvancedCypress.png" 
+    image: "diplomas/AdvancedCypress.webp" 
   },   
   { 
     title: "UI Test Automation with Cypress", 
@@ -273,7 +273,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/3075-course/diploma/detalle/" }, 
-    image: "diplomas/UI-Test-Automation-Cypress.png" 
+    image: "diplomas/UI-Test-Automation-Cypress.webp" 
   },  
   { 
     title: "Test Automation with Playwright", 
@@ -281,7 +281,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/5679-course/diploma/detalle/" }, 
-    image: "diplomas/TestAutomationPlaywright.png" 
+    image: "diplomas/TestAutomationPlaywright.webp" 
   },
     { 
     title: "Advanced Test Automation with Puppeteer", 
@@ -289,7 +289,7 @@ export const diplomas: Diploma[] = [
     category: "Automation", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2706-course/diploma/detalle/" }, 
-    image: "diplomas/AdvancedPuppeteerAutomation.png" 
+    image: "diplomas/AdvancedPuppeteerAutomation.webp" 
   },
    { 
     title: "How to Get Feedback Audio Course", 
@@ -297,7 +297,7 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2482-course/diploma/detalle/" }, 
-    image: "diplomas/HowToGetFeedback.png" 
+    image: "diplomas/HowToGetFeedback.webp" 
   },
  
   { 
@@ -306,14 +306,14 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2060-course/diploma/detalle/" }, 
-    image: "diplomas/EffectiveCommunication.png" 
+    image: "diplomas/EffectiveCommunication.webp" 
   },
    { 
     title: "Fundamentals of Software Testing",
     issuer: "Platzi",
     category: "QA",  
     proof: { label: "View Certificate", href: "https://platzi.com/p/davidstevenabril/curso/1421-course/diploma/detalle/"}, 
-    image: "diplomas/TestingFundamentals.png" 
+    image: "diplomas/TestingFundamentals.webp" 
     },
   { 
     title: "English (C2 Proficient)", 
@@ -321,7 +321,7 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://cert.efset.org/dbRhNU" }, 
-    image: "diplomas/EfSetEnglish.png" 
+    image: "diplomas/EfSetEnglish.webp" 
   },
   { 
     title: "Managing Emotions for Productivity and Organization", 
@@ -329,7 +329,7 @@ export const diplomas: Diploma[] = [
     category: "Other", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/2496-course/diploma/detalle/" }, 
-    image: "diplomas/Emotionalintelligence.png" 
+    image: "diplomas/Emotionalintelligence.webp" 
   },
   { 
     title: "Performance Testing with K6", 
@@ -337,6 +337,6 @@ export const diplomas: Diploma[] = [
     category: "QA", 
     proof: { label: "View Certificate", 
     href: "https://platzi.com/p/davidstevenabril/curso/4657-course/diploma/detalle/" }, 
-    image: "diplomas/PerformanceTesting-k6.png" 
+    image: "diplomas/PerformanceTesting-k6.webp" 
   },
 ];
