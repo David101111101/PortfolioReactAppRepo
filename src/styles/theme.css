@@ -189,7 +189,7 @@ nav .badge {
     background-image: url("/BgImage.png");
     background-size: cover;
     background-repeat: no-repeat;
-    background-attachment: scroll;
+    background-attachment: fixed;
 }
 
 /* When light theme is active, cross-fade */
