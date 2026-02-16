@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 concurrency:
   group: pr-quality-${{ github.ref }}
   cancel-in-progress: true
@@ -26,6 +31,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
+          cache: "npm"
 
       - name: Install deps
         run: npm ci
@@ -33,8 +39,21 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
+      - name: Build (for preview server)
+        run: npm run build
+        env:
+          VITE_BASE: /
+
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Publish test results (JUnit → GitHub UI)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Playwright (${{ matrix.browser }})
+          path: playwright-report/junit.xml
+          reporter: java-junit
 
       - name: Publish Playwright summary
         if: always()
@@ -61,6 +80,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
+          cache: "npm"
 
       - name: Install deps
         run: npm ci
@@ -73,3 +93,42 @@ jobs:
         with:
           configPath: ./lighthouserc.json
           uploadArtifacts: true
+
+  pr-comment:
+    if: github.event_name == 'pull_request'
+    needs: [e2e, lighthouse]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pw-summary-*
+          merge-multiple: true
+          path: summaries
+
+      - name: Build PR comment body
+        run: |
+          echo "## ✅ PR Quality Gate Results" > comment.md
+          echo "" >> comment.md
+          cat summaries/*.md >> comment.md
+          echo "" >> comment.md
+          echo "### 🔎 Lighthouse" >> comment.md
+          echo "- See Lighthouse artifact in this workflow run (Scores + failing assertions are visible in the action UI)." >> comment.md
+          echo "" >> comment.md
+          echo "_Debug: PR → Checks → failing job → Artifacts → open playwright-report/index.html; traces via npx playwright show-trace trace.zip_" >> comment.md
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "PR Quality Gate Results"
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body-path: comment.md
+          edit-mode: replace

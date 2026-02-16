@@ -1,10 +1,12 @@
 import fs from "node:fs";
+import path from "node:path";
 
 const browser = process.argv[2] ?? "all";
+const outMd = process.argv[3]; // e.g. summaries/chromium.md
 const reportPath = "playwright-report/report.json";
-const outPath = process.env.GITHUB_STEP_SUMMARY;
+const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
 
-if (!fs.existsSync(reportPath) || !outPath) process.exit(0);
+if (!fs.existsSync(reportPath)) process.exit(0);
 
 const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
 
@@ -30,7 +32,6 @@ for (const spec of specs) {
       title: `${spec.title} › ${t.title}`,
       status,
       flaky,
-      durationMs: results.reduce((acc, r) => acc + (r.duration || 0), 0),
     });
   }
 }
@@ -38,26 +39,20 @@ for (const spec of specs) {
 const total = tests.length;
 const passed = tests.filter((t) => t.status === "passed").length;
 const failed = tests.filter((t) => t.status === "failed").length;
-const skipped = tests.filter((t) => t.status === "skipped").length;
 const flaky = tests.filter((t) => t.flaky).length;
 
 const topFailures = tests.filter((t) => t.status === "failed").slice(0, 5);
 
 const md = [
-  `## 🎭 Playwright Summary (${browser})`,
-  ``,
-  `- Total: **${total}**`,
-  `- Passed: **${passed}**`,
-  `- Failed: **${failed}**`,
-  `- Flaky: **${flaky}**`,
-  `- Skipped: **${skipped}**`,
-  ``,
-  failed
-    ? `### Top failures\n${topFailures.map((t) => `- ${t.title}`).join("\n")}`
-    : `✅ No failures`,
-  ``,
-  `Artifacts (HTML report, traces/videos/screenshots on failure) are uploaded in the workflow run.`,
+  `### 🎭 Playwright (${browser})`,
+  `- Total: **${total}** | Passed: **${passed}** | Failed: **${failed}** | Flaky: **${flaky}**`,
+  failed ? `- Top failures:\n${topFailures.map((t) => `  - ${t.title}`).join("\n")}` : `- ✅ No failures`,
   ``,
 ].join("\n");
 
-fs.appendFileSync(outPath, md);
+if (stepSummaryPath) fs.appendFileSync(stepSummaryPath, md);
+
+if (outMd) {
+  fs.mkdirSync(path.dirname(outMd), { recursive: true });
+  fs.writeFileSync(outMd, md);
+}
