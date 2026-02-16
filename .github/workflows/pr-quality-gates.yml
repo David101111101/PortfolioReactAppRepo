@@ -95,7 +95,7 @@ jobs:
           uploadArtifacts: true
 
   pr-comment:
-    if: github.event_name == 'pull_request'
+      if: ${{ github.event_name == 'pull_request' && always() }}
     needs: [e2e, lighthouse]
     runs-on: ubuntu-latest
     steps:

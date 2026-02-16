@@ -193,7 +193,7 @@ nav .badge {
 
 .bg-light {
   opacity: 0;
-    background-image: url("/BgImage.png");
+    background-image: url("/BgImage.webp");
     background-size: cover;
     background-repeat: no-repeat;
     background-attachment: fixed;
