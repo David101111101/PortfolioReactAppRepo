@@ -55,9 +55,17 @@ jobs:
           path: playwright-report/junit.xml
           reporter: java-junit
 
-      - name: Publish Playwright summary
+      - name: Write summary snippet
         if: always()
-        run: node scripts/playwright-summary.mjs ${{ matrix.browser }}
+        run: node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md
+
+      - name: Upload summary snippet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-summary-${{ matrix.browser }}
+          path: summaries/${{ matrix.browser }}.md
+
 
       - name: Upload Playwright artifacts
         if: always()
@@ -95,7 +103,7 @@ jobs:
           uploadArtifacts: true
 
   pr-comment:
-      if: ${{ github.event_name == 'pull_request' && always() }}
+    if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs, even if previous jobs fail 
     needs: [e2e, lighthouse]
     runs-on: ubuntu-latest
     steps:
