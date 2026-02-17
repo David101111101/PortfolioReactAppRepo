@@ -8,7 +8,8 @@ export class HomePage {
   constructor(private readonly page: Page) {}
 
   async goto() {
-    await this.page.goto("/");
+    const basePath = (process.env.APP_BASE_PATH || "/").trim();
+    await this.page.goto(basePath.startsWith("/") ? basePath : `/${basePath}`);
   }
 
   // Works whether your nav item is implemented as <a> or <button>

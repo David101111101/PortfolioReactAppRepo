@@ -43,6 +43,9 @@ jobs:
       # Runs the same suite but only chromium
       - name: Run Playwright smoke
         run: npx playwright test --project=chromium
+        env:
+          APP_BASE_PATH: "/PortfolioReactAppRepo/"
+          PLAYWRIGHT_BASE_URL: "http://127.0.0.1:4173"
 
       # Don't deploy if budgets regress on main
       - name: Audit with Lighthouse CI
