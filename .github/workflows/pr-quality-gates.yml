@@ -103,7 +103,7 @@ jobs:
           uploadArtifacts: true
 
   pr-comment:
-    if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs, even if previous jobs fail 
+    if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs
     needs: [e2e, lighthouse]
     runs-on: ubuntu-latest
     steps:
