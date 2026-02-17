@@ -271,7 +271,7 @@ nav .badge {
         gap: 10px !important;
   }
   nav .btn, nav a {
-    min-width: 3.9rem; 
+    min-width: 4.9rem; 
     max-height: 1.3rem;
   }
 }
