@@ -1,0 +1,142 @@
+name: PR Quality Gates
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: pr-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      VITE_BASE: /
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Build (for preview server)
+        run: npm run build
+        env:
+          VITE_BASE: /
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Publish test results (JUnit → GitHub UI)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Junit Report (${{ matrix.browser }})
+          path: playwright-report/junit.xml
+          reporter: java-junit
+
+      - name: Write summary snippet
+        if: always()
+        run: node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md
+
+      - name: Upload summary snippet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-summary-${{ matrix.browser }}
+          path: summaries/${{ matrix.browser }}.md
+
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+
+  lighthouse:
+    name: Lighthouse (budgets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_BASE: /
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit with Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+
+  pr-comment:
+    if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs, even if previous jobs fail 
+    needs: [e2e, lighthouse]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pw-summary-*
+          merge-multiple: true
+          path: summaries
+
+      - name: Build PR comment body
+        run: |
+          echo "## ✅ PR Quality Gate Results" > comment.md
+          echo "" >> comment.md
+          cat summaries/*.md >> comment.md
+          echo "" >> comment.md
+          echo "### 🔎 Lighthouse" >> comment.md
+          echo "- See Lighthouse artifact in this workflow run (Scores + failing assertions are visible in the action UI)." >> comment.md
+          echo "" >> comment.md
+          echo "_Debug: PR → Checks → failing job → Artifacts → open playwright-report/index.html; traces via npx playwright show-trace trace.zip_" >> comment.md
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "PR Quality Gate Results"
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body-path: comment.md
+          edit-mode: replace

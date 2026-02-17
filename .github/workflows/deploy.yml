@@ -5,17 +5,63 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions:      #Grants the workflow access to:
+  contents: read  #Read repo contents
+  pages: write    #Write to GitHub Pages
+  id-token: write #use OIDC tokens (needed for secure deployments)
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: "pages"            #Ensures only one Pages deployment runs at a time
+  cancel-in-progress: true  #Cancels any in-progress job if a new one starts.
 
 jobs:
+  verify:                   #Runs smoke tests and audits before deployment
+    name: Verify (chromium smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      # Runs the same suite but only chromium
+      - name: Run Playwright smoke
+        run: npx playwright test --project=chromium
+
+      # Don’t deploy if budgets regress on main
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BASE: ${{ vars.VITE_BASE }}
+
+      - name: Audit with Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-playwright
+          path: |
+            playwright-report/
+            test-results/
+
   deploy:
+    needs: verify
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -44,7 +90,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: "./dist"
+          path: "./dist" #vite outputs to dist by default.
 
       - name: Deploy to GitHub Pages
         id: deployment
