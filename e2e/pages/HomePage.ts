@@ -8,9 +8,13 @@ export class HomePage {
   constructor(private readonly page: Page) {}
 
   async goto() {
-    const basePath = (process.env.APP_BASE_PATH || "/").trim();
-    await this.page.goto(basePath.startsWith("/") ? basePath : `/${basePath}`);
+  const basePath = (process.env.APP_BASE_PATH || "/").trim();
+  const normalized = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  await this.page.goto(normalized);
+  // Guard: wait for React app to actually render
+  await this.page.waitForSelector("#root", { timeout: 10000 });
   }
+
 
   // Works whether your nav item is implemented as <a> or <button>
   navItem(name: string): Locator {

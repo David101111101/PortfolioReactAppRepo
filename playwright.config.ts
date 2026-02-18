@@ -8,10 +8,7 @@ function normalizeBasePath(p: string) {
 }
 
 // Origin only (no repo path here)
-const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173";
-
-// Repo base path for GitHub Pages project sites; defaults to "/" for local + PR workflows
-const APP_BASE_PATH = normalizeBasePath(process.env.APP_BASE_PATH || "/");
+const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:4173";
 
 export default defineConfig({
   testDir: "./e2e/specs",
@@ -39,11 +36,8 @@ export default defineConfig({
 
   webServer: {
     // Note: preview expects dist/ to exist, so your workflow must run `npm run build` before tests.
-    command: "npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
-
-    // IMPORTANT: wait for the correct base path to be reachable ("/" locally, "/PortfolioReactAppRepo/" in deploy)
-    url: new URL(APP_BASE_PATH, ORIGIN).toString(),
-
+    command: "npm run preview -- --host localhost --port 4173 --strictPort",
+    url: ORIGIN,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
