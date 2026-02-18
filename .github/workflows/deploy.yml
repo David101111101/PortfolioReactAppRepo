@@ -35,6 +35,11 @@ jobs:
       - name: Install Chromium browser
         run: npx playwright install chromium --with-deps
 
+      - name: Build
+        run: npm run build
+        env:
+         VITE_BASE: /
+
       - name: Check dist folder
         run: ls -la dist # Sanity check to ensure we're in the right directory and can access build output
 
