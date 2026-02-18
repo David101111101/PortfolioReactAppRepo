@@ -35,11 +35,11 @@ export default defineConfig({
   },
 
   webServer: {
-    // Note: preview expects dist/ to exist, so your workflow must run `npm run build` before tests.
-    command: "npm run preview -- --host localhost --port 4173 --strictPort",
-    url: ORIGIN,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+  command:
+    "npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
+  url: "http://127.0.0.1:4173",
+  reuseExistingServer: !process.env.CI,
+  timeout: 180_000,
   },
 
   projects: [
