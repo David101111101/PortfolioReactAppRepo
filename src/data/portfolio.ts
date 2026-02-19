@@ -111,7 +111,7 @@ export const projects: Project[] = [
   },
     {
     title: "Azure DevOps: CI/CD",
-    links: [{label: "GitHub Repo",
+    links: [{label: "Git Repo",
            href: "https://github.com/David101111101/PortfolioReactAppRepo",}],
     oneLiner: "Owner/Developer/Tester (2026)",
     description:
@@ -124,7 +124,7 @@ export const projects: Project[] = [
     tech: ["Azure DevOps", "CI/CD", "Git", "Node.js", "Vite", "React", "Scrum"],
   },
     {
-    title: "Performance Teststing with K6",
+    title: "Performance Testing K6",
     oneLiner: "Owner/Developer/Tester (2026)",
     description:
       "Performance testing framework that gets triggered with Pull Requests and only merges to Main if it passes the Thresholds of API Req duration < 200ms & Req failure rate is < 10% .",
@@ -136,7 +136,7 @@ export const projects: Project[] = [
     ],
     tech: ["K6", "Node.js", "Postman", "K6 Cloud"],
     links: [{
-        label: "GitHub Repo",
+        label: "Git Repo",
         href: "https://github.com/David101111101/performance-testing-k6",}],
   },
   {
@@ -151,11 +151,11 @@ export const projects: Project[] = [
     ],
     tech: ["Cypress", "JavaScript/TypeScript", "Node.js", "Docker"],
     links: [{
-        label: "GitHub Repo",
+        label: "Git Repo",
         href: "https://github.com/David101111101/Cypress-Automation-Framework",}],
   },
   {
-    title: "Cypress Backend Testing Framework",
+    title: "Cypress Backend Testing",
     oneLiner: "Developer/Tester (2025)",
     description:
       "Mixed API testing tooling and data stores to validate status codes, headers, schemas, and CRUD integrity with SQL/MySQL.",
@@ -166,7 +166,7 @@ export const projects: Project[] = [
     ],
     tech: ["Cypress", "Postman", "GraphQL", "SQL/MySQL", "MongoDB"],
     links: [{
-        label: "GitHub Repo",
+        label: "Git Repo",
         href: "https://github.com/David101111101/cypress-backend-automation",}],
   },
   {
@@ -181,7 +181,7 @@ export const projects: Project[] = [
     ],
     tech: ["Puppeteer", "JavaScript/TypeScript", "Performance", "Accessibility"],
     links: [{
-        label: "GitHub Repo",
+        label: "Git Repo",
         href: "https://github.com/David101111101/Puppeteer-Framework",}],
   }
 ];

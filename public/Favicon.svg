@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    text {
+      font-family: monospace;
+      font-size: 18px;
+      fill: #00ff41; /* matrix green */
+      font-weight: bold;
+    }
+  </style>
+
+  <!-- Row 1 -->
+  <text x="6" y="20">1</text>
+  <text x="24" y="20">0</text>
+  <text x="42" y="20">1</text>
+
+  <!-- Row 2 -->
+  <text x="6" y="38">0</text>
+  <text x="24" y="38">1</text>
+  <text x="42" y="38">0</text>
+
+  <!-- Row 3 -->
+  <text x="6" y="56">1</text>
+  <text x="24" y="56">0</text>
+  <text x="42" y="56">1</text>
+</svg>
