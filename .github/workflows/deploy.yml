@@ -39,7 +39,7 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Chromium browser
-        run: npx playwright install chromium
+        run: npx playwright install chromium --with-deps
 
       - name: Build
         run: npm run build
