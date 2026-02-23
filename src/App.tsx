@@ -4,10 +4,7 @@ import { Section } from "./components/Section";
 import { DiplomaGrid } from "./components/DiplomaGrid";
 import { ProjectCard } from "./components/ProjectCard";
 import { diplomas, experiences, otherExperience, profile, projects, skills, stats } from "./data/portfolio";
-
-
-
-
+import ChatWidget from "./components/ChatWidget";
 
 function MailToButton() {
   async function copyEmail(event: React.MouseEvent<HTMLButtonElement>) {
@@ -50,6 +47,7 @@ export default function App() {
   return (
     
     <section id="top">
+       
       <Header />
       <div className="bg bg-dark" aria-hidden="true" />
       <div className="bg bg-light" aria-hidden="true" />
@@ -199,7 +197,7 @@ export default function App() {
             </div>
           </div>
         </Section>
-
+        <ChatWidget />
         <footer style={{ padding: "28px 0 40px", borderTop: "1px solid var(--soft)" }}>
           <div className="container" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <span style={{ color: "var(--muted)" }}>
@@ -209,8 +207,10 @@ export default function App() {
               Built with React + Vite
             </span>
           </div>
-        </footer>
+        </footer> 
+        
       </main>
     </section>
   );
+
 }

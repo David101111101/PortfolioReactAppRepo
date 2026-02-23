@@ -20,6 +20,80 @@ html {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+.chat-widget {
+  user-select: text; /* override global html user-select:none */
+}
+#chatBubbleWidget {
+position: fixed; 
+bottom: 24px; 
+right: 24px; 
+width: 60px; 
+height: 60px; 
+border-radius: 50%; 
+background: rgb(0 0 0 / 55%);
+backdrop-filter: blur(7px); 
+-webkit-backdrop-filter: blur(1px);
+display: flex; align-items: center; 
+justify-content: center; cursor: pointer; 
+border: 1px solid rgba(0, 255, 0, 0.4); 
+font-size: 24px; z-index: 9999; 
+box-shadow: var(--shadow);
+}
+.chat-message {
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-user {
+  color: #FFF;
+}
+
+.chat-assistant {
+  color: #00ff88;
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  background-color: #00ff88;
+  margin-left: 2px;
+  animation: blink 1s steps(1) infinite;
+}
+.chat-widget {
+  user-select: text;
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  width: 340px;
+  max-height: 350px;
+  background: rgb(0 0 0 / 65%);
+  backdrop-filter: blur(3px);
+  border-radius: 16px;
+  border: 1px solid var(--soft);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 999;
+  color: #00ff88;
+  box-shadow: var(--shadow);
+  transform-origin: bottom right;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.chat-widget.open {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.chat-widget.close {
+  transform: scale(0.85);
+  opacity: 0;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
