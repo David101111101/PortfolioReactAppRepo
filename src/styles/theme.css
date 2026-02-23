@@ -15,7 +15,8 @@
   --minishadow: 1px 2px 5px #00000059, 3px 2px 3px #00000059;
   --max: 1080px;
   color-scheme: dark;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: 18px;
 }
 #root {
   position: relative;
@@ -201,11 +202,12 @@ nav .badge {
     background-attachment: fixed;
 }
 
-/* When light theme is active, cross-fade */
+/* When light theme is active */
 :root[data-theme="light"] .bg-dark { opacity: 0; }
 :root[data-theme="light"] .bg-light { opacity: 1; }
 :root[data-theme="light"] nav .btn, .badge { text-shadow: 0.1px 0.1px 1px #000; }
 :root[data-theme="light"] #titleName { text-shadow: 2px 2px 5px #07070757; }
+:root[data-theme="light"] #chat-window-section, :root[data-theme="light"] #chatBubbleWidget { background: rgb(0 0 0 / 70%);backdrop-filter: blur(7px);}
 
 /* Smooth theme transitions (applied briefly on toggle) */
 .theme-transition,
@@ -221,6 +223,8 @@ nav .badge {
     opacity 2s ease-in,
     transform 3s ease;
 }
+
+
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
@@ -283,4 +287,5 @@ nav .badge {
     order: -1;
   }
   .btn {font-size: 12px;}
+  #chat-window-section {width: stretch; margin-left: 1rem;}
 }
