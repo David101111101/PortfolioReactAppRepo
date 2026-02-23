@@ -16,67 +16,62 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamBuffer, setStreamBuffer] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasGreeted, setHasGreeted] = useState(false);
-  const TYPING_SPEED = 70; //typing speed
+  const [isTypingGreeting, setIsTypingGreeting] = useState(false);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+  const TYPING_SPEED = 70;
   const INITIAL_GREETING = `I've been trained on his CV and all repository documentation.
-Ask me about his projects, architecture decisions, tech stack, or career experience.`;
-
+  Ask me about his projects, architecture decisions, tech stack, or career experience.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-    // Displays welcome message with typing animation
-    useEffect(() => {
-    if (isOpen && !hasGreeted) {
-        const assistantMessage: Message = {
-        role: "assistant",
-        content: "",
-        };
+  useEffect(() => {
+  if (!isOpen || hasGreeted) return;
 
-        setMessages([assistantMessage]);
-        setStreamBuffer(INITIAL_GREETING);
-        setHasGreeted(true);
-    }
-    }, [isOpen, hasGreeted]);
+  setHasGreeted(true);
+  setIsTypingGreeting(true);
+  setGreetingIndex(0);
 
-    // Displays llm answer in chat window
-    useEffect(() => {
-    if (!streamBuffer) return;
+  const assistantMessage: Message = {
+    role: "assistant",
+    content: "",
+  };
 
-    let i = 0;
+  setMessages([assistantMessage]);
+}, [isOpen, hasGreeted]);
 
-    const type = () => {
-    if (i >= streamBuffer.length) {
-      setStreamBuffer("");
-      return;
-    }
+useEffect(() => {
+  if (!isTypingGreeting) return;
 
-    const char = streamBuffer.charAt(i);
+  if (greetingIndex >= INITIAL_GREETING.length) {
+    setIsTypingGreeting(false);
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    const nextChar = INITIAL_GREETING[greetingIndex];
 
     setMessages((prev) => {
       const updated = [...prev];
-      const lastIndex = updated.length - 1;
 
-      if (updated[lastIndex]?.role === "assistant") {
-        updated[lastIndex] = {
-          ...updated[lastIndex],
-          content: updated[lastIndex].content + char,
+      if (updated.length > 0 && updated[0].role === "assistant") {
+        updated[0] = {
+          ...updated[0],
+          content: updated[0].content + nextChar,
         };
       }
 
       return updated;
     });
 
-    i++;
+    setGreetingIndex((prev) => prev + 1);
+  }, TYPING_SPEED);
 
-    setTimeout(type, TYPING_SPEED);
-    };
-
-  type();
-}, [streamBuffer]);
+  return () => clearTimeout(timeout);
+}, [greetingIndex, isTypingGreeting]);
 
   const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
@@ -109,7 +104,20 @@ Ask me about his projects, architecture decisions, tech stack, or career experie
       if (done) break;
 
       const chunk = decoder.decode(value);
-      setStreamBuffer((prev) => prev + chunk);
+
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+
+        if (updated[lastIndex]?.role === "assistant") {
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: updated[lastIndex].content + chunk,
+          };
+        }
+
+        return updated;
+      });
 
     }
 
