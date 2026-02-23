@@ -7,6 +7,14 @@ function escapeRegExp(s: string) {
 export class HomePage {
   constructor(private readonly page: Page) {}
 
+  async toggleTheme() {
+    await this.page.locator('#theme-toggle').click();
+  }
+
+  async getTheme() {
+    return await this.page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  }
+
   async goto() {
   const basePath = (process.env.APP_BASE_PATH || "/").trim();
   const normalized = basePath.startsWith("/") ? basePath : `/${basePath}`;
@@ -16,7 +24,7 @@ export class HomePage {
   }
 
 
-  // Works whether your nav item is implemented as <a> or <button>
+  // Works whether nav item is implemented as <a> or <button>
   navItem(name: string): Locator {
     return this.page
       .getByRole("link", { name: new RegExp(`^${escapeRegExp(name)}$`, "i") })

@@ -177,9 +177,11 @@ nav .badge {
   position: fixed;
   inset: 0;
   z-index: 0;
-  pointer-events: none;    /* <-- prevents it from capturing clicks */
+  pointer-events: none;
   transition: opacity 5s ease;
   will-change: opacity;
+  background-position: center;
+  transform: translateZ(0);
 }
 
 .bg-dark {
