@@ -4,7 +4,7 @@ function statusBadge(status?: Project["status"]) {
   if (!status) return null;
   const map: Record<string, { text: string; tone: string }> = {
     public: { text: "Public", tone: "var(--ok)" },
-    nda: { text: "NDA Protected", tone: "var(--warn)" },
+    nda: { text: "NDA", tone: "var(--warn)" },
     private: { text: "Private", tone: "var(--muted)" },
   };
   const m = map[status];

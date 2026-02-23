@@ -1,0 +1,22 @@
+{
+	"name": "portfolio-chatbot",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"ingest": "node --loader ts-node/esm scripts/ingest.ts",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@types/node": "^25.3.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.5.2",
+		"wrangler": "^4.67.0"
+	},
+	"dependencies": {
+		"dotenv": "^17.3.1"
+	}
+}

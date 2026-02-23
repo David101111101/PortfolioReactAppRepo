@@ -64,10 +64,10 @@ export function Header() {
           <a className="badge" href="#experience">Experience</a>
           <a className="badge" href="#contact">Contact</a>
 
-          <button className="btn" onClick={toggleTheme} aria-label="Toggle theme">
+          <button id="theme-toggle" className="btn" onClick={toggleTheme} aria-label="Toggle theme">
             {theme === "dark" ? (
               // Sun icon for switching to light mode
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
                 <g clipPath="url(#clip0_2880_7340)">
                   <path d="M8 1.11133V2.00022" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
                   <path d="M12.8711 3.12891L12.2427 3.75735" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
