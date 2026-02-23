@@ -31,6 +31,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Chromium browser
         run: npx playwright install chromium --with-deps
@@ -38,7 +44,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-         VITE_BASE: /
+         VITE_BASE: "/"
 
       - name: Check dist folder
         run: ls -la dist # Sanity check to ensure we're in the right directory and can access build output

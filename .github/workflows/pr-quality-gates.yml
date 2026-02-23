@@ -35,9 +35,15 @@ jobs:
 
       - name: Install deps
         run: npm ci
+        
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+      - name: Install Playwright browser
+        run: npx playwright install ${{ matrix.browser }} --with-deps
 
       - name: Build (for preview server)
         run: npm run build
