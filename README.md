@@ -1,22 +1,7 @@
-# David Abril — QA Automation Engineer / SDET Portfolio
+# David Abril — Pull Request Quality Gate Autoamted testing
 
 **This repo itself demonstrates production-grade practices:** integrated Playwright E2E tests, accessibility checks, performance audits, automated PR quality gates visual reporting with Junit and automatig Summary comment generated & posted.
 https://david101111101.github.io/PortfolioReactAppRepo
-
-## About me
-
-**David Abril** — **QA Automation Engineer** (English C2 Certified)  
-Automation-focused QA engineer with backend development and team leadership experience. Driven by challenges and continuous learning, I pursue automation-first roles while deepening engineering skills.
-
-### Impact highlights
-
-- ✅ Automated **11** core setup workflows, saving **150+ hours** of manual work
-- ✅ Reduced **113** manual steps per site through framework design
-- ✅ Executed **~140,000 DOM interactions** with stable, maintainable test architecture
-- ✅ Built **Playwright + GitHub Actions PR gates** to keep main deployable
-- ✅ Cross-browser execution, accessibility compliance, and performance budgets in every PR
-
----
 
 ### Quality assurance built-in
 
