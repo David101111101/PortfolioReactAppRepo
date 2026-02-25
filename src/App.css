@@ -46,11 +46,14 @@ box-shadow: var(--shadow);
 }
 
 .chat-user {
-  color: #FFF;
+      color: rgb(232 230 227);
+    text-shadow: 0.2px 0.5px 1px #fefefe;
 }
 
 .chat-assistant {
-  color: #00ff88;
+  color: rgba(232, 230, 227, 0.7);
+    text-shadow: 0.5px 0.2px 1px #fefefe91;
+    margin-bottom: 14px;
 }
 
 .terminal-cursor {
@@ -68,17 +71,25 @@ box-shadow: var(--shadow);
   width: 340px;
   max-height: 350px;
   background: rgb(0 0 0 / 65%);
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(4px);
   border-radius: 16px;
   border: 1px solid var(--soft);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 999;
-  color: #00ff88;
   box-shadow: var(--shadow);
   transform-origin: bottom right;
   transition: transform 0.2s ease, opacity 0.2s ease;
+  
+}
+#chat-title {  
+  padding: 12px;
+  border-bottom: 1px solid var(--soft);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-shadow: 0.5px 0.2px 1px #fefefe91;
+  color: rgba(232, 230, 227, 0.7);
 }
 
 .chat-widget.open {

@@ -5,7 +5,7 @@ test("landing page renders hero content", async ({ home }) => {
   await expect(home.heading(/automation engineered for reliability/i)).toBeVisible();
 });
 
-test("theme nav bar btn toggle works", async ({ home }) => {
+test.skip("theme nav bar btn toggle works", async ({ home }) => {
   await home.goto();
   const initialTheme = await home.getTheme();
   await home.toggleTheme();

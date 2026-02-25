@@ -1,304 +1,185 @@
-# Puppeteer Testing Framework
+Puppeteer Testing Framework
+Browser Automation Framework with Jest & Page Object Architecture
 
-A robust, production-ready end-to-end testing framework built with **Puppeteer** and **Jest**, implementing the **Page Object Model (POM)** design pattern for maintainable and scalable automated testing.
+A production-style end-to-end automation framework built using Puppeteer and Jest, designed to demonstrate scalable browser automation architecture using the Page Object Model (POM) pattern.
 
----
+The framework validates complex user workflows while emphasizing maintainability, reusable abstractions, and reliable interaction with dynamic web applications.
 
-## 🎯 Overview
+Purpose
 
-This project demonstrates professional-grade browser automation and testing practices, specifically designed for validating complex user workflows such as travel booking platforms. The framework showcases best practices in test organization, error handling, and reusable component design.
+This project demonstrates how automated testing frameworks can be constructed directly on top of browser automation tooling rather than relying exclusively on higher-level testing platforms.
 
-**Live Testing Target:** [PHP Travels](https://phptravels.net/login) - A fully-featured travel booking application
+By combining Puppeteer with Jest, the framework showcases:
 
----
+Custom automation architecture design
 
-## ✨ Key Features
+Browser-level interaction control
 
-### 🏗️ **Page Object Model Architecture**
-- Clean separation of concerns with dedicated page classes
-- Reusable base page component with common element interactions
-- Modular component design for complex UI elements
+Scalable test organization
 
-### 🧪 **Comprehensive Test Coverage**
-- User authentication and login validation
-- Navigation bar component interaction testing
-- Complex flight reservation and search workflows
-- Form data entry and element validation
+Debuggable automation workflows
 
-### 🛠️ **Modern Testing Stack**
-- **Puppeteer** - Headless browser automation
-- **Jest** - Testing framework with HTML reporting
-- **Babel** - ES6+ JavaScript transpilation
-- **jest-html-reporter** - Beautiful HTML test reports
+The testing target simulates real-world travel booking scenarios involving authentication, navigation, and reservation flows.
 
-### ⚡ **Developer Experience**
-- Clear error messages with selector information
-- Timeout configurations for different test scenarios
-- Element visibility validation before interaction
-- Comprehensive logging for debugging
+Automation Scope
+End-to-End Workflow Validation
 
----
+Automated scenarios include:
 
-## 📋 Project Structure
+User authentication and session validation
 
-```
+Navigation component interaction
+
+Flight search and reservation workflows
+
+Form interaction and validation
+
+Page state verification
+
+Tests mirror real user behavior across a multi-step transactional application.
+
+Framework Architecture
+Page Object Model (POM)
+
+Automation follows a structured abstraction model where each application page is represented as a dedicated class.
+
+Key characteristics:
+
+Separation between test logic and UI interaction logic
+
+Centralized selector management
+
+Reusable interaction methods
+
+Improved long-term maintainability
+
+A shared BasePage provides standardized browser interaction utilities used across all pages.
+
+Core Architecture Layers
+Tests (Jest Suites)
+        ↓
+Page Objects
+        ↓
+BasePage Abstractions
+        ↓
+Puppeteer Browser Automation
+
+This layered design mirrors automation frameworks used in enterprise testing environments.
+
+Developer Experience & Reliability
+
+The framework prioritizes stable automation execution through:
+
+Element visibility validation before interaction
+
+Explicit timeout management
+
+Structured error handling
+
+Detailed logging for investigation
+
+Async/Await execution patterns
+
+Failures produce actionable debugging information rather than ambiguous test errors.
+
+Test Organization
 puppeteer-framework/
-├── Pages/                          # Page Object Models
-│   ├── BasePage.js                 # Base class with common methods
-│   ├── LoginPage.js                # Login page interactions
-│   └── FlightsPage.js              # Flight booking page
-├── __test__/                        # Test specifications
-│   ├── FlightReservation.test.js   # Main flight booking test suite
-│   ├── login.test.js               # Login test cases
-│   ├── example.test.js             # Example test patterns
-│   └── components/
-│       └── NavBar.js               # Navigation component tests
-├── reports/                         # Test execution reports
-├── jest.config.js                  # Jest configuration
-├── jest-puppeteer.config.js        # Puppeteer browser settings
-├── babel.config.js                 # Babel transpilation config
-└── package.json                    # Project dependencies
-```
+Pages/          Page Object Models
+__test__/       Test suites
+reports/        Execution reports
+configs/        Jest & Puppeteer configuration
+tooling         Babel transpilation setup
 
----
+Automation logic remains isolated from configuration and reporting concerns.
 
-## 🚀 Getting Started
+Reporting & Observability
 
-### Prerequisites
-- **Node.js** (v14 or higher)
-- **npm** or **yarn**
+Test execution generates HTML reports containing:
 
-### Installation
+Execution results
 
-```bash
-# Clone the repository
-git clone <repository-url>
+Failure diagnostics
 
-# Navigate to project directory
-cd puppeteer-framework
+Timing information
 
-# Install dependencies
-npm install
-```
+Assertion outcomes
 
----
+This improves visibility into automation health and simplifies troubleshooting.
 
-## 🧪 Running Tests
+Technology Stack
+Technology	Role
+Puppeteer	Browser automation engine
+Jest	Test runner & assertions
+jest-puppeteer	Framework integration
+Babel	Modern JavaScript transpilation
+jest-html-reporter	Execution reporting
+Engineering Concepts Demonstrated
 
-### Execute All Tests
-```bash
-npm test
-```
+Automation framework design
 
-### Run Specific Test Suite
-```bash
-npx jest __test__/FlightReservation.test.js
-```
+Browser automation fundamentals
 
-### Run with Coverage
-```bash
-npx jest --coverage
-```
+Page Object Model implementation
 
-### Watch Mode (Auto-rerun on file changes)
-```bash
-npx jest --watch
-```
+Reusable abstraction layers
 
----
+Async automation workflows
 
-## 📖 Test Examples
+Error-resilient test execution
 
-### Login Flow
-```javascript
-const loginPage = new LoginPage();
-await loginPage.visit();
-await loginPage.logIn('user@phptravels.com', 'demouser');
-await loginPage.validateLogin();
-```
+Maintainable test architecture
 
-### Navigation Component
-```javascript
-const navbar = new NavBar();
-await navbar.validateNavBarIsPresent();
-await navbar.selectMenuItem('Flights');
-```
+QA / SDET Perspective
 
-### Flight Reservation
-```javascript
-const flightsPage = new FlightsPage();
-await flightsPage.validatePage();
-await flightsPage.FlightSelection(
-  'Bogota',           // departure city
-  'San Andres Island', // destination city
-  '02-01-2025',       // travel date
-  4                   // number of passengers
-);
-await flightsPage.validateFlights();
-```
+Working directly with Puppeteer demonstrates understanding of automation beneath higher-level tools such as Playwright or Cypress.
 
----
+This experience strengthens the ability to:
 
-## 🔧 Core Components
+Diagnose automation instability
 
-### BasePage.js
-The foundation class providing common element interaction methods:
+Design custom automation solutions
 
-| Method | Purpose |
-|--------|---------|
-| `getTitle()` | Retrieve current page title |
-| `getUrl()` | Get current page URL |
-| `getText(selector)` | Extract text from element |
-| `getAttribute(selector, attribute)` | Get element attributes |
-| `getValue(selector)` | Retrieve input element values |
-| `getCount(selector)` | Count matching elements |
-| `click(selector)` | Click element with visibility check |
-| `type(selector, text)` | Type text into input field |
+Understand browser execution behavior
 
-### Page Objects
-Each page extends `BasePage` and encapsulates:
-- Page-specific selectors as class properties
-- High-level interaction methods
-- Page state validations
-- Custom error handling
+Optimize interaction timing and synchronization
 
----
+It reflects an automation engineer capable of building frameworks rather than only consuming them.
 
-## 📊 Test Reports
+Best Practices Illustrated
 
-Test results are automatically generated in HTML format:
-- Location: `./reports/test-report.html`
-- View in browser for detailed test execution analysis
-- Includes pass/fail status, execution times, and error details
+✅ Separation of concerns
+✅ Reusable automation abstractions
+✅ DRY principle implementation
+✅ Explicit synchronization strategies
+✅ Clear test intent and readability
+✅ Scalable framework organization
 
----
+Potential Evolution Paths
 
-## ⚙️ Configuration
+Future enhancements could include:
 
-### jest.config.js
-- Bail after 5 failures for quick feedback
-- jest-puppeteer integration for headless browser control
-- HTML reporter output configuration
+Cross-browser execution support
 
-### jest-puppeteer.config.js
-- Chromium browser launch options
-- Viewport and device emulation settings
-- Connection timeout configurations
+Parallel test execution
 
-### babel.config.js
-- Modern JavaScript (ES6+) support
-- jest-puppeteer preset integration
+Visual regression validation
 
----
+API-assisted testing
 
-## 🎓 Design Patterns
+CI/CD pipeline integration
 
-### Page Object Model (POM)
-Each page is represented as a class with:
-- **Selectors** stored as private properties
-- **Methods** representing user actions
-- **Validations** to verify page state
+Accessibility automation
 
-**Benefits:**
-- ✅ Maintainable - Changes to selectors in one place
-- ✅ Reusable - Share common functionality via BasePage
-- ✅ Readable - Test code mirrors user actions
-- ✅ Scalable - Easy to add new pages and tests
+RAG Optimization Intent
 
----
+This documentation enables AI-assisted explanations about:
 
-## 🐛 Error Handling
+Puppeteer automation frameworks
 
-Framework provides detailed error messages:
-```
-Error while getting text for selector: .invalid-selector - Timeout 5000ms exceeded
-```
+Low-level browser automation
 
-Features:
-- Explicit selector validation
-- Visibility checks before interactions
-- Try-catch error boundaries
-- Descriptive error messages for debugging
+Framework architecture design
 
----
+Page Object Model strategies
 
-## 💡 Best Practices Demonstrated
-
-1. **Separation of Concerns** - Page logic isolated from test logic
-2. **DRY Principle** - Reusable base class methods
-3. **Async/Await** - Clean asynchronous test execution
-4. **Element Waits** - Visibility validation before interaction
-5. **Meaningful Assertions** - Clear test intent and validation
-6. **Test Organization** - Grouped related tests in describe blocks
-7. **Timeout Management** - Configurable timeouts for different operations
-
----
-
-## 🔮 Potential Enhancements
-
-- [ ] Cross-browser testing (Firefox, Safari)
-- [ ] Performance metrics collection
-- [ ] Visual regression testing with screenshots
-- [ ] API integration testing
-- [ ] Test data management and factories
-- [ ] Parallel test execution
-- [ ] CI/CD pipeline integration (GitHub Actions, Jenkins)
-- [ ] Accessibility testing integration
-
----
-
-## 📝 Technologies Used
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Puppeteer | ^23.10.4 | Browser automation |
-| Jest | ^29.7.0 | Testing framework |
-| jest-puppeteer | ^10.1.4 | Jest/Puppeteer integration |
-| Babel | ^7.26.0 | ES6+ transpilation |
-| jest-html-reporter | ^3.10.2 | HTML test reports |
-
----
-
-## 👤 Author
-
-**David Abril**  
-📧 davidstevenabril@gmail.com
-
----
-
-## 📄 License
-
-ISC
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please ensure:
-- Tests follow POM pattern
-- New selectors are added to appropriate page classes
-- All tests pass before submission
-- Code follows existing style conventions
-
----
-
-## 📚 Additional Resources
-
-- [Puppeteer Documentation](https://pptr.dev/)
-- [Jest Testing Framework](https://jestjs.io/)
-- [Page Object Model Best Practices](https://martinfowler.com/bliki/PageObject.html)
-- [Async/Await Guide](https://javascript.info/async-await)
-
----
-
-## ⭐ Highlights for Employers
-
-This project demonstrates:
-- ✅ **Professional Architecture** - Implements industry-standard POM design pattern
-- ✅ **Quality Assurance** - Comprehensive end-to-end testing with multiple test scenarios
-- ✅ **Code Organization** - Clean, maintainable, and scalable code structure
-- ✅ **Modern JavaScript** - ES6+ features including classes, async/await, and modules
-- ✅ **Error Handling** - Robust error management with descriptive messages
-- ✅ **Best Practices** - Follows testing and automation industry standards
-- ✅ **Full Workflow** - Tests complex, real-world applications (flight booking)
-- ✅ **Documentation** - Clear, professional documentation and code comments
+Automation reliability techniques

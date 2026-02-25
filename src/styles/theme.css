@@ -33,16 +33,13 @@
   --accent: #6d28d9;
   --accent2: #0891b2;
   color-scheme: light;
-  text-shadow: 0.1px 0.1px 0.5px #000;
+  text-shadow: 0.5px 0.2px 1px #fefefe91;
 }
 
 * { box-sizing: border-box; }
-html { height: 100%; -webkit-user-select: none;  user-select: none;}
+html { height: 100%;}
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 10% 0%, rgba(124,58,237,0.22), transparent 60%),
-              radial-gradient(1000px 500px at 90% 20%, rgba(6,182,212,0.18), transparent 55%),
-              var(--bg);
   color: var(--text);
 }
 
@@ -191,15 +188,10 @@ nav .badge {
     radial-gradient(1200px 600px at 10% 0%, rgba(124,58,237,0.22), transparent 60%),
     radial-gradient(1000px 500px at 90% 20%, rgba(6,182,212,0.18), transparent 55%),
     var(--bg);
-    
 }
 
 .bg-light {
   opacity: 0;
-    background-image: url("/BgImage.webp");
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
 }
 
 /* When light theme is active */
@@ -213,15 +205,22 @@ nav .badge {
 .theme-transition,
 .theme-transition * {
   transition:
-    background-color 3s ease-in,
-    color 5s ease,
-    border-color 2600ms ease-in,
-    box-shadow 3s ease-in,
-    text-shadow 1.5s ease,
-    fill 5s ease,
-    stroke 5s ease,
-    opacity 2s ease-in,
-    transform 3s ease;
+    background-color 9s cubic-bezier(0.4, 0, 0.2, 1),
+    color 5s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 3s cubic-bezier(0.4, 0, 0.2, 1),
+    text-shadow 3s cubic-bezier(0.4, 0, 0.2, 1),
+    fill 5s cubic-bezier(0.4, 0, 0.2, 1),
+    stroke 3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 5s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Theme transition overlay for eye comfort */
+
+#theme-fade-overlay.active {
+  opacity: 1;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 

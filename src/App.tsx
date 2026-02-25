@@ -69,7 +69,7 @@ export default function App() {
                 */}
 
                 <h1 style={{ margin: 0, fontSize: 44, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-                  Automation engineered for reliability.
+                  Automation engineered for reliability
                 </h1>
 
                 <p>
@@ -185,7 +185,7 @@ export default function App() {
         <Section
           id="contact"
           title="Let’s talk"
-          lead="If you're hiring for QA Automation, I’m available for interviews and technical assessments."
+          lead="Open to interviews and technical assessments"
         >
           <div className="card" style={{ padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
