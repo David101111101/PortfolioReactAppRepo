@@ -20,9 +20,10 @@ export default function ChatWidget() {
   const [hasGreeted, setHasGreeted] = useState(false);
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
-  const TYPING_SPEED = 70;
-  const INITIAL_GREETING = `I've been trained on his CV and all repository documentation.
-  Ask me about his projects, architecture decisions, tech stack, or career experience.`;
+  const TYPING_SPEED = 30;
+  const INITIAL_GREETING = `Hello world, I am Dave’s chatbot powered by his  CV, portfolio documentation, and engineering projects.
+
+I am here to assist, you can ask me about system architecture, design decisions, technologies, testing strategy, professional experience or get creative`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,14 +57,12 @@ useEffect(() => {
 
     setMessages((prev) => {
       const updated = [...prev];
-
       if (updated.length > 0 && updated[0].role === "assistant") {
         updated[0] = {
           ...updated[0],
           content: updated[0].content + nextChar,
         };
       }
-
       return updated;
     });
 
@@ -75,7 +74,6 @@ useEffect(() => {
 
   const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
-
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -92,42 +90,33 @@ useEffect(() => {
       setIsStreaming(false);
       return;
     }
-
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-
     let assistantMessage: Message = { role: "assistant", content: "" };
     setMessages((prev) => [...prev, assistantMessage]);
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       const chunk = decoder.decode(value);
-
       setMessages((prev) => {
         const updated = [...prev];
         const lastIndex = updated.length - 1;
-
         if (updated[lastIndex]?.role === "assistant") {
           updated[lastIndex] = {
             ...updated[lastIndex],
             content: updated[lastIndex].content + chunk,
           };
         }
-
         return updated;
       });
-
     }
-
     setIsStreaming(false);
   };
 
   return (
     <>
       {/* Floating Bubble */}
-      <div id="chatBubbleWidget"
+      <button id="chatBubbleWidget"
         onClick={() => {
             if (!isOpen) {
                 setIsOpen(true);
@@ -139,11 +128,10 @@ useEffect(() => {
         }}
          /* Chat Bubble Widget */
         style={{
-
         }}
       >
         💬
-      </div>
+      </button>
 
       {/* Chat Window */}
       {isOpen && (
@@ -151,17 +139,9 @@ useEffect(() => {
           style={{
           }}
         >
-          <div id="chat-title"
-            style={{
-              padding: "12px",
-              borderBottom: "1px solid var(--soft)",
-              fontSize: "0.9rem",
-              fontWeight: "bold",
-            }}
-          >
+          <div id="chat-title">
             Welcome to Dave's RAG-LLM terminal.
           </div>
-
           <div
             style={{
               flex: 1,
@@ -181,12 +161,14 @@ useEffect(() => {
                         ? "chat-user"
                         : "chat-assistant"
                     }`}
+                      style={{
+                      whiteSpace: "pre-wrap",
+                      lineHeight: "1.6",
+                      }}
                     >
                     {msg.role === "user" && "> "}
                     {msg.content}
-                    {msg.role === "assistant" && isStreaming && isLast && (
-                        <span className="terminal-cursor" />
-                    )}
+                    {msg.role === "assistant" && "⚙ " && isLast}
                     </div>
                 );
                 })}
@@ -210,11 +192,10 @@ useEffect(() => {
                 outline: "none",
                 color: "#fff",
                 padding: "12px",
+               fontSize: "14px",
               }}
               placeholder=""
-              
             />
-            
           </div>
         </div>
       )}

@@ -34,7 +34,7 @@ export const profile = {
   location: "Remote • Colombia",
   languages: "English (C2) Certified",
   summary:
-    "Automation focused QA Engineer with backend development and team leadership experience. Driven by challenges and a passion for continuous learning, I’m pursuing an automation first role while deepening my engineering skills.",
+    "QA Engineer specializing in automation, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning, I am pursuing an automation‑first role while expanding my engineering expertise. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
 
   email: "davidstevenabril@gmail.com",
   linkedin: "https://www.linkedin.com/in/david-abril-189099138",

@@ -7,6 +7,24 @@ import dotenv from "dotenv";
 import * as pdfParseModule from "pdf-parse";
 dotenv.config();
 
+
+/*
+*Load file
+   ↓
+Hash file
+   ↓
+Delete previous version
+   ↓
+Chunk document
+   ↓
+Embed batch
+   ↓
+Detect priority per chunk
+   ↓
+Upsert vectors
+
+DB stays clean and up to date with source files, no duplicates, and minimal unnecessary processing.
+*/
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
@@ -28,7 +46,23 @@ function normalizeText(text: string): string {
     .replace(/[ \t]+/g, " ")
     .trim();
 }
+function detectPriority(source: string, content: string) {
+  const text = content.toLowerCase();
 
+  if (
+    text.includes("architecture") ||
+    text.includes("design decision") ||
+    text.includes("system design")
+  ) return "high";
+
+  if (
+    text.includes("implementation") ||
+    text.includes("testing") ||
+    text.includes("framework")
+  ) return "medium";
+
+  return "normal";
+}
 function chunkCV(text: string, maxLength = 800): string[] {
   const normalized = normalizeText(text);
 
@@ -51,11 +85,8 @@ function chunkCV(text: string, maxLength = 800): string[] {
       }
     }
   }
-
   return chunks.filter(c => c.length > 50);
 }
-
-
 /* ========================
    File Loaders
 ======================== */
@@ -95,20 +126,17 @@ async function loadPdfFiles(dir: string) {
       continue;
     }
   }
-
   return results;
 }
 /* ========================
    Idempotent Check
 ======================== */
-
 async function fileAlreadyIngested(fileHash: string) {
   const { data } = await supabase
     .from("documents")
     .select("id")
     .eq("file_hash", fileHash)
     .limit(1);
-
   return data && data.length > 0;
 }
 /* ========================
@@ -124,11 +152,15 @@ async function ingest() {
     
     const exists = await fileAlreadyIngested(fileHash);
     if (exists) {
-      console.log(`Skipping ${doc.source} (already ingested)`);
+      console.log(`Skipping ${doc.source} (already ingested, file unchanged)`);
       continue;   
     }
-
-    console.log(`Processing ${doc.source}`);
+    // remove older versions of same file
+      await supabase
+      .from("documents")
+      .delete()
+      .eq("metadata->>source", doc.source);
+    console.log(`Updating ${doc.source} in DB`);
     const chunks = chunkCV(doc.content);
     const embeddingsBatchSize = 50; // safe batch size
 
@@ -139,18 +171,23 @@ async function ingest() {
         model: "text-embedding-3-small",
         input: batchChunks,
       });
-
-      const rows = embeddingResponse.data.map((item, index) => ({
+      
+      const rows = embeddingResponse.data.map((item, index) => {
+      const chunkContent = batchChunks[index];
+      const priority = detectPriority(doc.source, chunkContent);
+      return {
         id: sha256(fileHash + (i + index).toString()),
-        content: batchChunks[index],
+        content: chunkContent,
         embedding: item.embedding,
         file_hash: fileHash,
         metadata: {
           source: doc.source,
           chunk_index: i + index,
           type: doc.source.endsWith(".pdf") ? "pdf" : "markdown",
+          priority,
         },
-      }));
+      };
+    });
 
      const { error } = await supabase
       .from("documents")
