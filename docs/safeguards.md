@@ -99,7 +99,7 @@ Purpose:
 
 ### 3.5 Retrieval Safety (RAG Controls)
 #### 3.5.1 Similarity Threshold
-Minimum similarity threshold: **0.30**
+Minimum similarity threshold: **0.45**
 
 Documents below threshold are discarded.
 If no document meets threshold:
@@ -168,11 +168,7 @@ This enables:
 Logging failures do not block response.
 
 ### 3.8 Secret Management
-Secrets are injected via environment bindings:
-- `OPENAI_API_KEY`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_URL`
-
+Secrets are injected via environment API keys that are saved once and can't be consulted.
 Keys are never exposed to client.
 
 ## 4. Database Security

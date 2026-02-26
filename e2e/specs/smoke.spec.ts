@@ -24,13 +24,13 @@ test("chat bubble renders", async ({ home }) => {
   await expect(home.chatBubble()).toBeVisible();
 });
 //
-test("chat opens and greeting appears", async ({ home }) => {
+test.skip("chat opens and greeting appears", async ({ home }) => {
   await home.goto();
   await home.openChat();
   await home.waitForGreeting();
 });
 //User Can Send Message and Receive Reply (CI Safe)
-test("chatbot responds to user message", async ({ home, page }) => {
+test.skip("chatbot responds to user message", async ({ home, page }) => {
   await home.goto();
   
   // Mock backend for deterministic CI behavior

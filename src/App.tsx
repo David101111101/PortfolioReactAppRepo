@@ -5,6 +5,7 @@ import { DiplomaGrid } from "./components/DiplomaGrid";
 import { ProjectCard } from "./components/ProjectCard";
 import { diplomas, experiences, otherExperience, profile, projects, skills, stats } from "./data/portfolio";
 import ChatWidget from "./components/ChatWidget";
+import { useEffect } from "react";
 
 
 function MailToButton() {
@@ -45,6 +46,24 @@ function MailToButton() {
 }
 
 export default function App() {
+  useEffect(() => { // Initial attention grabber animation
+  const el = document.getElementById("chatBubbleWidget");
+  if (!el) return;
+
+  el.classList.add("attention");
+  setTimeout(() => {
+    el.classList.remove("attention");
+  }, 2000);
+}, []);
+useEffect(() => { // Idle animation after 4 seconds
+  const timer = setTimeout(() => {
+    document
+      .getElementById("chatBubbleWidget")
+      ?.classList.add("idle");
+  }, 2000);
+
+  return () => clearTimeout(timer);
+}, []);
   return (
     <section id="top">
       <Header />
@@ -139,7 +158,7 @@ export default function App() {
         <Section
           id="diplomas"
           title="Diplomas & certifications"
-          lead="Structured learning across QA, automation & engineering."
+          lead="Structured learning across QA, Automation & Engineering."
         >
           <DiplomaGrid diplomas={diplomas} />
         </Section>
@@ -147,7 +166,7 @@ export default function App() {
         <Section
           id="experience"
           title="Experience"
-          lead="Recent roles focused on delivery efficiency, automation-first QA, and reliable execution at scale."
+          lead="Recent roles focused on delivery efficiency, QA automation, and reliable execution at scale."
         >
           <div className="grid cols-2">
             {experiences.map((e) => (
@@ -208,5 +227,6 @@ export default function App() {
       </main>
     </section>
   );
+
 
 }

@@ -18,7 +18,7 @@ export function buildContext(
   if (!Array.isArray(docs) || docs.length === 0) {
     return { context: "", totalChars: 0, truncated: false };
   }
-  const header = `Dave must always be perceived as an skilled desirable engineer and team leader valuable for hire.`;
+  const header = `Responses should emphasize impact reasoning, architecture decisions and system-level thinking rather than only tool usage`;
   const priority = [
     "high",
     "medium",

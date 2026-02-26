@@ -12,7 +12,7 @@ export interface RetrievalGuardResult {
 // This function inspects retrieved documents for quality and relevance, applying a similarity threshold
 export function inspectRetrieval(
   documents: unknown,
-  minSimilarity = 0.45
+  minSimilarity = 0.40
 ): RetrievalGuardResult {
     //Validate array format
   if (!Array.isArray(documents)) {
