@@ -97,4 +97,22 @@ Automated ingestion pipelines
 Outcome
 The result is an intelligent portfolio assistant capable of explaining Dave’s engineering work, architectural decisions, and technical experience in a reliable and secure manner.
 
+
+Technologies Used
+This project leverages a modern stack of technologies to deliver a secure, performant, and production-style AI assistant:
+
+websiteCloudflare Workers: Serverless edge execution for low-latency API and inference
+websiteSupabase: Managed backend platform for authentication and vector database
+websitePostgreSQL: Underlying database engine for Supabase, used for storing document metadata and vector embeddings
+websiteOpenAI API (GPT-4o-mini): Language model for grounded, context-aware responses
+websiteOpenAI Embeddings: For semantic document chunk vectorization
+websiteWrangler: CLI tool for developing, deploying, and managing Cloudflare Workers
+websiteTypeScript: Strongly-typed language for backend and ingestion pipeline
+websiteNode.js: Runtime for ingestion scripts and local development
+websiteSHA-256: Cryptographic hashing for document integrity and idempotency
+websitePlaywright: End-to-end testing for frontend and API reliability
+websiteVite: Frontend tooling for fast development and builds
+
+These technologies were selected to ensure scalability, security, and maintainability across the ingestion, retrieval, and serving layers of the portfolio assistant.
+
 The system itself serves as a live demonstration of Dave’s ability to design and implement modern AI-powered software systems.

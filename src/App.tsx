@@ -6,6 +6,7 @@ import { ProjectCard } from "./components/ProjectCard";
 import { diplomas, experiences, otherExperience, profile, projects, skills, stats } from "./data/portfolio";
 import ChatWidget from "./components/ChatWidget";
 
+
 function MailToButton() {
   async function copyEmail(event: React.MouseEvent<HTMLButtonElement>) {
   const btn = event.currentTarget; // reference to the button itself
@@ -45,28 +46,23 @@ function MailToButton() {
 
 export default function App() {
   return (
-    
     <section id="top">
-       
       <Header />
       <div className="bg bg-dark" aria-hidden="true" />
       <div className="bg bg-light" aria-hidden="true" />
-
-      
-
       <main id="content">
         {/* HERO */}
         <section id="section" style={{ paddingTop: 20 }}>
           <div className="container">
             <div className="grid cols-2" style={{ alignItems: "start" }}>
               <div>
-                {/*
+                {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                   <span className="badge">{profile.role}</span>
                   <span className="badge">{profile.location}</span>
                   <span className="badge">{profile.languages}</span>
                 </div>
-                */}
+                }
 
                 <h1 style={{ margin: 0, fontSize: 44, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
                   Automation engineered for reliability

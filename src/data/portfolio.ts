@@ -52,7 +52,7 @@ export const stats: Stat[] = [
 export const skills: { group: string; items: string[] }[] = [
   {
     group: "Test Automation",
-    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks", "Backend Testing", "BDD with Gherkin","Predictive forecasting","Parallel execution","Cross-browser testing"]
+    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks", "Backend Testing", "BDD with Gherkin","Predictive forecasting","Parallel execution","Cross-browser testing","Supabase"]
   },
   {
     group: "Testing & Strategy",
@@ -67,7 +67,9 @@ export const skills: { group: string; items: string[] }[] = [
       "Security",
       "Accessibility",
       "Performance",
-      "Mobile/responsive testing"
+      "Mobile/responsive testing",
+      "SHA-256 hashing",
+      "OpenAI Embeddings"
     ]
   },
   {
@@ -82,12 +84,14 @@ export const skills: { group: string; items: string[] }[] = [
       "K6",
       "Jira",
       "Monday",
-      "Branching strategy (PRs)"
+      "Branching strategy (PRs)",
+      "Vite",
+      "Wrangler"
     ]
   },
   {
     group: "Languages",
-    items: ["Java", "JavaScript", "TypeScript", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin","Node.js"]
+    items: ["Java", "JavaScript", "TypeScript", "PostgreSQL", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin","Node.js"]
   },
   {
     group: "Delivery",
