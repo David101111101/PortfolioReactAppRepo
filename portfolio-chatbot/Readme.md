@@ -1,5 +1,23 @@
 # Portfolio AI Chat Assistant Architecture
 
+## Technologies Used
+
+This project leverages a modern stack of technologies to deliver a secure, performant, and production-style AI assistant:
+
+- **Cloudflare Workers**: Serverless edge execution for low-latency API and inference
+- **Supabase**: Managed backend platform for authentication and vector database
+- **PostgreSQL**: Underlying database engine for Supabase, used for storing document metadata and vector embeddings
+- **OpenAI API (GPT-4o-mini)**: Language model for grounded, context-aware responses
+- **OpenAI Embeddings**: For semantic document chunk vectorization
+- **Wrangler**: CLI tool for developing, deploying, and managing Cloudflare Workers
+- **TypeScript**: Strongly-typed language for backend and ingestion pipeline
+- **Node.js**: Runtime for ingestion scripts and local development
+- **SHA-256**: Cryptographic hashing for document integrity and idempotency
+- **Playwright**: End-to-end testing for frontend and API reliability
+- **Vite**: Frontend tooling for fast development and builds
+
+These technologies were selected to ensure scalability, security, and maintainability across the ingestion, retrieval, and serving layers of the portfolio assistant.
+
 ## Overview
 This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical experience, and engineering decisions.
 

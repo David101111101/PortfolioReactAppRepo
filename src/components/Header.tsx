@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { profile } from "../data/portfolio";
+import { showThemeOverlay } from "../themeOverlay";
 
 declare global {
   interface Window {
@@ -13,6 +14,7 @@ function getInitialTheme(): "dark" | "light" {
   return window.matchMedia?.("(prefers-color-scheme: light)")?.matches ? "light" : "dark";
 }
 
+
 export function Header() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
@@ -24,15 +26,14 @@ export function Header() {
 
 
   function toggleTheme() {
+
     // Determine the next theme based on the current theme
     const next = theme === "dark" ? "light" : "dark";
     // Trigger overlay animation
-    if (typeof window.showThemeOverlay === "function") {
-      window.showThemeOverlay(next);
-    }
+    showThemeOverlay();
     // Add a temporary class so transitions feel intentional
     document.documentElement.classList.add("theme-transition");
-    // Change theme/background color after 3s (when panels meet)
+    // Change theme/background color after 2s (when panels meet)
     window.setTimeout(() => {
       setTheme(next);
       localStorage.setItem("theme", next);
@@ -41,7 +42,7 @@ export function Header() {
       window.setTimeout(() => {
         document.documentElement.classList.remove("theme-transition");
       }, 320);
-    }, 2000);// 3s matches the panel animation duration in js.js
+    }, 2000);// 2s matches the panel animation duration
   }
 
 

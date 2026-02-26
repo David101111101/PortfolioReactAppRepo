@@ -127,11 +127,8 @@ useEffect(() => {
             }
         }}
          /* Chat Bubble Widget */
-        style={{
-        }}
-      >
-        💬
-      </button>
+        style={{}}
+      >💬</button>
 
       {/* Chat Window */}
       {isOpen && (
@@ -140,7 +137,7 @@ useEffect(() => {
           }}
         >
           <div id="chat-title">
-            Welcome to Dave's RAG-LLM terminal.
+            Welcome to Dave's Interactive Portfolio.
           </div>
           <div
             style={{
@@ -150,11 +147,10 @@ useEffect(() => {
               fontSize: "14px",
             }}
           >
-                {messages.map((msg, index) => {
+          {messages.map((msg, index) => 
+            {
                 const isLast = index === messages.length - 1;
-
-                return (
-                    <div
+            return (<div
                     key={index}
                     className={`chat-message ${
                         msg.role === "user"
@@ -169,18 +165,12 @@ useEffect(() => {
                     {msg.role === "user" && "> "}
                     {msg.content}
                     {msg.role === "assistant" && "⚙ " && isLast}
-                    </div>
-                );
-                })}
-            <div ref={messagesEndRef} />
+                  </div>);
+            })}
+          <div ref={messagesEndRef} />
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              borderTop: "1px solid var(--soft)",
-            }}
-          > 
+          <div style={{display: "flex",borderTop: "1px solid var(--soft)",}}> 
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

@@ -5,7 +5,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import fetch from "node-fetch";
 
 describe("Portfolio Assistant", () => {
   it("Should refuse unknown question", async () => {
