@@ -67,11 +67,9 @@ Over 140,000 reliable browser interactions
 
 Across a backlog of 300 websites, this resulted in:
 
-~175 hours of repetitive manual work eliminated
+~175 hours of repetitive manual work eliminated for a 9-person team
 
-Estimated 46 working days saved for a 9-person team
-
-More importantly, onboarding throughput increased without increasing staffing.
+More importantly delivery increased without increasing staffing.
 
 Organizational Transformation
 
@@ -95,7 +93,7 @@ This demonstrated how QA Automation can directly influence engineering culture a
 
 SDET Mindset Demonstrated
 
-This project reflects core Senior SDET principles:
+This project reflects core SDET principles:
 
 Automation as a scalability multiplier
 

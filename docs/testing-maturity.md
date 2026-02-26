@@ -5,6 +5,7 @@
 - Performance
 - Smoke tests
 
+
 ## Layer 2 — Worker Logic *(Planned / In Progress)*
 - Unit tests
 - Similarity logic validation
@@ -22,5 +23,3 @@
 - Flood testing
 
 ---
-
-*This shows strategic thinking.*

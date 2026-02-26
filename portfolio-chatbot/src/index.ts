@@ -292,11 +292,11 @@ try {
 }
 /**
  * Retrieval Guard: 
- * compares retrieved documents against quality thresholds they must have a minimum similarity score of (0.20) to be included in the context,
+ * compares retrieved documents against quality thresholds they must have a minimum similarity score of (0.40) to be included in the context,
  * and blocks the process if they are not met 
  * Prevents low-confidence or malformed retrieval
  */
-const retrieval = inspectRetrieval(documents, 0.20);
+const retrieval = inspectRetrieval(documents, 0.40);
 if (!retrieval.allowed) {
       ctx.waitUntil(
         logConversation(
