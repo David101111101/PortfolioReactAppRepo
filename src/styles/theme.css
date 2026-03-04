@@ -199,7 +199,10 @@ nav .badge {
 :root[data-theme="light"] .bg-light { opacity: 1; }
 :root[data-theme="light"] nav .btn, .badge { text-shadow: 0.1px 0.1px 1px #000; }
 :root[data-theme="light"] #titleName { text-shadow: 2px 2px 5px #07070757; }
-:root[data-theme="light"] #chat-window-section, :root[data-theme="light"] #chatBubbleWidget { background: rgb(0 0 0 / 70%);backdrop-filter: blur(7px);}
+:root[data-theme="light"] #chat-window-section, :root[data-theme="light"] #chatBubbleWidget 
+{ background: rgb(0 0 0 / 70%);
+  backdrop-filter: blur(7px);
+}
 
 /* Smooth theme transitions (applied briefly on toggle) */
 .theme-transition,
@@ -222,14 +225,12 @@ nav .badge {
   opacity: 1;
   transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-
-
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .bg { transition: none; }
-  .theme-transition,
-  .theme-transition * {
+    *,
+  *::before,
+  *::after {
+    animation: none !important;
     transition: none !important;
   }
 }
@@ -286,5 +287,8 @@ nav .badge {
     order: -1;
   }
   .btn {font-size: 12px;}
-  #chat-window-section {width: stretch; margin-left: 1rem;}
+  #chat-window-section {
+    width: -webkit-fill-available;
+    margin-left: 20px;
+  }
 }

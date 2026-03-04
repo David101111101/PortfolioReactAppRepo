@@ -46,24 +46,32 @@ function MailToButton() {
 }
 
 export default function App() {
-  useEffect(() => { // Initial attention grabber animation
+  /* This effects are added after the initial render to handle chat widget animations.
+  *  If users preffer reduced motion, we skip adding these animations to respect their preferences.
+  */
+  useEffect(() => {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
   const el = document.getElementById("chatBubbleWidget");
   if (!el) return;
-
   el.classList.add("attention");
   setTimeout(() => {
     el.classList.remove("attention");
   }, 2000);
-}, []);
-useEffect(() => { // Idle animation after 4 seconds
-  const timer = setTimeout(() => {
-    document
-      .getElementById("chatBubbleWidget")
-      ?.classList.add("idle");
-  }, 2000);
+  }, []);
 
-  return () => clearTimeout(timer);
-}, []);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      document
+        .getElementById("chatBubbleWidget")
+        ?.classList.add("idle");
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <section id="top">
       <Header />
@@ -77,9 +85,8 @@ useEffect(() => { // Idle animation after 4 seconds
               <div>
                 {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                  <span className="badge">{profile.role}</span>
-                  <span className="badge">{profile.location}</span>
                   <span className="badge">{profile.languages}</span>
+                  <span className="badge">{profile.location}</span>
                 </div>
                 }
 
@@ -216,10 +223,17 @@ useEffect(() => { // Idle animation after 4 seconds
         <footer style={{ padding: "28px 0 40px", borderTop: "1px solid var(--soft)" }}>
           <div className="container" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <span style={{ color: "var(--muted)" }}>
-              © {new Date().getFullYear()} {profile.name}
+              © {new Date().getFullYear()} {profile.name} 
             </span>
             <span style={{ color: "var(--muted)" }}>
-              Built with React + Vite
+              This assistant is an AI-powered system built and maintained by Dave. 
+              It generates responses using only verified CV and project documentation.
+
+              It is not a live human chat and may not respond to questions outside the scope of the portfolio content.
+
+              Conversations may be logged for quality, security, and system improvement purposes. No personal identifiers such as IP addresses, emails, or account data are collected or stored.
+
+              This system includes input validation, prompt injection protection, and data security guardrails designed to prevent misuse while actively blocking personal data submission and malicious inputs before processing.
             </span>
           </div>
         </footer> 

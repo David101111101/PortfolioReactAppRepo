@@ -3,7 +3,7 @@
  * If a suspicious pattern is detected, the function returns a response immediately, which exits the *handler and prevents any further code—including the RAG pipeline—from executing
  */
 
-import {  promptInjectionPatterns,  dataExfiltrationPatterns,  sqlInjectionPatterns,  xssPatterns,  encodingPatterns, normalizeInput }
+import {  piiPatterns, SSRF, CommandInjection, promptInjectionPatterns,  dataExfiltrationPatterns,  sqlInjectionPatterns,  xssPatterns,  encodingPatterns, normalizeInput }
 from "../common/constants";
 
 export interface GuardResult {
@@ -12,6 +12,8 @@ export interface GuardResult {
   matchedPattern?: string;
 }
 const patternGroups: Record<string, string[]> = {
+  COMMAND_INJECTION: CommandInjection,
+  SSRF: SSRF,
   PROMPT_INJECTION: promptInjectionPatterns,
   DATA_EXFILTRATION: dataExfiltrationPatterns,
   SQL_INJECTION: sqlInjectionPatterns,
@@ -41,6 +43,15 @@ export function inspectPrompt(input: string): GuardResult {
       category: "HIGH_SYMBOL_DENSITY",
     };
   }
+  // PII detection
+    for (const pattern of piiPatterns) {
+      if (pattern.test(input)) {
+        return {
+          allowed: false,
+          category: "PERSONAL_INFORMATION",
+        };
+      }
+    }
 
   // Pattern matching
   for (const [category, patterns] of Object.entries(patternGroups)) {

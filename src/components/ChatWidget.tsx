@@ -20,10 +20,11 @@ export default function ChatWidget() {
   const [hasGreeted, setHasGreeted] = useState(false);
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
-  const TYPING_SPEED = 30;
-  const INITIAL_GREETING = `Hello world, I am Dave’s chatbot powered by his  CV, portfolio documentation, and engineering projects.
+  const TYPING_SPEED = 10; // milliseconds per character
+  const INITIAL_GREETING = `Hi, I’m Dave.
+I built this assistant from scratch using production engineering standards to demonstrate my Backend & QA Automation foundation while transitioning to AI testing engineering.
 
-I am here to assist, you can ask me about system architecture, design decisions, technologies, testing strategy, professional experience or get creative`;
+Conversations may be logged, but no personal information is stored.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,11 +32,9 @@ I am here to assist, you can ask me about system architecture, design decisions,
 
   useEffect(() => {
   if (!isOpen || hasGreeted) return;
-
   setHasGreeted(true);
   setIsTypingGreeting(true);
   setGreetingIndex(0);
-
   const assistantMessage: Message = {
     role: "assistant",
     content: "",
@@ -184,7 +183,7 @@ useEffect(() => {
                 padding: "12px",
                fontSize: "14px",
               }}
-              placeholder=""
+              placeholder="Ask me anything"
             />
           </div>
         </div>

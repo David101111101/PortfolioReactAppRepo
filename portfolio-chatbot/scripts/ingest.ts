@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import * as pdfParseModule from "pdf-parse";
+import { randomUUID } from "crypto";
 dotenv.config();
 
 
@@ -52,7 +53,9 @@ function detectPriority(source: string, content: string) {
   if (
     text.includes("architecture") ||
     text.includes("design decision") ||
-    text.includes("system design")
+    text.includes("system design")||
+    text.includes("education")||
+    text.includes("experience")
   ) return "high";
 
   if (
@@ -65,14 +68,11 @@ function detectPriority(source: string, content: string) {
 }
 function chunkCV(text: string, maxLength = 800): string[] {
   const normalized = normalizeText(text);
-
   // Split by common CV section headers
   const sections = normalized.split(
     /(Skills|Technical Skills|Experience|Projects|Education|Certifications)/gi
   );
-
   const chunks: string[] = [];
-
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i].trim();
     if (!section) continue;
@@ -120,7 +120,7 @@ async function loadPdfFiles(dir: string) {
         source: file,
         content: parsed.text,
       });
-
+      
     } catch (err) {
       console.error(`Failed to parse ${file}`, err);
       continue;
@@ -159,9 +159,16 @@ async function ingest() {
       await supabase
       .from("documents")
       .delete()
-      .eq("metadata->>source", doc.source);
+      .filter("metadata->>source", "eq", doc.source);
     console.log(`Updating ${doc.source} in DB`);
+    console.log(`${doc.source} content length:`, doc.content?.length);
     const chunks = chunkCV(doc.content);
+    if (chunks.length === 0) {
+      console.warn(`Skipping ${doc.source} — no chunks generated`);
+      continue;
+    }
+    console.log(`${doc.source} chunks created:`, chunks.length);    
+
     const embeddingsBatchSize = 50; // safe batch size
 
     for (let i = 0; i < chunks.length; i += embeddingsBatchSize) {
@@ -171,12 +178,13 @@ async function ingest() {
         model: "text-embedding-3-small",
         input: batchChunks,
       });
-      
+
+
       const rows = embeddingResponse.data.map((item, index) => {
       const chunkContent = batchChunks[index];
       const priority = detectPriority(doc.source, chunkContent);
       return {
-        id: sha256(fileHash + (i + index).toString()),
+        id: randomUUID(),
         content: chunkContent,
         embedding: item.embedding,
         file_hash: fileHash,
@@ -188,18 +196,26 @@ async function ingest() {
         },
       };
     });
+    console.log("Embedding dimension:", rows[0].embedding.length);
+      const { data, error } = await supabase
+        .from("documents")
+        .insert(rows)
+        .select("id");
 
-     const { error } = await supabase
-      .from("documents")
-      .upsert(rows);
-
-    if (error) {
-      console.error("Supabase insert error:", error);
-    }
+      if (error) {
+        console.error("Supabase insert error:", error);
+      } else {
+        console.log("Inserted rows:", data?.length);
+      }
     }
   }
 
   console.log("Ingestion complete.");
+  const { count } = await supabase
+  .from("documents")
+  .select("*", { count: "exact", head: true });
+console.log("SUPABASE URL:", process.env.SUPABASE_URL);
+console.log("Total rows in table:", count);
 }
 
 ingest();

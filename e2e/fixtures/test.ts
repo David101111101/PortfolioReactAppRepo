@@ -10,6 +10,7 @@
 import { test as base, expect } from "@playwright/test";
 import { HomePage } from "../pages/HomePage";
 
+
 /**
  * Allowlist of console errors that are safe to ignore.
  * These errors are known to be benign and not indicative of actual issues.
@@ -32,7 +33,19 @@ type Fixtures = {
 /**
  * Extend base Playwright test with custom fixtures
  */
+
 export const test = base.extend<Fixtures>({
+   /**
+   * Page override (WebKit deterministic mode)
+   */
+  page: async ({ page, browserName }, use) => {
+    if (browserName === "webkit") {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+    }
+
+    await use(page);
+  },
+
   /**
    * Fixture: consoleErrors
    * Captures all console errors and page errors that occur during test execution
@@ -61,6 +74,7 @@ export const test = base.extend<Fixtures>({
   home: async ({ page }, use) => {
     await use(new HomePage(page));
   },
+  
 });
 
 /**

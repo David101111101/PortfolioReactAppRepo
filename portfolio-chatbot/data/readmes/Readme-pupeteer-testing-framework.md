@@ -21,6 +21,10 @@ Debuggable automation workflows
 
 The testing target simulates real-world travel booking scenarios involving authentication, navigation, and reservation flows.
 
+
+Programming Languages:
+JavaScript, HTML and Jest for testing
+
 Automation Scope
 End-to-End Workflow Validation
 
@@ -66,7 +70,6 @@ Puppeteer Browser Automation
 
 This layered design mirrors automation frameworks used in enterprise testing environments.
 
-Developer Experience & Reliability
 
 The framework prioritizes stable automation execution through:
 
@@ -133,7 +136,7 @@ QA / SDET Perspective
 
 Working directly with Puppeteer demonstrates understanding of automation beneath higher-level tools such as Playwright or Cypress.
 
-This experience strengthens the ability to:
+This project strengthens the ability to:
 
 Diagnose automation instability
 
