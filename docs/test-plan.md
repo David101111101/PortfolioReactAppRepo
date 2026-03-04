@@ -2,13 +2,13 @@
 
 ## 1. Document Information
 
-| Field         | Value                                                      |
+| Field        | Value                                                      |
 |--------------|------------------------------------------------------------|
 | Project      | Portfolio RAG Chatbot                                      |
 | Architecture | Cloudflare Worker + Durable Objects + Supabase + OpenAI    |
 | Author       | David                                                      |
 | Version      | 1.0                                                        |
-| Last Updated | YYYY-MM-DD                                                 |
+|--------------|------------------------------------------------------------|
 
 ## 2. Purpose
 
@@ -88,7 +88,7 @@ The objective is to:
 | RL-01 | First request             | Allowed         |
 | RL-02 | Within allowed threshold  | Allowed         |
 | RL-03 | Exceeds threshold         | 429             |
-| RL-04 | Rate-limited request logged | reason = rate_limited |
+| RL-04 | Rate-limited requ  logged | reason = rate_limited |
 
 ### 6.3 Prompt Injection Protection
 | ID     | Scenario                        | Expected |
@@ -182,6 +182,7 @@ Validate:
 - Unit tests
 - Coverage enforcement
 - Dependency audit
+- Scheduled/Nightly Runs
 
 ### 12.2 Coverage Threshold
 - Minimum 80% branch coverage

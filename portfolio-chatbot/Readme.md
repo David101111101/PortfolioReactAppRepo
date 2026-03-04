@@ -6,11 +6,11 @@ This project leverages a modern stack of technologies to deliver a secure, perfo
 
 - **Cloudflare Workers**: Serverless edge execution for low-latency API and inference
 - **Supabase**: Managed backend platform for authentication and vector database
-- **PostgreSQL**: Underlying database engine for Supabase, used for storing document metadata and vector embeddings
+- **PostgreSQL**: Underlying programming language database engine for Supabase, used for storing document metadata and vector embeddings
 - **OpenAI API (GPT-4o-mini)**: Language model for grounded, context-aware responses
 - **OpenAI Embeddings**: For semantic document chunk vectorization
-- **Wrangler**: CLI tool for developing, deploying, and managing Cloudflare Workers
-- **TypeScript**: Strongly-typed language for backend and ingestion pipeline
+- **Wrangler**: programming language CLI tool for developing, deploying, and managing Cloudflare Workers
+- **TypeScript**: programming language for backend and ingestion pipeline
 - **Node.js**: Runtime for ingestion scripts and local development
 - **SHA-256**: Cryptographic hashing for document integrity and idempotency
 - **Playwright**: End-to-end testing for frontend and API reliability
@@ -21,7 +21,49 @@ These technologies were selected to ensure scalability, security, and maintainab
 ## Overview
 This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical experience, and engineering decisions.
 
+
 The assistant is not a generic chatbot. It is a Retrieval-Augmented Generation (RAG) system that answers questions strictly using verified portfolio documents.
+
+
+## Security & Guardrails
+
+The assistant implements multiple layers of protection:
+
+- **Prompt Injection Guard:** Blocks suspicious input patterns (e.g., "ignore previous", "jailbreak", SQL keywords, exfiltration attempts, high symbol density, or excessive length).
+- **Retrieval Guard:** Only includes context chunks with similarity ≥ 0.40, blocks low-confidence retrievals.
+- **Strict Context-Only Answering:** LLM is instructed to answer strictly from retrieved portfolio data, never from general knowledge.
+- **Sensitive Data Protection:** Never reveals secrets or environment details.
+- **Rate Limiting:** Per-IP sliding window (10 requests/minute) using Durable Objects.
+- **Abuse Logging:** All blocked or suspicious requests are logged to Supabase for analysis.
+
+---
+
+## Testing & Ingestion
+
+- **Run tests:**
+  ```bash
+  npm test
+  ```
+- **Ingest new/updated documents:**
+  ```bash
+  npm run ingest
+  ```
+  (See `scripts/ingest.ts` for details)
+
+---
+
+## Configuration
+
+Set the following environment variables in your `.env` file:
+
+- `OPENAI_API_KEY`         # OpenAI API key for embeddings and completions
+- `SUPABASE_URL`           # Supabase project URL
+- `SUPABASE_ANON_KEY`      # Supabase anon/public key
+- `RATE_LIMITER`           # Durable Object binding for rate limiting
+
+See `wrangler.jsonc` for Cloudflare Worker and Durable Object configuration.
+
+---
 
 This project demonstrates Dave’s ability to design secure AI systems, backend services, and production-style engineering workflows.
 

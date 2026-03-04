@@ -9,6 +9,7 @@
 ## Layer 2 — Worker Logic *(Planned / In Progress)*
 - Unit tests
 - Similarity logic validation
+- Scheduled/Nightly regression Runs
 
 ## Layer 3 — Integration Validation *(Planned)*
 - Mocked embedding

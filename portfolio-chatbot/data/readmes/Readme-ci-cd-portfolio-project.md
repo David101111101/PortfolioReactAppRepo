@@ -4,15 +4,12 @@ This repository serves as both a personal portfolio and a living example of prod
 
 The portfolio itself is continuously validated through automated testing, accessibility auditing, performance monitoring, and CI/CD quality gates — ensuring that every change meets defined engineering standards before deployment.
 
-🌐 Portfolio:
-https://david101111101.github.io/
-
 Professional Profile
 
 David Abril — QA Automation Engineer / SDET
 English C2 Certified
 
-Automation-focused Quality Engineer with experience designing automation frameworks, CI/CD validation pipelines, and scalable testing strategies that improve delivery confidence while reducing manual effort.
+Automation-focused Quality Engineer with a background designing automation frameworks, CI/CD validation pipelines, and scalable testing strategies that improve delivery confidence while reducing manual effort.
 
 Background includes automation engineering, backend development exposure, and technical leadership contributing to automation-first development cultures.
 
@@ -56,6 +53,13 @@ PR Quality Gates — Automation Strategy
 
 Each pull request triggers a validation pipeline designed to protect release stability.
 
+
+programming languages used:
+TypeScript,
+CSS,
+JavaScript,
+HTML
+
 Automated Controls
 Capability	Engineering Value
 Fixtures + Page Object Model	Scalable and maintainable automation architecture
@@ -82,12 +86,13 @@ Automation operates as a release safety mechanism, not just a testing activity.
 The architecture structure separates application logic, automation layers, and deployment workflows to maintain long-term scalability.
 
 CI/CD Testing Strategy
+Release: build & deploy to Azure And Github Actions through the use of .yml workflows for each platform that trigger the automated pipelines
 
 The repository demonstrates a two-stage quality validation model commonly used in production environments.
 
 Stage 1 — Continuous Integration (PR Validation)
 
-Triggered on every pull request.
+Triggered on every pull request using Parallel execution.
 
 Validation includes:
 

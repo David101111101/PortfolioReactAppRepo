@@ -4,7 +4,6 @@ test("landing page renders hero content", async ({ home }) => {
   await home.goto();
   await expect(home.heading(/automation engineered for reliability/i)).toBeVisible();
 });
-
 test("theme nav bar btn toggle works", async ({ home }) => {
   await home.goto();
   const initialTheme = await home.getTheme();
@@ -18,19 +17,18 @@ test("theme nav bar btn toggle works", async ({ home }) => {
   await home.waitForTheme(initialTheme);
 });
 
-//Chat Bubble Renders
 test("chat bubble renders", async ({ home }) => {
   await home.goto();
   await expect(home.chatBubble()).toBeVisible();
 });
 //
-test.skip("chat opens and greeting appears", async ({ home }) => {
+test("chat opens and greeting appears", async ({ home }) => {
   await home.goto();
   await home.openChat();
   await home.waitForGreeting();
 });
-//User Can Send Message and Receive Reply (CI Safe)
-test.skip("chatbot responds to user message", async ({ home, page }) => {
+
+test("chatbot responds to user message", async ({ home, page }) => {
   await home.goto();
   
   // Mock backend for deterministic CI behavior

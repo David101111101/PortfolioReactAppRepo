@@ -35,7 +35,84 @@ Quality Platforms
 Production Automation
         ↓
 Organizational Impact
+
+
+
 Phase 1 — System Builder Foundation
+
+
+Developer Tools:
+GitHub Actions CI/CD
+Azure DevOps CI/CD
+Postman
+Docker Compose
+Allure reporting
+K6 Cloud for performance observability 
+Jira
+Monday
+Branching strategy (PRs)
+Vite
+Wrangler
+chatGPT Plus
+Github Copilot
+
+
+Programming languages:
+Java
+JavaScript
+TypeScript
+PostgreSQL
+SQL
+MySQL
+PHP
+C# 
+HTML
+CSS 
+JSON
+Gherkin
+
+
+
+Test Automation:
+Playwright
+Cypress
+Puppeteer
+UI automation
+End-to-end frameworks
+Backend Testing
+BDD with Gherkin
+Predictive forecasting
+Parallel execution
+Cross-browser testing
+Data Driven Testing
+
+Delivery:
+Agile/Scrum
+Documentation
+Cross-team collaboration
+Ownership
+Stakeholder Communication
+Forecasting
+Data visualization
+Continuous improvement
+
+Testing & Strategy:
+API testing
+Integration
+Regression
+Smoke
+Functional
+Usability
+Compatibility
+Security
+Accessibility
+Performance
+Mobile/responsive testing
+SHA-256 hashing
+OpenAI Embeddings
+
+
+
 
 Projects:
 
@@ -233,7 +310,7 @@ Increase confidence in releases
 
 Provide fast feedback
 
-Improve developer experience
+Improve developer work satisfaction
 
 Reduce cognitive load on teams
 

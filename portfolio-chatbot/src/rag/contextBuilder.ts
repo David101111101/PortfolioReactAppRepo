@@ -12,18 +12,20 @@ export interface ContextBuildResult {
 }
 export function buildContext(
   docs: any[],
-  maxChars = 6000
+  maxChars = 6000,
+  question = ""
 ): ContextBuildResult {
 
-  if (!Array.isArray(docs) || docs.length === 0) {
-    return { context: "", totalChars: 0, truncated: false };
+  if (!Array.isArray(docs) || docs.length === 0) { //
+    console.log("0 chunks returned from the DB", docs);
+    return { context: "I do not have that information in my portfolio.", totalChars: 0, truncated: false };
   }
-  const header = `Responses should emphasize impact reasoning, architecture decisions and system-level thinking rather than only tool usage`;
   const priority = [
     "high",
     "medium",
     "normal",
   ];
+
   const grouped = new Map<string, string[]>();
   for (const p of priority) grouped.set(p, []);
   for (const d of docs) {
@@ -31,7 +33,7 @@ export function buildContext(
     const type = d?.metadata?.priority ?? "general";
     grouped.get(type)?.push(`[Source: ${d.metadata?.source}]\n${d.content.trim()}`);
   }
-  let context = header;
+  let context = "";
   let truncated = false;
   for (const type of priority) {
     const section = grouped.get(type) ?? [];

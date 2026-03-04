@@ -31,7 +31,7 @@ export type Experience = {
 export const profile = {
   name: "David Abril",
   role: "QA Automation Engineer",
-  location: "Remote • Colombia",
+  location: "Remote",
   languages: "English (C2) Certified",
   summary:
     "QA Engineer specializing in automation, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning, I am looking forward to expanding my engineering expertise. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
@@ -52,7 +52,7 @@ export const stats: Stat[] = [
 export const skills: { group: string; items: string[] }[] = [
   {
     group: "Test Automation",
-    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks", "Backend Testing", "BDD with Gherkin","Predictive forecasting","Parallel execution","Cross-browser testing","Supabase"]
+    items: ["Playwright", "Cypress", "Puppeteer", "UI automation", "End-to-end frameworks", "Backend Testing", "BDD with Gherkin","Predictive forecasting","Parallel execution","Cross-browser testing","Data Driven Testing","Jest", "Vitest"]
   },
   {
     group: "Testing & Strategy",
@@ -64,12 +64,14 @@ export const skills: { group: string; items: string[] }[] = [
       "Functional",
       "Usability",
       "Compatibility",
+      "Scheduled/Nightly runs",
+      "Performance",
       "Security",
       "Accessibility",
-      "Performance",
-      "Mobile/responsive testing",
+      "Responsive testing",
       "SHA-256 hashing",
-      "OpenAI Embeddings"
+      "OpenAI Embeddings",
+      "AI/LLM testing"
     ]
   },
   {
@@ -86,16 +88,18 @@ export const skills: { group: string; items: string[] }[] = [
       "Monday",
       "Branching strategy (PRs)",
       "Vite",
-      "Wrangler"
+      "Wrangler",
+      "React", 
+      "Supabase"
     ]
   },
   {
     group: "Languages",
-    items: ["Java", "JavaScript", "TypeScript", "PostgreSQL", "SQL/MySQL", "C#", "HTML", "CSS", "JSON", "React", "Gherkin","Node.js"]
+    items: ["Java", "JavaScript", "TypeScript", "PostgreSQL", "SQL/MySQL","PHP", "C#", "HTML", "CSS", "JSON", "Gherkin","Node.js"]
   },
   {
     group: "Delivery",
-    items: ["Agile/Scrum", "Documentation", "Cross-team collaboration", "Ownership","Stakeholder Communication"]
+    items: ["Agile/Scrum", "Documentation", "Cross-team collaboration", "Ownership","Stakeholder Communication", "Forecasting", "Data visualization", "Continuous improvement"]
   }
 ];
 

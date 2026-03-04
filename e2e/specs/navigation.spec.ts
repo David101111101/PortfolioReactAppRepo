@@ -29,8 +29,6 @@ test("Resume PDF is accessible", async ({ page, home }) => {
   expect(response.ok()).toBeTruthy();
   expect(response.headers()["content-type"]).toContain("pdf");
 });
-
-
 test('Email Button header work', async ({ home, page }) => {
   await home.goto();
   // Target only the button group in the main hero section (id='section')
@@ -154,3 +152,23 @@ expect(clipboardText).toBe("davidstevenabril@gmail.com");
 // Assert revert
 await expect(btnFooter).toHaveText("Copy email", { timeout: 4000 });
 })
+test("chatbot opens and responds to mocked user message", async ({ home, page }) => {
+  await home.goto();
+  // Mock backend for deterministic CI behavior
+  await page.route("**portfolio-chatbot**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/plain",
+      body: "Mocked assistant response"
+    });
+  });
+
+  await home.openChat();
+  await home.waitForGreeting();
+  const message = "Test message";
+  await home.sendChatMessage(message);
+  await expect(home.userMessages().last()).toHaveText(`> ${message}`);
+  await home.waitForAssistantReply();
+  await expect(home.assistantMessages().last())
+    .toContainText("Mocked assistant response");
+});

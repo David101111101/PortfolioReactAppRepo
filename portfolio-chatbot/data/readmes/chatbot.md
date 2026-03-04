@@ -2,7 +2,11 @@ Portfolio AI Chat Assistant Architecture
 
 
 Overview
-This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical experience, and engineering decisions.
+
+This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical projects, and engineering decisions.
+
+It generates responses using only verified CV and project documentation. It is not a live human chat and may not respond to questions outside the scope of the portfolio content. Conversations may be logged for quality, security, and system improvement purposes. No personal identifiers such as IP addresses, emails, or account data are collected or stored. 
+This system includes input validation, prompt injection protection, and data security guardrails designed to prevent misuse while actively blocking personal data submission and malicious inputs before processing.
 
 The assistant is not a generic chatbot. It is a Retrieval-Augmented Generation (RAG) system that answers questions strictly using verified portfolio documents.
 
@@ -17,7 +21,12 @@ Provide interactive technical explanations
 Answer engineering questions about projects
 Prevent hallucinated or fabricated information
 Demonstrate real-world AI system design skills
-Architecture
+Integrate continuous enhancements through the quality verification of user saved conversations
+
+Programming Languages:
+TypeScript, PostgreSQL, HTML, CSS, JSON, Node.Js
+
+Architecture:
 The assistant follows a Retrieval-Augmented Generation architecture deployed on edge infrastructure.
 
 High-level flow:
@@ -28,14 +37,16 @@ User Question
 → Vector Similarity Search (Supabase)
 → Context Builder
 → LLM Response Streaming
+→ Database conversation logging
 → Chat Interface
 
 Key components:
 
 Cloudflare Workers for serverless edge execution
-Supabase vector database for semantic retrieval
+Supabase vector database for semantic retrieval and conversation logging for quality enhancements
 OpenAI embeddings for document vectorization
 GPT-4o-mini for grounded responses
+text-embedding-3-small for embedding generation
 Streaming responses for improved UX
 Retrieval System Design
 Portfolio documents such as project READMEs, resume data, and technical documentation are processed through a custom ingestion pipeline.
@@ -49,6 +60,7 @@ Idempotent re-ingestion
 Batch embedding generation
 Metadata enrichment per chunk
 Each document is split into semantic chunks and stored with embeddings to enable similarity-based retrieval.
+Vitest for unit testing
 
 Context Construction
 A custom Context Builder assembles retrieved documents before sending them to the language model.
@@ -80,11 +92,12 @@ Using edge workers to minimize latency
 Separating ingestion from runtime inference
 Avoiding LLM-based link detection
 Deterministic context assembly instead of random truncation
+Data Driven Testing
 Background logging using execution context tasks
 These decisions reflect production-oriented system thinking.
 
 Skills Demonstrated
-This project demonstrates experience with:
+This project demonstrates knowledge in:
 
 Retrieval-Augmented Generation (RAG)
 LLM system architecture
@@ -95,23 +108,23 @@ AI security practices
 Performance optimization
 Automated ingestion pipelines
 Outcome
-The result is an intelligent portfolio assistant capable of explaining Dave’s engineering work, architectural decisions, and technical experience in a reliable and secure manner.
+The result is an intelligent portfolio assistant capable of explaining Dave’s engineering work, architectural decisions, and technical knowledge in a reliable and secure manner.
 
 
 Technologies Used
 This project leverages a modern stack of technologies to deliver a secure, performant, and production-style AI assistant:
 
-websiteCloudflare Workers: Serverless edge execution for low-latency API and inference
-websiteSupabase: Managed backend platform for authentication and vector database
-websitePostgreSQL: Underlying database engine for Supabase, used for storing document metadata and vector embeddings
-websiteOpenAI API (GPT-4o-mini): Language model for grounded, context-aware responses
-websiteOpenAI Embeddings: For semantic document chunk vectorization
-websiteWrangler: CLI tool for developing, deploying, and managing Cloudflare Workers
-websiteTypeScript: Strongly-typed language for backend and ingestion pipeline
-websiteNode.js: Runtime for ingestion scripts and local development
-websiteSHA-256: Cryptographic hashing for document integrity and idempotency
-websitePlaywright: End-to-end testing for frontend and API reliability
-websiteVite: Frontend tooling for fast development and builds
+Cloudflare Workers: Serverless edge execution for low-latency API and inference
+Supabase: Managed backend platform for authentication and vector database
+PostgreSQL: Underlying database engine for Supabase, used for storing document metadata and vector embeddings
+OpenAI API (GPT-4o-mini): Language model for grounded, context-aware responses
+OpenAI Embeddings: For semantic document chunk vectorization
+Wrangler: CLI tool for developing, deploying, and managing Cloudflare Workers
+TypeScript: Strongly-typed language for backend and ingestion pipeline
+Node.js: Runtime for ingestion scripts and local development
+SHA-256: Cryptographic hashing for document integrity and idempotency
+Playwright: End-to-end testing for frontend and API reliability
+Vite: Frontend tooling for fast development and builds
 
 These technologies were selected to ensure scalability, security, and maintainability across the ingestion, retrieval, and serving layers of the portfolio assistant.
 

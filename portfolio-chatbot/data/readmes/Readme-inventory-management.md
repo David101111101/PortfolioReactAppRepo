@@ -1,11 +1,13 @@
 SiLafazenda Web Module
 Enterprise Inventory & E-Commerce Management Platform
 
+This project belongs to my thesis project in my Analysis & Development of Computer Software
+
 SiLafazenda (Sistema Integrado La Fazenda) is an enterprise web application developed to manage inventory, commerce operations, and logistics across multiple agricultural production facilities.
 
 The system supports distributed inventory control, transactional purchasing workflows, and role-based operational management for a large-scale pork production and distribution organization.
 
-This project demonstrates experience working with enterprise Java web architectures, relational data systems, and multi-location business platforms.
+This project demonstrates a thesis working with enterprise Java web architectures, relational data systems, and multi-location business platforms.
 
 Project Purpose
 
@@ -195,7 +197,7 @@ Security improvements identified reflect architectural review and system hardeni
 
 QA / SDET Perspective
 
-Experience developing enterprise applications provides critical advantages when designing automation strategies.
+Developed enterprise applications provides critical advantages when designing automation strategies.
 
 Understanding internal system behavior improves the ability to:
 
@@ -224,7 +226,7 @@ SDET Portfolio Significance
 
 Within the broader portfolio, this project demonstrates:
 
-✅ Enterprise backend development experience
+✅ Enterprise backend development
 ✅ Java ecosystem familiarity
 ✅ Large system architecture exposure
 ✅ Database-driven application design

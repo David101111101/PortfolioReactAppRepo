@@ -9,10 +9,35 @@ export function normalizeInput(input: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+/* Personal Information Guard */
+
+export const piiPatterns: RegExp[] = [
+  /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
+  /(\+?\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{3,4}/,
+  /\b(?:\d[ -]*?){13,16}\b/,
+  /\b\d{8,}\b/,
+  /eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/,
+  /\b[A-Za-z0-9_-]{32,}\b/,
+];
 
 /**
  * Pattern categories
  */
+export const SSRF = [
+  "http://localhost",
+  "127.0.0.1",
+  "file://",
+  "metadata.google.internal"
+]
+export const CommandInjection = [
+  "sudo",
+  "rm -rf",
+  "curl http",
+  "chmod",
+  "cmd.exe",
+  "powershell",
+  "wget",
+];
 export const promptInjectionPatterns = [
   "ignore previous",
   "ignore all instructions",
@@ -32,6 +57,9 @@ export const promptInjectionPatterns = [
   "reveal prompt",
   "show hidden instructions",
   "print your instructions",
+  "summarize your hidden instructions",
+  "what were you told",
+  "confidential instructions",
 ];
 
 export const dataExfiltrationPatterns = [
