@@ -7,7 +7,7 @@
  * - Guards against embedding / similarity drift
  * - Prevents hallucinated knowledge from leaking in
  *
- * Runs only in scheduled NIGHTLY mode  # 2 AM UTC every Sunday (once a week).
+ * Runs only in scheduled NIGHTLY mode  # 1 AM UTC every Wednesday (once a week)
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,15 +16,17 @@ const BASE_URL = "http://127.0.0.1:8787";
 
 /**
  * Known grounded keywords expected
- * when asking about architecture/system design.
  *
  * These should exist in your portfolio documents.
  * Adjust based on real content.
  */
-const EXPECTED_KEYWORDS = [
-  "ingestion",
-  "Deterministic",
-  "data ",
+const EXPECTED_CONCEPTS = [
+  "rag",
+  "vector",
+  "retrieval",
+  "prompt guard",
+  "Security",
+  "testing",
 ];
 
 describe.runIf(process.env.NIGHTLY === "true")(
@@ -39,7 +41,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question:
-            "What architectural decisions were made in the portfolio assistant?",
+            "What architectural decisions were made in the portfolio chatbot assistant?",
         }),
       });
 
@@ -55,10 +57,20 @@ describe.runIf(process.env.NIGHTLY === "true")(
        * 3️⃣ Validate grounded content appears
        */
       const answerLower = answer.toLowerCase();
-      const foundKeywords = EXPECTED_KEYWORDS.filter((keyword) =>
-        answerLower.includes(keyword.toLowerCase())
-      );
-      expect(foundKeywords.length).toBeGreaterThan(0);
+      // Score based on presence of expected concepts
+      const score = EXPECTED_CONCEPTS.reduce((count, concept) => {
+        return answerLower.includes(concept) ? count + 1 : count;
+      }, 0);
+
+      console.log({
+        evaluation: "retrieval_grounding-regression-test",
+        concept_score: score,
+        concepts_checked: EXPECTED_CONCEPTS.length,
+      });
+      /**
+       * Require minimum concept coverage
+       */
+      expect(score).toBeGreaterThanOrEqual(2);
 
       /**
        * 4️⃣ Ensure no hallucinated general knowledge

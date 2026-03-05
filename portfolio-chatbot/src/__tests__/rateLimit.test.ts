@@ -22,7 +22,7 @@ const BASE_URL = "http://127.0.0.1:8787";
 // Adjust if your rate limit differs, my max is 10 res per min
 const REQUEST_LIMIT = 10;
 //Only runs if NIGHTLY env var is set to true, to avoid interference with other tests due to rate limiting.
-// # 2 AM UTC every Sunday (once a week)
+// # 1 AM UTC every Wednesday (once a week)
 describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
   it("should block requests exceeding the per-IP limit", async () => {
 
