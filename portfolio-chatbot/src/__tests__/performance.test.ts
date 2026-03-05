@@ -6,7 +6,7 @@
  * - Basic concurrency behavior
  * - Functional correctness under light parallel load
  *
- * Runs only in NIGHTLY mode  # 2 AM UTC every Sunday (once a week).
+ * Runs only in NIGHTLY mode  # 1 AM UTC every Wednesday (once a week)
  */
 
 import { describe, it, expect } from "vitest";
@@ -18,7 +18,7 @@ const MAX_P95_MS = process.env.CI ? 4500 : 3700; // CI runners are slower
 const SAMPLE_SIZE = 5;
 const CONCURRENT_REQUESTS = 5;
 // Only executes these tests during nightly scheduled runs to avoid slowing down regular development feedback loops
-// # 2 AM UTC every Sunday (once a week)
+// # 1 AM UTC every Wednesday (once a week)
 describe.runIf(process.env.NIGHTLY === "true")(
   "Performance Regression (Advanced)",
   () => {
