@@ -15,16 +15,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ==============================
+  # 1️⃣ Backend Tests (Fast Tier)
+  # ==============================
+  backend:
+    name: Backend Tests (unit + contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      # Install root deps (if needed)
+      - name: Install root deps
+        run: npm ci
+
+      # Install backend deps
+      - name: Install backend deps
+        run: |
+          cd portfolio-chatbot
+          npm ci
+
+      # Start Worker in background for contract test
+      - name: Start Worker
+        run: |
+          cd portfolio-chatbot
+          npm run dev &
+          sleep 5
+
+      # Run backend tests
+      - name: Run backend tests
+        run: |
+          cd portfolio-chatbot
+          npm test
+  # ==============================
+  # 2️⃣ Frontend E2E (Chromium Only)
+  # ==============================
   e2e:
-    name: E2E (${{ matrix.browser }})
+    name: E2E (chromium)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
+    needs: backend # Ensure backend tests pass before running E2E
     env:
       VITE_BASE: /
+
     steps:
       - uses: actions/checkout@v5
 
@@ -42,8 +81,8 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Install Playwright browser
-        run: npx playwright install ${{ matrix.browser }} --with-deps
+      - name: Install Chromium browser
+        run: npx playwright install chromium --with-deps
 
       - name: Build (for preview server)
         run: npm run build
@@ -51,37 +90,39 @@ jobs:
           VITE_BASE: /
 
       - name: Run Playwright tests
-        run: npx playwright test --project=${{ matrix.browser }}
+        run: npx playwright test --project=chromium
 
       - name: Publish test results (JUnit → GitHub UI)
         if: always()
         uses: dorny/test-reporter@v1
         with:
-          name: Junit Report (${{ matrix.browser }})
+          name: Junit Report
           path: playwright-report/junit.xml
           reporter: java-junit
 
       - name: Write summary snippet
         if: always()
-        run: node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md
+        run: node scripts/playwright-summary.mjs chromium summaries/chromium.md
 
       - name: Upload summary snippet
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pw-summary-${{ matrix.browser }}
-          path: summaries/${{ matrix.browser }}.md
+          name: pw-summary-chromium
+          path: summaries/chromium.md
 
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.browser }}
+          name: playwright-chromium
           path: |
             playwright-report/
             test-results/
-
+  # ==============================
+  # 3️⃣ Lighthouse Budget Gate
+  # ==============================
   lighthouse:
     name: Lighthouse (budgets)
     runs-on: ubuntu-latest

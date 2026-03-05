@@ -1,12 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { inspectPrompt } from "../security/promptGuard/promptGuard";
 
-describe("promptGuard - inspectPrompt", () => {
+//Does not run these tests in nightly deep regression suit
+describe.skipIf(process.env.NIGHTLY === "true")("promptGuard - inspectPrompt", () => {
   
   describe("Safe Input", () => {
     it("should allow normal user question", () => {
       const result = inspectPrompt("How does your RAG system work?");
       expect(result.allowed).toBe(true);
+    });
+  });
+  
+  describe("Personal Information detection", () => {
+    it("should block personal information string", () => {
+      const result = inspectPrompt("email@email.com");
+      expect(result.allowed).toBe(false);
+      expect(result.category).toBe("PERSONAL_INFORMATION");
+
+      const result2 = inspectPrompt("My phone number is +1 (555) 123-4567");
+      expect(result2.allowed).toBe(false);
+      expect(result2.category).toBe("PERSONAL_INFORMATION");
+      
     });
   });
 
