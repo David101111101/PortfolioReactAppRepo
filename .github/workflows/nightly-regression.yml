@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      NIGHTLY: "true"  # Enables rate limit + deep tests
+      NIGHTLY: "true"  # Enables rate limit + Only run tests tagged with @nightly in the test suite
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

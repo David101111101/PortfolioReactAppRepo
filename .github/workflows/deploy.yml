@@ -35,22 +35,27 @@ jobs:
           node-version: lts/*
           cache: "npm"
 
+      # Install root deps (if needed)
+      - name: Install root deps
+        run: npm ci
+
       - name: Install backend deps
         run: |
           cd portfolio-chatbot
           npm ci
 
-      # Start Worker for contract test
+      # Start Worker in background for contract test
       - name: Start Worker
         run: |
           cd portfolio-chatbot
           npm run dev &
           sleep 5
 
+      # Run backend tests
       - name: Run backend tests
         run: |
           cd portfolio-chatbot
-          npm run test:ci
+          npm test:ci
 
       - name: Write backend summary
         if: always()
