@@ -21,10 +21,9 @@ export default function ChatWidget() {
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const TYPING_SPEED = 10; // milliseconds per character
-  const INITIAL_GREETING = `Hi, I’m Dave.
-I built this assistant from scratch using production engineering standards to demonstrate my Backend & QA Automation foundation while transitioning to AI testing engineering.
+  const INITIAL_GREETING = `I built this assistant from scratch using production engineering standards. It showcases my foundation in Backend & QA Automation, and how I apply those skills to modern AI testing.
 
-Conversations may be logged, but no personal information is stored.`;
+  Conversations may be logged, but no personal information is stored.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

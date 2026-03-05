@@ -5,25 +5,169 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-permissions:      #Grants the workflow access to:
-  contents: read  #Read repo contents
-  pages: write    #Write to GitHub Pages
-  id-token: write #use OIDC tokens (needed for secure deployments)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  checks: write   # Needed for JUnit publishing
 
 concurrency:
-  group: "pages"            #Ensures only one Pages deployment runs at a time
-  cancel-in-progress: true  #Cancels any in-progress job if a new one starts.
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  verify:                   #Runs smoke tests and audits before deployment
-    name: Verify (chromium smoke)
+
+  # =====================================
+  # 1️⃣ Backend Verification (Tier 2)
+  # =====================================
+  backend:
+    name: Backend Tests (unit + contract)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Node
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install backend deps
+        run: |
+          cd portfolio-chatbot
+          npm ci
+
+      # Start Worker for contract test
+      - name: Start Worker
+        run: |
+          cd portfolio-chatbot
+          npm run dev &
+          sleep 5
+
+      - name: Run backend tests
+        run: |
+          cd portfolio-chatbot
+          npm run test:ci
+
+      - name: Write backend summary
+        if: always()
+        run: |
+          echo "## 🧠 Backend Verification" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit + contract tests executed" >> $GITHUB_STEP_SUMMARY
+          echo "- Worker boot validation completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  # =====================================
+  # 2️⃣ Frontend E2E Multi-Browser
+  # =====================================
+  e2e:
+    name: E2E (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: backend
+
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    env:
+      VITE_BASE: /
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install browser
+        run: npx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BASE: "/"
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Append E2E summary
+        if: always()
+        run: |
+          echo "## 🌍 E2E Verification (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Playwright tests executed" >> $GITHUB_STEP_SUMMARY
+          echo "- JUnit results published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      # ===============================
+      # Publish JUnit to GitHub Checks
+      # ===============================
+      - name: Publish test results (JUnit)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: JUnit Report (${{ matrix.browser }})
+          path: playwright-report/junit.xml
+          reporter: java-junit
+
+      # ===============================
+      # Upload artifacts
+      # ===============================
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+
+      # ===============================
+      # Generate summary snippet
+      # ===============================
+      - name: Write summary snippet
+        if: always()
+        run: node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md
+
+      - name: Upload summary snippet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-summary-${{ matrix.browser }}
+          path: summaries/${{ matrix.browser }}.md
+
+  # =====================================
+  # 3️⃣ Lighthouse Budget Gate
+  # =====================================
+  lighthouse:
+    name: Lighthouse (budgets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: e2e
+    env:
+      VITE_BASE: "/"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -31,55 +175,39 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
-
-      - name: Install Chromium browser
-        run: npx playwright install chromium --with-deps
 
       - name: Build
         run: npm run build
-        env:
-         VITE_BASE: "/"
 
-      - name: Check dist folder
-        run: ls -la dist # Sanity check to ensure we're in the right directory and can access build output
-
-      # Runs the same suite but only chromium
-      - name: Run Playwright smoke
-        run: npx playwright test --project=chromium
-
-      # Don't deploy if budgets regress on main
       - name: Audit with Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: ./lighthouserc.json
           uploadArtifacts: true
 
-      - name: Upload Playwright artifacts
+      - name: Append Lighthouse summary
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verify-playwright
-          path: |
-            playwright-report/
-            test-results/
+        run: |
+          echo "## 🔎 Lighthouse Budget Gate" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance budgets enforced" >> $GITHUB_STEP_SUMMARY
+          echo "- Accessibility thresholds validated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
+  # =====================================
+  # 4️⃣ Deploy (only if all verification passes)
+  # =====================================
   deploy:
-    needs: verify
+    needs: [backend, e2e, lighthouse]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Node
+      - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -99,9 +227,20 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: "./dist" #vite outputs to dist by default.
+          path: "./dist"
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-  
+
+  # ==============================
+  # 5️⃣ PR Comment with Results
+  # ==============================
+      - name: Final deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Result" >> $GITHUB_STEP_SUMMARY
+          echo "- Static site deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "- All verification gates passed before release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 Environment URL: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY

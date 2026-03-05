@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="20" failures="5" errors="0" time="0.4483655">
+    <testsuite name="src/__tests__/api.contract.test.ts" timestamp="2026-03-04T18:49:28.735Z" hostname="Dave101101" tests="1" failures="1" errors="0" skipped="0" time="0.2024737">
+        <testcase classname="src/__tests__/api.contract.test.ts" name="API Contract &gt; should return valid response structure" time="0.1987254">
+            <failure message="fetch failed" type="TypeError">
+TypeError: fetch failed
+ ❯ src/__tests__/api.contract.test.ts:42:22
+
+Caused by: Error: connect ECONNREFUSED ::1:8787
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4078, code: &apos;ECONNREFUSED&apos;, syscall: &apos;connect&apos;, address: &apos;::1&apos;, port: 8787 }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/contextBuilder.test.ts" timestamp="2026-03-04T18:49:28.858Z" hostname="Dave101101" tests="4" failures="3" errors="0" skipped="0" time="0.0556759">
+        <testcase classname="src/__tests__/contextBuilder.test.ts" name="Context Builder &gt; joins documents correctly" time="0.0215968">
+            <failure message="expected &apos;&apos; to contain &apos;Readme-ci-cd-performance-testing.md&apos;" type="AssertionError">
+AssertionError: expected &apos;&apos; to contain &apos;Readme-ci-cd-performance-testing.md&apos;
+
+- Expected
++ Received
+
+- Readme-ci-cd-performance-testing.md
+
+ ❯ src/__tests__/contextBuilder.test.ts:14:28
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/contextBuilder.test.ts" name="Context Builder &gt; truncates when exceeding maxChars" time="0.0069551">
+            <failure message="expected false to be true // Object.is equality" type="AssertionError">
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/contextBuilder.test.ts:22:30
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/contextBuilder.test.ts" name="Context Builder &gt; handles malformed documents safely" time="0.0009939">
+        </testcase>
+        <testcase classname="src/__tests__/contextBuilder.test.ts" name="Context Builder &gt; returns empty context for empty array" time="0.0178873">
+            <system-out>
+0 chunks returned from the DB []
+
+            </system-out>
+            <failure message="expected &apos;I do not have that information in my …&apos; to be &apos;&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;I do not have that information in my …&apos; to be &apos;&apos; // Object.is equality
+
+- Expected
++ Received
+
++ I do not have that information in my portfolio.
+
+ ❯ src/__tests__/contextBuilder.test.ts:33:28
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/performance.test.ts" timestamp="2026-03-04T18:49:28.899Z" hostname="Dave101101" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="src/__tests__/performance.test.ts" name="Performance Regression (Advanced) &gt; should maintain acceptable P95 latency and handle light concurrency" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/prompt.test.ts" timestamp="2026-03-04T18:49:28.901Z" hostname="Dave101101" tests="1" failures="1" errors="0" skipped="0" time="0.1708218">
+        <testcase classname="src/__tests__/prompt.test.ts" name="Portfolio Assistant &gt; Should refuse unknown question" time="0.1679714">
+            <failure message="fetch failed" type="TypeError">
+TypeError: fetch failed
+ ❯ src/__tests__/prompt.test.ts:11:22
+
+Caused by: Error: connect ECONNREFUSED ::1:8787
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4078, code: &apos;ECONNREFUSED&apos;, syscall: &apos;connect&apos;, address: &apos;::1&apos;, port: 8787 }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/promptGuard.test.ts" timestamp="2026-03-04T18:49:28.914Z" hostname="Dave101101" tests="11" failures="0" errors="0" skipped="0" time="0.0193941">
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; Safe Input &gt; should allow normal user question" time="0.0062704">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; Personal Information detection &gt; should block personal information string" time="0.0015964">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; PROMPT_INJECTION detection &gt; should block ignore previous instructions" time="0.0009247">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; PROMPT_INJECTION detection &gt; should detect mixed casing and spacing" time="0.0007167">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; SQL_INJECTION detection &gt; should block union select" time="0.0005882">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; SQL_INJECTION detection &gt; should block or 1=1 pattern" time="0.0006233">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; XSS detection &gt; should block script tag" time="0.0004783">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; ENCODED_PAYLOAD detection &gt; should block URL encoded payload" time="0.000516">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; DATA_EXFILTRATION detection &gt; should block request for api key" time="0.0008775">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; Length protection &gt; should block overly long input" time="0.000825">
+        </testcase>
+        <testcase classname="src/__tests__/promptGuard.test.ts" name="promptGuard - inspectPrompt &gt; High symbol density detection &gt; should block high symbol density string" time="0.0004266">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/rateLimit.test.ts" timestamp="2026-03-04T18:49:28.930Z" hostname="Dave101101" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="src/__tests__/rateLimit.test.ts" name="Rate Limiting &gt; should block requests exceeding the per-IP limit" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/retrieval.regression.test.ts" timestamp="2026-03-04T18:49:28.936Z" hostname="Dave101101" tests="1" failures="0" errors="0" skipped="1" time="0">
+        <testcase classname="src/__tests__/retrieval.regression.test.ts" name="Retrieval Regression &gt; should retrieve architecture-related portfolio content" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+</testsuites>

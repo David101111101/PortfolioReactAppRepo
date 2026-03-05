@@ -8,7 +8,8 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"ingest": "node --loader ts-node/esm scripts/ingest.ts",
-		 "test": "vitest",
+		"test": "vitest run",
+  		"test:ci": "vitest run --reporter=default --reporter=junit --outputFile=junit.xml",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
@@ -19,6 +20,7 @@
 		"wrangler": "^4.67.0"
 	},
 	"dependencies": {
-		"dotenv": "^17.3.1"
+		"dotenv": "^17.3.1",
+		"zod": "^4.3.6"
 	}
 }

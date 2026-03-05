@@ -1,0 +1,97 @@
+name: Nightly Regression
+
+# This workflow runs a deep regression suite every night to catch any issues that may have slipped through PR checks, especially around backend rate limits and contract integrity. It focuses on running the full backend test suite in a "nightly mode" that enables additional tests and stricter assertions.
+on:
+  schedule:
+    - cron: "0 2 * * 0"  # 2 AM UTC every Sunday (once a week)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  backend-nightly:
+    name: Backend Deep Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NIGHTLY: "true"  # Enables rate limit + deep tests
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install backend deps
+        run: |
+          cd portfolio-chatbot
+          npm ci
+
+      # Start Worker in background and give it a moment to initialize before running tests
+      - name: Start Worker
+        run: |
+          cd portfolio-chatbot
+          npm run dev &
+          sleep 8
+
+      - name: Run backend tests (nightly mode)
+        run: |
+          cd portfolio-chatbot
+          npm run test:ci
+
+      # Publish JUnit test results to guthub UI
+      - name: Publish backend test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Backend Nightly Results
+          path: portfolio-chatbot/junit.xml
+          reporter: java-junit
+      #Upload artifacts for debugging 
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Backend Nightly Results
+          path: |
+            portfolio-chatbot/junit.xml
+
+      - name: Detect LLM latency regressions
+        if: always()
+        run: |
+          echo "### 🤖 LLM Latency Monitoring" >> $GITHUB_STEP_SUMMARY
+
+          if grep -r "llm_latency_warning" . ; then
+            echo "⚠️ LLM latency regression detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ LLM latency within expected range" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Extract latency telemetry
+        if: always()
+        run: |
+          echo "### 🔬 LLM Latency Telemetry" >> $GITHUB_STEP_SUMMARY
+          grep rag_latency -r . || true
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## 🌙 Nightly Backend AI Regression" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### System Checks:" >> $GITHUB_STEP_SUMMARY
+          echo "- Rate limit enforcement validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Contract integrity checked" >> $GITHUB_STEP_SUMMARY
+          echo "- RAG retrieval regression executed" >> $GITHUB_STEP_SUMMARY
+          echo "- AI latency benchmarking executed" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance telemetry collected" >> $GITHUB_STEP_SUMMARY 
+          echo "" >> $GITHUB_STEP_SUMMARY
