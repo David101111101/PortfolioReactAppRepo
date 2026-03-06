@@ -19,13 +19,22 @@ import { describe, it, expect } from "vitest";
 
 const BASE_URL = "http://127.0.0.1:8787";
 
-// Adjust if your rate limit differs, my max is 10 res per min
-const REQUEST_LIMIT = 10;
+// Because we do a warm up call that one counts as 10 and then the 11th one should be blocked as limit passed.
+const REQUEST_LIMIT = 9;
 //Only runs if NIGHTLY env var is set to true, to avoid interference with other tests due to rate limiting.
 // # 1 AM UTC every Wednesday (once a week)
 describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
   it("should block requests exceeding the per-IP limit", async () => {
-
+    /** 
+     * 0️⃣ Warm up worker + durable object
+     */
+    await fetch(BASE_URL, {
+      method: "POST",
+      headers: testHeaders("10.0.0.1"),
+      body: JSON.stringify({
+        question: "warm up",
+      }),
+    });
     /**
      * 1️⃣ Send allowed number of requests
      */
