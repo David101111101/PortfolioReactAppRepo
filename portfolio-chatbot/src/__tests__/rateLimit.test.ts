@@ -32,14 +32,14 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
     for (let i = 0; i < REQUEST_LIMIT; i++) {
       const res = await fetch(BASE_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json",
-        "CF-Connecting-IP": "nightly-rate-test", }, // Simulate same IP for testing
+        headers: testHeaders("10.0.0.1"), // Simulate same IP for testing
         body: JSON.stringify({
           question: "Test rate limiting behavior",
         }),
       });
 
       expect(res.status).toBe(200);
+      await new Promise(r => setTimeout(r, 50)); // Small delay to avoid hitting the limit too quickly
     }
 
     /**
@@ -47,8 +47,7 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
      */
     const blockedResponse = await fetch(BASE_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", 
-         "CF-Connecting-IP": "nightly-rate-test", }, // Simulate same IP for testing
+      headers: testHeaders("10.0.0.1"), // Simulate same IP for testing
       body: JSON.stringify({
         question: "This should exceed the limit",
       }),
@@ -60,10 +59,16 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
     expect(blockedResponse.status).toBe(429);
 
     /**
-     * 4️⃣ Optional: Validate response body shape
+     * 4️⃣Validate response body shape
      */
     const body = await blockedResponse.text();
     expect(body.toLowerCase()).toContain("too many requests. please try again later.");
   }, 16000 /* Extended timeout by 16secs to account for potential delays in rate limit response */
 );
 });
+function testHeaders(ip: string) {
+  return {
+    "Content-Type": "application/json",
+    "CF-Connecting-IP": ip,
+  };
+}
