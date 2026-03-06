@@ -9,7 +9,7 @@
 		"start": "wrangler dev",
 		"ingest": "node --loader ts-node/esm scripts/ingest.ts",
 		"test": "vitest run",
-  		"test:ci": "vitest run --reporter=default --reporter=junit --outputFile=junit.xml",
+		"test:ci": "vitest run --reporter=default --reporter=junit --outputFile=junit.xml",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
@@ -21,6 +21,7 @@
 	},
 	"dependencies": {
 		"dotenv": "^17.3.1",
+		"openai": "^6.27.0",
 		"zod": "^4.3.6"
 	}
 }
