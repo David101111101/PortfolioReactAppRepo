@@ -1,4 +1,6 @@
-# David Abril — QA Automation Engineer / SDET Portfolio
+# David Abril — QA Automation Engineer / SDET Interactive RAG AI Portfolio
+
+[![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
 
 **This repo itself demonstrates production-grade practices:** integrated Playwright E2E tests, accessibility checks, performance audits, automated PR quality gates visual reporting with Junit and automatig Summary comment generated & posted.
 https://david101111101.github.io/PortfolioReactAppRepo

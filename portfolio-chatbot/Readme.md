@@ -1,4 +1,6 @@
-# Portfolio AI Chat Assistant Architecture
+# Interactive RAG AI Chat Assistant Architecture
+
+[![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
 
 ## Technologies Used
 
