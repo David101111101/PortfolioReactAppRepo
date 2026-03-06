@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
+		"dev": "wrangler dev --ip 127.0.0.1",
 		"start": "wrangler dev",
 		"ingest": "node --loader ts-node/esm scripts/ingest.ts",
 		"test": "vitest run",

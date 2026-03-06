@@ -124,6 +124,25 @@ Deployment only after successful verification
 
 This balances early defect detection with fast deployment cycles.
 
+Secure Deployment and Multi-Platform Configuration
+
+The CI/CD infrastructure prioritizes security and deployment flexibility through industry-standard practices.
+
+SSH Key-Based Authentication — All interactions between CI/CD pipelines and infrastructure (GitHub, Azure, cloud services) use SSH for encrypted, authenticated communication. This ensures that deployment operations cannot be intercepted or tampered with during transit, protecting the integrity of the release process.
+
+GitHub Secrets for Credentials — Sensitive configuration values such as API keys, cloud service credentials, and authentication tokens are stored securely in GitHub Secrets rather than checked into version control. These secrets are injected into workflow environments at runtime, ensuring credentials remain protected throughout the pipeline execution.
+
+Environment Variables for Dynamic Configuration — The deployment workflows leverage environment variables to create platform-agnostic configurations. This design allows the same codebase to be deployed seamlessly to both GitHub Actions and Azure DevOps pipelines without code changes, adapting build scripts and deployment targets based on the runtime environment.
+
+This multi-layered approach enables:
+
+- Secure credential management across all deployment platforms
+- Dynamic deployment flexibility without configuration duplication
+- Support for parallel CI/CD strategies (GitHub Actions for primary flow, Azure DevOps for alternative pipelines)
+- Easy scaling to additional deployment platforms as needs evolve
+
+The infrastructure treats security as a first-class concern while maintaining the flexibility required for modern multi-platform deployment scenarios.
+
 Observability & Debugging Philosophy
 
 Automation failures generate investigation artifacts rather than simple pass/fail signals.

@@ -126,6 +126,18 @@ If suspicious input is detected, the system blocks the request before it reaches
 
 These guardrails ensure the assistant only answers legitimate questions about the portfolio.
 
+Secure Deployment and Configuration Management
+
+Production deployment security is enforced through industry-standard secure communication and secrets management practices.
+
+The system leverages:
+
+SSH for Secure Communication — All infrastructure interactions, deployments, and configuration changes use SSH protocols to establish encrypted, authenticated connections. This ensures that sensitive operations between the CI/CD pipeline and cloud infrastructure cannot be intercepted or modified in transit.
+
+GitHub Secrets for Credentials Management — API keys, database credentials, and other sensitive configuration values are stored securely using GitHub Secrets rather than being checked into version control. Secrets are injected into the deployment pipeline at runtime, ensuring sensitive credentials remain protected throughout the CI/CD process.
+
+This defense-in-depth approach ensures that even if a part of the deployment pipeline is compromised, attackers cannot access credentials or establish unauthorized connections to production infrastructure.
+
 Privacy and Data Handling
 
 The assistant is designed with privacy-first principles.

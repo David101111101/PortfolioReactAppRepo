@@ -1,7 +1,7 @@
 Production Automation Initiative
 Automation Leadership Case Study
 
-I designed and implemented a Playwright-based automation system that transformed a manual production onboarding process into a scalable operational pipeline used across multiple teams.
+I designed and implemented a Playwright-based automation system that transformed a manual production onboarding process into a scalable operational pipeline to assist directly the day to day workflow of 3 international teams.
 
 The initiative began when account onboarding became a delivery bottleneck. Every new organization required extensive manual configuration performed directly in production systems. The work was repetitive, slow, and mentally draining for teams responsible for migrations and implementations.
 
@@ -36,13 +36,30 @@ Allow unlimited scaling through configuration-driven inputs
 Maintain production safety despite live environment execution
 The automation dynamically configures organizations based on service complexity while maintaining detailed observability and recovery mechanisms.
 This shifted automation from validation into operational enablement.
+
+Cross-Functional Collaboration at Scale
+
+Delivering automation across a distributed organization required coordinating with international technical teams spanning multiple time zones and disciplines. At Nationwide Marketing Group, I partnered extensively with:
+
+Development Teams — assisted weekly alignment meetings with dev lead and management regarding platform sprints, ensuring the automation adapts to avoid flakiness.
+
+QA Engineers — Was mentored about the best test design standards and principles for the framework automation runs flowed seamlessly into the organization's CI.
+
+DevOps Teams — Implemented Continuous Integration infrastructure within the Azure organization.
+
+The collaboration model addressed a critical challenge: automation runs needed to execute safely and repeatably against live production systems while maintaining audit trails and compliance checkpoints. Through regular syncs across US-based teams (and occasionally extending beyond), we established:
+
+- Automated CI/CD pipelines in Azure with git branch strategy
+- Weekly alignment based on sprint releases of bug fixes, new features or enhancements, etc.
+- Shared monitoring and alerting systems that provided real-time visibility into automation health
+
 Measurable Results
 
 The framework automated:
 113 manual setup actions per website
 11 independent platform modules
 Over 140,000 reliable browser interactions
-}
+
 Across a backlog of 300 websites, this resulted in:
 ~175 hours of repetitive manual work eliminated for a 9-person team
 More importantly delivery increased without increasing staffing.

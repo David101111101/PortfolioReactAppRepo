@@ -27,13 +27,12 @@ describe.runIf(process.env.NIGHTLY === "true")(
       /**
        * 1️⃣ Warm-up request
        */
-      await fetch(BASE_URL, {
+      const warmup = await fetch(BASE_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" ,
-        "CF-Connecting-IP": "nightly-perf-warmup",}, // Simulate same IP for testing},
+        headers: testHeaders("10.0.0.2"), // Simulate same IP for testing},
         body: JSON.stringify({ question: "Warm up request for performance baseline." }),
       });
-
+      expect(warmup.status).toBe(200);
       /**
        * 2️⃣ Sequential latency sampling
        */
@@ -44,8 +43,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
 
         const response = await fetch(BASE_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json", 
-         "CF-Connecting-IP": "nightly-perf-test",}, // Simulate same IP for testing},
+          headers: testHeaders("10.0.0.5"), // Simulate same IP for testing},
           body: JSON.stringify({
             question: "Explain the RAG architecture decisions.",
           }),
@@ -106,8 +104,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
         Array.from({ length: CONCURRENT_REQUESTS }).map(() =>
           fetch(BASE_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json", 
-            "CF-Connecting-IP": "nightly-perf-test",}, // Simulate same IP for testing
+             headers: testHeaders("10.0.0.5"), // Simulate same IP for testing
             body: JSON.stringify({
               question: "Describe your system architecture briefly.",
             }),
@@ -122,3 +119,9 @@ describe.runIf(process.env.NIGHTLY === "true")(
   );
   }
 );
+function testHeaders(ip: string) {
+  return {
+    "Content-Type": "application/json",
+    "CF-Connecting-IP": ip,
+  };
+}

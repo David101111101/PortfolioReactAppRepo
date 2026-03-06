@@ -1,4 +1,4 @@
-name: Nightly Regression
+name: Weekly Regression Suite - Backend Focus
 
 # This workflow runs a deep regression suite every night to catch any issues that may have slipped through PR checks, especially around backend rate limits and contract integrity. It focuses on running the full backend test suite in a "nightly mode" that enables additional tests and stricter assertions.
 on:
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      NIGHTLY: "true"  # Enables rate limit + Only run tests tagged with @nightly in the test suite
+      NIGHTLY: "true"  # Only run tests tagged with @nightly in the regression suite
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -41,8 +41,21 @@ jobs:
       - name: Start Worker
         run: |
           cd portfolio-chatbot
-          npm run dev &
-          sleep 8
+          npm run dev &1 | tee worker.log &
+          
+          echo "Waiting for worker to be ready..."
+
+          until curl -s http://localhost:8787 > /dev/null; do
+            sleep 2
+          done
+
+          echo "Worker ready"
+          
+      - name: Print worker logs if tests fail
+        if: failure()
+        run: |
+          echo "------ Worker Logs ------"
+          cat portfolio-chatbot/worker.log
 
       - name: Run backend tests (nightly mode)
         run: |
@@ -65,6 +78,13 @@ jobs:
           name: Backend Nightly Results
           path: |
             portfolio-chatbot/junit.xml
+
+      - name: Upload worker logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-logs
+          path: portfolio-chatbot/worker.log
 
       - name: Detect LLM latency regressions
         if: always()
