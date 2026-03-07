@@ -16,7 +16,10 @@ coverage/
 # Environment variables
 .env
 .env.*
-!.env.example
+
+# Allow environment configs
+!.env.development
+!.env.production
 
 # OS / Editor junk
 .DS_Store

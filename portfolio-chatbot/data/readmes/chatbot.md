@@ -126,6 +126,36 @@ If suspicious input is detected, the system blocks the request before it reaches
 
 These guardrails ensure the assistant only answers legitimate questions about the portfolio.
 
+Early User-Agent Validation and Bot Traffic Rejection
+
+The chatbot performs an early request-header validation step before deeper processing.
+
+Requests with missing, malformed, or suspicious User Agent headers are rejected immediately. This helps block non-browser clients and  automated traffic before those requests can consume expensive system resources.
+
+By filtering these requests at the edge of the request lifecycle, the architecture:
+
+• Reduces malicious and abusive traffic reaching core services
+• Lowers unnecessary pressure on the rate limiter
+• Prevents avoidable load on retrieval and generation components
+• Improves overall response consistency for legitimate users
+
+This fast-fail strategy improves both security posture and runtime performance by stopping suspicious traffic as early as possible.
+
+Origin Validation and CORS Enforcement
+
+The chatbot also validates request origin and enforces strict CORS handling.
+
+Requests from unknown or untrusted origins are blocked to prevent unauthorized cross-origin access attempts. Allowed origins are explicitly controlled so only expected client environments can call the assistant backend.
+
+This origin control layer provides:
+
+• Protection against unauthorized frontend integrations
+• Reduced cross-origin abuse attempts
+• Cleaner API boundaries between trusted and untrusted clients
+• Stronger defense-in-depth for public-facing endpoints
+
+Combined with prompt protection and header validation, origin filtering helps ensure only legitimate browser traffic from approved sources reaches the chatbot pipeline.
+
 Secure Deployment and Configuration Management
 
 Production deployment security is enforced through industry-standard secure communication and secrets management practices.
