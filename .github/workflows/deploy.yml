@@ -34,22 +34,25 @@ jobs:
         with:
           node-version: lts/*
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
 
       # Install root deps (if needed)
       - name: Install root deps
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Install backend deps
         run: |
           cd portfolio-chatbot
-          npm ci
+          npm ci --prefer-offline
 
       # Start Worker in background for contract test
       - name: Start Worker
         run: |
           cd portfolio-chatbot
-          npm run dev &
-          sleep 5
+          npm run dev > worker.log 2>&1 &
+          npx wait-on http://127.0.0.1:8787
 
       # Run backend tests
       - name: Run backend tests
@@ -91,9 +94,12 @@ jobs:
         with:
           node-version: lts/*
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
 
       - name: Install deps
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
@@ -164,7 +170,7 @@ jobs:
     name: Lighthouse (budgets)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: e2e
+    needs: backend
     env:
       VITE_BASE: "/"
 
@@ -177,9 +183,12 @@ jobs:
         with:
           node-version: lts/*
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Build
         run: npm run build
@@ -217,9 +226,12 @@ jobs:
         with:
           node-version: lts/*
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Build
         run: npm run build
