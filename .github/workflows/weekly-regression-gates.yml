@@ -65,7 +65,7 @@ jobs:
                   
                   READY=true
                   echo "Worker ready"
-                  exit 0
+                  break
                 fi
                 echo "Attempt $i: worker not ready yet..."
                 sleep 2
