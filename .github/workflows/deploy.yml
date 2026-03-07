@@ -52,7 +52,7 @@ jobs:
         run: |
           cd portfolio-chatbot
           npm run dev > worker.log 2>&1 &
-          npx wait-on http://127.0.0.1:8787
+          npx wait-on tcp:127.0.0.1:8787 --timeout 40000
 
       # Run backend tests
       - name: Run backend tests
