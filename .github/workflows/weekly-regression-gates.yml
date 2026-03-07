@@ -58,7 +58,11 @@ jobs:
           READY=false
           
           for i in {1..30}; do
-                if curl -s http://127.0.0.1:8787 > /dev/null; then
+                if curl -s -X POST http://127.0.0.1:8787 \
+                  -H "Content-Type: application/json" \
+                  -d '{"question":"health check"}' \
+                  > /dev/null; then
+                  
                   READY=true
                   echo "Worker ready"
                   exit 0

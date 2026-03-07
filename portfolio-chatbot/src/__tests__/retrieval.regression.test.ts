@@ -38,7 +38,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
        */
       const response = await fetch(BASE_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: testHeaders("10.0.0.3"),
         body: JSON.stringify({
           question:
             "What architectural decisions were made in the portfolio chatbot assistant?",
@@ -82,3 +82,10 @@ describe.runIf(process.env.NIGHTLY === "true")(
   );
   }
 );
+function testHeaders(ip: string) {
+  return {
+    "Content-Type": "application/json",
+    "CF-Connecting-IP": ip,
+    "Origin": "http://localhost:5173"
+  };
+}

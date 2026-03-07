@@ -124,7 +124,15 @@ html {
   color: rgba(232, 230, 227, 0.7);
 }
 
+.typing-cursor {
+  display: inline-block;
+  width: 13px;
+  animation: blink 1s infinite;
+}
 
+@keyframes blink {
+  50% { opacity: 0; }
+}
 @keyframes blink {
   50% { opacity: 0; }
 }

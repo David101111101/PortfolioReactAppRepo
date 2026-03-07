@@ -19,7 +19,7 @@ SiLafazenda (Sistema Integrado La Fazenda) is an enterprise-grade inventory mana
 - Responsive web interface compatible with desktop and mobile devices
 
 ## Programming Languages:
-HTML, Java, JavaScript, CSS, PHP
+HTML, Java , JavaScript, CSS, PHP
 
 ## Architecture
 
@@ -46,7 +46,7 @@ Data Access Layer (JDBC/MySQL)
 Technology Stack
 
  Backend Technologies
- Java, JSP, Servlets
+ Java , JSP, Servlets
 
  Database
  MySQL, InnoDB 

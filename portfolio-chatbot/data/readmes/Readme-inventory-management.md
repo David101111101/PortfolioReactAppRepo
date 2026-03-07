@@ -95,30 +95,26 @@ Transaction monitoring
 
 Facility performance insights
 
-Technology Stack
-Backend
-Technology	Role
-Java	Core application logic
-JSP	Dynamic presentation layer
-Servlets	Request handling
-JDBC	Database interaction
-Apache Tomcat	Application server
-Ant	Build automation
-Database
-Technology	Purpose
-MySQL (InnoDB)	Transactional relational storage
-Frontend
 
-HTML5
+Programming Languages or Technology Stack:
 
-CSS3
+Backend:
+Java
+JSP
+Servlets
+JDBC
+Apache Tomcat
+Ant
 
+Database:
+MySQL (InnoDB)
+
+Frontend:
+HTML
+CSS
 jQuery ecosystem
-
 AJAX-based interactions
-
 DataTables UI components
-
 Enterprise Deployment Model
 
 The application is packaged as a WAR (Web Application Archive) and deployed to an application server environment.

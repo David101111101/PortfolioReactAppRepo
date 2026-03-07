@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { sendChatQuestion } from "../api/chatApi";
+import { streamAssistantResponse } from "../services/streamAssistant";
 
-const WORKER_URL =
-  import.meta.env.DEV
-    ? "http://127.0.0.1:8787"
-    : "https://portfolio-chatbot.davidstevenabril.workers.dev/";
 
 type Message = {
   role: "user" | "assistant";
@@ -21,9 +19,9 @@ export default function ChatWidget() {
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const TYPING_SPEED = 10; // milliseconds per character
-  const INITIAL_GREETING = `I built this assistant from scratch using production engineering standards. It showcases my foundation in Backend & QA Automation, and how I apply those skills to modern AI testing.
+  const INITIAL_GREETING = `i developed this assistant using production engineering standards to showcase my foundation in Backend & QA Automation, along with my approach to exploring and adapting to modern AI testing practices.
 
-  Conversations may be logged, but no personal information is stored.`;
+Conversations may be logged, but no personal information is stored.`;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,45 +68,45 @@ useEffect(() => {
   return () => clearTimeout(timeout);
 }, [greetingIndex, isTypingGreeting]);
 
-  const sendMessage = async () => {
+const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsStreaming(true);
+    const question = input;
+    try {
+        setInput("");
+        setIsStreaming(true);  
+        
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: question },
+          { role: "assistant", content: "" },
+        ]);
+          const response = await sendChatQuestion(question);
 
-    const response = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ question: input }),
-    });
-    if (!response.body) {
-      setIsStreaming(false);
-      return;
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let assistantMessage: Message = { role: "assistant", content: "" };
-    setMessages((prev) => [...prev, assistantMessage]);
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastIndex = updated.length - 1;
-        if (updated[lastIndex]?.role === "assistant") {
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            content: updated[lastIndex].content + chunk,
-          };
-        }
-        return updated;
-      });
-    }
-    setIsStreaming(false);
+            await streamAssistantResponse(response, (chunk) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIndex = updated.length - 1;
+                if (updated[lastIndex]?.role === "assistant") {
+                  updated[lastIndex] = {
+                    ...updated[lastIndex],
+                    content: updated[lastIndex].content + chunk,
+                  };
+                }
+              return updated;
+              });
+            });
+
+    } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "⚠️ Something went wrong. Please try again.",
+          },
+        ]);
+      } finally {
+        setIsStreaming(false);
+      }
   };
 
   return (
@@ -162,7 +160,7 @@ useEffect(() => {
                     >
                     {msg.role === "user" && "> "}
                     {msg.content}
-                    {msg.role === "assistant" && "⚙ " && isLast}
+                    {msg.role === "assistant" && isStreaming && isLast && <span className="typing-cursor">|</span>}
                   </div>);
             })}
           <div ref={messagesEndRef} />
@@ -182,7 +180,7 @@ useEffect(() => {
                 padding: "12px",
                fontSize: "14px",
               }}
-              placeholder="Ask me anything"
+              placeholder="Ask me anything in any language"
             />
           </div>
         </div>

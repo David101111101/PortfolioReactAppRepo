@@ -97,8 +97,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
       /**
        * 4️⃣ Concurrency Simulation
        *
-       * Light parallel load to ensure
-       * no blocking or race issues.
+       * Light parallel load to ensure no blocking or race issues.
        */
       const concurrentResults = await Promise.all(
         Array.from({ length: CONCURRENT_REQUESTS }).map(() =>
@@ -123,5 +122,6 @@ function testHeaders(ip: string) {
   return {
     "Content-Type": "application/json",
     "CF-Connecting-IP": ip,
+    "Origin": "http://localhost:5173"
   };
 }

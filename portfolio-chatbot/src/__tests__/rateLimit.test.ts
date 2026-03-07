@@ -32,24 +32,27 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting", () => {
       method: "POST",
       headers: testHeaders("10.0.0.1"),
       body: JSON.stringify({
-        question: "warm up",
+        question: "warm up request sent to start test",
       }),
     });
     /**
      * 1️⃣ Send allowed number of requests
      */
-    for (let i = 0; i < REQUEST_LIMIT; i++) {
-      const res = await fetch(BASE_URL, {
-        method: "POST",
-        headers: testHeaders("10.0.0.1"), // Simulate same IP for testing
-        body: JSON.stringify({
-          question: "Test rate limiting behavior",
-        }),
-      });
+      const allowedResponses = await Promise.all(
+        Array.from({ length: REQUEST_LIMIT }).map(() =>
+          fetch(BASE_URL, {
+            method: "POST",
+            headers: testHeaders("10.0.0.1"),
+            body: JSON.stringify({
+              question: "Test rate limiting behavior with 10 requests",
+            }),
+          })
+        )
+      );
 
-      expect(res.status).toBe(200);
-      await new Promise(r => setTimeout(r, 50)); // Small delay to avoid hitting the limit too quickly
-    }
+      for (const res of allowedResponses) {
+        expect(res.status).toBe(200);
+      }
 
     /**
      * 2️⃣ Send one additional request (should be blocked)
@@ -79,5 +82,6 @@ function testHeaders(ip: string) {
   return {
     "Content-Type": "application/json",
     "CF-Connecting-IP": ip,
+    "Origin": "http://localhost:5173"
   };
 }
