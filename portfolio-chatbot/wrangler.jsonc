@@ -20,6 +20,12 @@
       }
     ]
   },
+  
+  "vars": {
+  "OPENAI_API_KEY": "",
+  "SUPABASE_URL": "",
+  "SUPABASE_SERVICE_ROLE_KEY": ""
+  },
 
   "observability": {
     "enabled": true
