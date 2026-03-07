@@ -26,24 +26,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Cache node_modules
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: portfolio-chatbot/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('portfolio-chatbot/package-lock.json') }}
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
 
       - name: Install backend deps
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd portfolio-chatbot
-          npm ci
+          npm ci --prefer-offline
+
 
       # Start Worker in background and give it a moment to initialize before running tests if after 30 attempts it is not ready, fail the job
       - name: Start Worker
@@ -51,9 +47,11 @@ jobs:
           cd portfolio-chatbot
 
           echo "Starting worker..."
-          OPENAI_API_KEY="$OPENAI_API_KEY" \
-          SUPABASE_URL="$SUPABASE_URL" \
-          SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \ 
+
+          export OPENAI_API_KEY="${OPENAI_API_KEY}"
+          export SUPABASE_URL="${SUPABASE_URL}"
+          export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}"
+
           npm run dev 2>&1 | tee worker.log &
           
           echo "Waiting for worker to be ready..."
@@ -63,13 +61,14 @@ jobs:
           for i in {1..30}; do
                 if curl -s -X POST http://127.0.0.1:8787 \
                   -H "Content-Type: application/json" \
-                  -d '{"question":"health check"}' \
+                  -d '{"question":"health check regression testing run"}' \
                   > /dev/null; then
                   
                   READY=true
                   echo "Worker ready"
                   break
                 fi
+
                 echo "Attempt $i: worker not ready yet..."
                 sleep 2
               done
@@ -80,17 +79,17 @@ jobs:
                 cat worker.log
                 exit 1
               fi
+
+      - name: Run backend tests (Regression weekly mode)
+        run: |
+          cd portfolio-chatbot
+          npm run test:ci
           
       - name: Print worker logs if tests fail
         if: failure()
         run: |
           echo "------ Worker Logs ------"
           cat portfolio-chatbot/worker.log
-
-      - name: Run backend tests (Regression weekly mode)
-        run: |
-          cd portfolio-chatbot
-          npm run test:ci
 
       # Publish JUnit test results to guthub UI
       - name: Publish backend test results

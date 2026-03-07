@@ -306,7 +306,7 @@ To ensure production-grade reliability and quality, this project implements a co
 - Enforces Lighthouse performance thresholds
 - Deploys only if all verifications pass
 
-3. Weekly Nightly Deep Regression Run
+3. Weekly Nightly Deep Regression Run Deep AI + backend stability testing
 
 - Scheduled GitHub Action (every Wednesday at 1am UTC)
 - Runs unit backend testing suite:
