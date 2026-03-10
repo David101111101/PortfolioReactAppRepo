@@ -1,9 +1,8 @@
-name: Weekly Regression Suite - Backend Focus
+name: Weekly Regression Suite - Production Endpoint
 
-# This workflow runs a deep regression suite every Wednesday to catch any issues that may have slipped through PR checks, especially around backend rate limits and contract integrity. It focuses on running the full backend test suite in a "weekly mode" that enables additional tests and stricter assertions.
 on:
   schedule:
-    - cron: "0 1 * * 3"  # 1 AM UTC every Wednesday (once a week)
+    - cron: "0 1 * * 3"   # Wednesday 1AM UTC
   workflow_dispatch:
 
 permissions:
@@ -12,15 +11,13 @@ permissions:
 
 jobs:
   backend-weekly-regression:
-    name: Backend Deep Regression Tests
+    name: Production Regression Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     env:
-      NIGHTLY: "true"  # Only run tests tagged with @nightly in the regression suite
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      NIGHTLY: "true"
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
 
     steps:
       - name: Checkout
@@ -30,68 +27,29 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          cache: "npm"
+          cache: npm
           cache-dependency-path: |
             package-lock.json
             portfolio-chatbot/package-lock.json
 
-      - name: Install backend deps
+      - name: Install dependencies
         run: |
           cd portfolio-chatbot
           npm ci --prefer-offline
 
+      # Optional: verify deployed API is alive
+      - name: Health check deployed API
+        run: |
+          curl --retry 3 --retry-delay 5 --fail -X POST $API_BASE_URL \
+            -H "Content-Type: application/json" \
+            -d '{"question":"health check api deployed endpoint"}'
 
-      # Start Worker in background and give it a moment to initialize before running tests if after 30 attempts it is not ready, fail the job
-      - name: Start Worker
+      - name: Run regression suite (production endpoint)
         run: |
           cd portfolio-chatbot
+          API_BASE_URL=$API_BASE_URL npm run test:ci
 
-          echo "Starting worker..."
-
-          export OPENAI_API_KEY="${OPENAI_API_KEY}"
-          export SUPABASE_URL="${SUPABASE_URL}"
-          export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}"
-
-          npm run dev 2>&1 | tee worker.log &
-          
-          echo "Waiting for worker to be ready..."
-
-          READY=false
-          
-          for i in {1..30}; do
-                if curl -s -X POST http://127.0.0.1:8787 \
-                  -H "Content-Type: application/json" \
-                  -d '{"question":"health check regression testing run"}' \
-                  > /dev/null; then
-                  
-                  READY=true
-                  echo "Worker ready"
-                  break
-                fi
-
-                echo "Attempt $i: worker not ready yet..."
-                sleep 2
-              done
-
-              if [ "$READY" = false ]; then
-                echo "Worker failed to start within timeout"
-                echo "------ Worker logs ------"
-                cat worker.log
-                exit 1
-              fi
-
-      - name: Run backend tests (Regression weekly mode)
-        run: |
-          cd portfolio-chatbot
-          npm run test:ci
-          
-      - name: Print worker logs if tests fail
-        if: failure()
-        run: |
-          echo "------ Worker Logs ------"
-          cat portfolio-chatbot/worker.log
-
-      # Publish JUnit test results to guthub UI
+      # Publish JUnit results
       - name: Publish backend test results
         if: always()
         uses: dorny/test-reporter@v1
@@ -100,35 +58,29 @@ jobs:
           path: portfolio-chatbot/junit.xml
           reporter: java-junit
 
-      #Upload artifacts for debugging 
+      # Upload artifacts
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Backend Regression Suite Results
-          path: |
-            portfolio-chatbot/junit.xml
+          path: portfolio-chatbot/junit.xml
 
-      - name: Upload worker logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: worker-logs
-          path: portfolio-chatbot/worker.log
-
+      # Dashboard
       - name: Generate Regression Dashboard
         if: always()
         run: |
-          echo "# 🧪 Weekly AI Backend Regression Report" >> $GITHUB_STEP_SUMMARY
+          echo "# 🧪 Weekly AI Production Regression Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           echo "## Environment" >> $GITHUB_STEP_SUMMARY
+          echo "- Endpoint: $API_BASE_URL" >> $GITHUB_STEP_SUMMARY
           echo "- Runner: ubuntu-latest" >> $GITHUB_STEP_SUMMARY
           echo "- Node: $(node -v)" >> $GITHUB_STEP_SUMMARY
           echo "- Date: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          echo "## Test Suite Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- Rate limiting enforcement" >> $GITHUB_STEP_SUMMARY
           echo "- RAG retrieval regression" >> $GITHUB_STEP_SUMMARY
           echo "- Backend contract validation" >> $GITHUB_STEP_SUMMARY
@@ -142,17 +94,3 @@ jobs:
           else
             echo "✅ LLM latency within expected range" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "## 🔬 Latency Telemetry" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          grep rag_latency -r . || echo "No telemetry found"
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "### System Checks:" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limit enforcement validated" >> $GITHUB_STEP_SUMMARY
-          echo "- Contract integrity checked" >> $GITHUB_STEP_SUMMARY
-          echo "- RAG retrieval regression executed" >> $GITHUB_STEP_SUMMARY
-          echo "- AI latency benchmarking executed" >> $GITHUB_STEP_SUMMARY
-          echo "- Performance telemetry collected" >> $GITHUB_STEP_SUMMARY 

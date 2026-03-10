@@ -38,12 +38,18 @@ const allowedOrigins = new Set([
   "https://www.daveautomation.dev",
   "https://daveautomation.dev",
   "http://localhost:5173",
+  "https://portfolio-chatbot.davidstevenabril.workers.dev",
 ]);
+/*Prevents:
+  malicious browser apps
+  credential abuse
+  cross-site script calls
+*/
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const isAllowed = origin && allowedOrigins.has(origin);
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin! : "null",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Origin": isAllowed ? origin! : "",
+    "Access-Control-Allow-Methods": "POST, OPTIONS, HEAD",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 }
@@ -75,6 +81,10 @@ async function logConversation(
         answer,
       }),
     });
+      if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Supabase insert failed: ${response.status} ${text}`);
+  }
   } catch (err) {
     console.error("Logging into DB failed:", err);
   }
@@ -126,9 +136,24 @@ function buildFallbackAnswer(): string {
  */
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const url = new URL(request.url); 
+      if (url.pathname === "/health") {
+        return new Response(
+          JSON.stringify({ status: "ok" }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      }
     const origin = request.headers.get("Origin");
     const cors = getCorsHeaders(origin);
-    //Block requests from disallowed browser origins, which enhances security by ensuring that only requests from trusted origins can interact with the API, preventing unauthorized web applications from making requests on behalf of users and potentially accessing sensitive data or functionality.
+    // We check the origin against our allowlist to determine if the request is coming from a trusted source, and set CORS headers accordingly to either allow or block the request, which helps prevent unauthorized cross-origin requests and protects against certain types of web attacks.
+console.log({
+  origin,
+  secFetchSite: request.headers.get("Sec-Fetch-Site"),
+  userAgent: request.headers.get("User-Agent"),
+  method: request.method,
+  path: url.pathname
+});
+    // Only enforce origin checks if the request actually has an Origin header
     if (origin && !allowedOrigins.has(origin)) {
       return new Response("Forbidden", {
         status: 403,
@@ -141,16 +166,22 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: cors });
     }
-    try {
       /**
-       * Only allow POST
+       * Only allow POST and HEAD
        */
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", {
-          status: 405,
-          headers: cors,
-        });
-      }
+        if (request.method === "HEAD") {
+          return new Response(null, {
+            status: 200,
+            headers: cors,
+          });
+        }
+        if (request.method !== "POST") {
+          return new Response("Method Not Allowedssss", {
+            status: 405,
+            headers: cors,
+          });
+        }
+    try {
       // Rejects requests with unsupported content types early, which prevents unnecessary processing of invalid requests and ensures that the API only handles requests with the expected JSON format, improving robustness and security.
       const contentType = request.headers.get("Content-Type") || "";
         if (!contentType.includes("application/json")) {
@@ -159,36 +190,7 @@ export default {
             headers: cors,
           });
         }
-        /**
-         * ============================================
-         * TEST MODE (Contract Validation Only)
-         * ============================================
-         *
-         * Allows contract tests to validate API shape during CI through unit tests that send requests with header `x-test-mode: true`,   which   triggers this conditional branch in the handler.
-         * without triggering:
-         * - Rate limiter
-         * - Supabase
-         * - OpenAI
-         *
-         * Activated only when header `x-test-mode: true` is present.
-         * This ensures production behavior remains unchanged.
-         */
-        const isTestMode = request.headers.get("x-test-mode") === "true";
-
-        if (isTestMode) {
-          return new Response(
-            JSON.stringify({
-              answer: "Test response from contract mode",
-            }),
-            {
-              status: 200,
-              headers: {
-                "Content-Type": "application/json",
-                ...cors,
-              },
-            }
-          );
-        }
+        // Used in the promp test to validate that the guard is properly blocking suspicious patterns and preventing the RAG pipeline from executing, which helps ensure the security layer is effective in mitigating potential prompt injection attacks.
         if (request.headers.get("x-mock-rag") === "true") {
           return new Response(
             streamText("I don't have that information in the portfolio documents."),
@@ -201,12 +203,22 @@ export default {
             }
           );
         }
-
+      //To use in regression tests, weekly at 1am
+      const isTestRequest = request.headers.get("x-test-mode") === "true";
       /**
        * Extract client IP
        */
       const clientIP =
-        request.headers.get("CF-Connecting-IP") || "unknown";
+        request.headers.get("x-test-ip") ??
+        request.headers.get("CF-Connecting-IP") ??
+        "unknown";
+      //These headers control rate limiting, this small guard is so external users cannot exploit them
+      const namespace =
+      isTestRequest
+        ? request.headers.get("x-test-namespace") ?? "test"
+        : "prod";
+      const rateLimitKey = `${namespace}:${clientIP}`;
+        
       let question = "";
       /**
        * ============================================
@@ -238,6 +250,35 @@ export default {
           }
         );
       }
+              /**
+         * ============================================
+         * TEST MODE (Contract Validation Only)
+         * ============================================
+         *
+         * Allows contract tests to validate API shape during CI through unit tests that send requests with header `x-test-mode: true`,   which   triggers this conditional branch in the handler.
+         * without triggering:
+         * - Supabase
+         * - OpenAI
+         *
+         * Activated only when header `x-test-mode: true` is present.
+         * This ensures production behavior remains unchanged.
+         */
+        const isTestMode = request.headers.get("x-test-mode") === "true";
+
+        if (isTestMode) {
+          return new Response(
+            JSON.stringify({
+              answer: "Test response from contract mode",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                ...cors,
+              },
+            }
+          );
+        }
       /**
        * ============================================
        * REQUEST VALIDATION
@@ -342,7 +383,6 @@ export default {
       // We measure retrieval latency to monitor database performance and its impact on overall response time
       const retrievalLatency = Date.now() - retrievalStart;
       if (!supabaseResponse.ok) {
-        console.log(await supabaseResponse.text());
           ctx.waitUntil(logConversation(
           env,
           question,
@@ -494,7 +534,8 @@ try {
       );
     }
     // Log the full message for LLM to the console
-    console.log("Message for LLM:\n---  --- --- SYSTEM PROMPT---  --- --- \n" + systemPrompt + "\n--- --- --- USER PROMPT --- --- ---\n" + userPrompt);
+    /*console.log("Message for LLM:\n---  --- --- SYSTEM PROMPT---  --- --- \n" + systemPrompt + "\n--- --- --- USER PROMPT --- --- ---\n" + userPrompt);
+    */
 } catch (err) {
   console.error("OpenAI stream failed:", err);
   ctx.waitUntil(logConversation(
