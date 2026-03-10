@@ -12,7 +12,9 @@
 
 import { describe, it, expect } from "vitest";
 
-const BASE_URL = "http://127.0.0.1:8787";
+const BASE_URL =
+  process.env.API_BASE_URL ??
+  "http://127.0.0.1:8787";
 
 /**
  * Known grounded keywords expected
@@ -25,7 +27,7 @@ const EXPECTED_CONCEPTS = [
   "vector",
   "retrieval",
   "prompt guard",
-  "Security",
+  "security",
   "testing",
 ];
 
@@ -38,13 +40,12 @@ describe.runIf(process.env.NIGHTLY === "true")(
        */
       const response = await fetch(BASE_URL, {
         method: "POST",
-        headers: testHeaders("10.0.0.3"),
+        headers: testHeaders("203.0.113.13"),
         body: JSON.stringify({
           question:
             "What architectural decisions were made in the portfolio chatbot assistant?",
         }),
       });
-
       expect(response.status).toBe(200);
 
       const answer = await response.text();
@@ -85,7 +86,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
 function testHeaders(ip: string) {
   return {
     "Content-Type": "application/json",
-    "CF-Connecting-IP": ip,
-    "Origin": "http://localhost:5173"
+    "x-test-ip": ip,
+    "x-test-namespace": "retrieval"
   };
 }
