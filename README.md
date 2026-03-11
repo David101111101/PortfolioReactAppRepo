@@ -1,24 +1,20 @@
 # David Abril — QA Automation Engineer / SDET Interactive RAG AI Portfolio
 
 [![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
+[![PR Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml/badge.svg?branch=FIX-CI-Regression-Suite-environment-variable-fix)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml) 
+[![Deployment Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml)
 
-**This repo itself demonstrates production-grade practices:** integrated Playwright E2E tests, accessibility checks, performance audits, automated PR quality gates visual reporting with Junit and automatig Summary comment generated & posted.
-https://david101111101.github.io/PortfolioReactAppRepo
+
+This project focuses on designing a production-ready QA automation strategy for AI systems including multi-layer quality gates, prompt-safety validation and regression monitoring.
+
+https://www.daveautomation.dev/
 
 ## About me
 
 **David Abril** — **QA Automation Engineer** (English C2 Certified)  
 Automation-focused QA engineer with backend development and team leadership experience. Driven by challenges and continuous learning, I pursue automation-first roles while deepening engineering skills.
 
-### Impact highlights
 
-- ✅ Automated **11** core setup workflows, saving **150+ hours** of manual work
-- ✅ Reduced **113** manual steps per site through framework design
-- ✅ Executed **~140,000 DOM interactions** with stable, maintainable test architecture
-- ✅ Built **Playwright + GitHub Actions PR gates** to keep main deployable
-- ✅ Cross-browser execution, accessibility compliance, and performance budgets in every PR
-
----
 
 ### Quality assurance built-in
 
@@ -52,31 +48,6 @@ This portfolio itself demonstrates production-grade automation practices. Every 
 ✅ **Debug artifacts make failures actionable** — not just "red/green"  
 ✅ **Fast, readable CI feedback** — developers iterate with confidence  
 
----
-
-## Local development
-
-### Requirements
-
-- **Node.js** (LTS recommended)
-- **npm** or **yarn**
-
-### Install & run
-
-```bash
-npm install
-npm run dev
-```
-
-Opens local dev server at `http://localhost:5173`
-
-### Running E2E tests
-
-```bash
-npm run test:e2e        # Run all tests (headless, default: Chromium)
-npm run test:e2e:ui     # Interactive UI mode (great for debugging)
-npm run test:e2e:report # View test results & traces
-```
 
 Tests validate:
 - ✅ Smoke (page loads, critical paths work)
@@ -84,24 +55,8 @@ Tests validate:
 - ✅ Accessibility (axe-core: WCAG compliance)
 - ✅ Resume download functionality
 
-### Build for production
 
-```bash
-npm run build
-npm run preview       # Preview the production build locally
-```
 
-## Scripts reference
-
-| Script | Purpose |
-|--------|---------|
-| `npm run dev` | Local dev server (hot reload) |
-| `npm run build` | Production build + type checking |
-| `npm run preview` | Preview production build |
-| `npm run lint` | ESLint checks |
-| `npm run test:e2e` | Run E2E tests (headless) |
-| `npm run test:e2e:ui` | Interactive test UI mode |
-| `npm run test:e2e:report` | View detailed test report & traces |
 
 ## Repo structure
 
