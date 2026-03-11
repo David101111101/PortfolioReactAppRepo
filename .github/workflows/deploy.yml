@@ -164,10 +164,10 @@ jobs:
           path: summaries/${{ matrix.browser }}.md
 
   # =====================================
-  # 3️⃣ Lighthouse Budget Gate
+  # 3️⃣ Lighthouse Lighthouse - Performance & Accessibility Gate
   # =====================================
   lighthouse:
-    name: Lighthouse (budgets)
+    name: Lighthouse - Performance & Accessibility Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: backend
