@@ -40,9 +40,8 @@ jobs:
       # Optional: verify deployed API is alive
       - name: Health check deployed API
         run: |
-          curl --retry 3 --retry-delay 5 --fail -X POST $API_BASE_URL \
-            -H "Content-Type: application/json" \
-            -d '{"question":"health check api deployed endpoint"}'
+            curl --silent --show-error --retry 3 --retry-delay 5 --fail \
+              $API_BASE_URL/health
 
       - name: Run regression suite (production endpoint)
         run: |

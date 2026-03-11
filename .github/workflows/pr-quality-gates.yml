@@ -127,10 +127,10 @@ jobs:
             playwright-report/
             test-results/
   # ==============================
-  # 3️⃣ Lighthouse Budget Gate
+  # 3️⃣ Lighthouse - Performance & Accessibility Gate
   # ==============================
   lighthouse:
-    name: Lighthouse (budgets)
+    name: Lighthouse - Performance & Accessibility Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
