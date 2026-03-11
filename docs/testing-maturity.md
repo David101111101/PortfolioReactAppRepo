@@ -16,7 +16,7 @@
 ## Layer 3 — Integration Validation 
 - Mocked embedding
 - Mocked Supabase
-- Schedule CD regression suit weekly.
+- Schedule CD regression suite weekly.
 
 ## Layer 4 — ML Behavior Validation
 - Hallucination prevention tests

@@ -29,7 +29,7 @@ const ApiResponseSchema = z.object({
  *
  * IMPORTANT:
  * - Worker must be running locally before executing this test
- * - Typically: `npm run dev` inside portfolio-chatbot
+ * - `npm run dev` inside CD portfolio-chatbot
  */
 const BASE_URL = "http://127.0.0.1:8787";
 //Does not run these tests in nightly deep regression suit

@@ -2,6 +2,13 @@
 
 [![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
 
+## Overview
+This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical experience, and engineering decisions.
+
+
+The assistant is not a generic chatbot. It is a Retrieval-Augmented Generation (RAG) system that answers questions strictly using verified portfolio documents.
+
+
 ## Technologies Used
 
 This project leverages a modern stack of technologies to deliver a secure, performant, and production-style AI assistant:
@@ -19,13 +26,6 @@ This project leverages a modern stack of technologies to deliver a secure, perfo
 - **Vite**: Frontend tooling for fast development and builds
 
 These technologies were selected to ensure scalability, security, and maintainability across the ingestion, retrieval, and serving layers of the portfolio assistant.
-
-## Overview
-This portfolio includes a custom AI assistant designed and implemented by Dave to allow recruiters and engineers to interactively explore his projects, technical experience, and engineering decisions.
-
-
-The assistant is not a generic chatbot. It is a Retrieval-Augmented Generation (RAG) system that answers questions strictly using verified portfolio documents.
-
 
 ## Security & Guardrails
 
