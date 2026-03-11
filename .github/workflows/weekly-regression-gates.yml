@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   backend-weekly-regression:
+    environment: github-pages
     name: Production Regression Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
