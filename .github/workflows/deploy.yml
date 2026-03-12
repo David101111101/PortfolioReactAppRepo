@@ -165,6 +165,7 @@ jobs:
     needs: e2e
     env:
       VITE_BASE: "/"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -173,7 +174,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 22
           cache: "npm"
           cache-dependency-path: |
             package-lock.json
@@ -190,6 +191,12 @@ jobs:
         with:
           configPath: ./lighthouserc.json
           uploadArtifacts: false
+      
+      - name: Generate Lighthouse summary
+        if: always()
+        run: node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: Upload Lighthouse metric
         if: always()
         uses: actions/upload-artifact@v4
@@ -204,10 +211,7 @@ jobs:
           name: lighthouse-report
           path: .lighthouseci
 
-      - name: Generate Lighthouse summary
-        if: always()
-        run: node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
+
 
   # =====================================
   # 4️⃣ Deploy (only if all verification passes)
