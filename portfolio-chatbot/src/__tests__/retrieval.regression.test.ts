@@ -39,6 +39,8 @@ describe.runIf(process.env.NIGHTLY === "true")(
       /**
        * 1️⃣ Send domain-specific question
        */
+      const startRetrieval = Date.now();
+
       const response = await fetch(BASE_URL, {
         method: "POST",
         headers: testHeaders("203.0.113.13"),
@@ -47,6 +49,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
             "What architectural decisions were made in the portfolio chatbot assistant?",
         }),
       });
+      const avgLatencyMs = Date.now() - startRetrieval;
       expect(response.status).toBe(200);
 
       const answer = await response.text();
@@ -69,9 +72,10 @@ describe.runIf(process.env.NIGHTLY === "true")(
         concept_score: score,
         concepts_checked: EXPECTED_CONCEPTS.length,
       });
-
+      // Save latency metric for monitoring
+      // Full API latency = network + worker + retrieval + streaming + LLM
       fs.writeFileSync(
-      "latency-metric.json",
+      "portfolio-chatbot/latency-metric.json",
       JSON.stringify({ avgLatencyMs })
     );
       /**

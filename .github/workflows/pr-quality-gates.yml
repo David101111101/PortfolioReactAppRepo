@@ -218,7 +218,10 @@ jobs:
 
       - name: Generate Lighthouse summary
         if: always()
-        run: node scripts/lighthouse-summary.mjs > summaries/lighthouse.md
+        run: |
+          mkdir -p summaries metrics
+          node scripts/lighthouse-summary.mjs > summaries/lighthouse.md
+          echo "Lighthouse summary generated"
       
       - name: Upload Lighthouse summary
         if: always()

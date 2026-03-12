@@ -189,13 +189,16 @@ jobs:
       - name: Audit with Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json
+          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
           uploadArtifacts: false
       
       - name: Generate Lighthouse summary
         if: always()
-        run: node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
+        run: |
+          mkdir -p metrics
+          echo "## 🔎 Lighthouse Gate" >> $GITHUB_STEP_SUMMARY
+          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Lighthouse metric
         if: always()
@@ -203,6 +206,7 @@ jobs:
         with:
           name: lighthouse-score
           path: metrics/lighthouse.json
+          if-no-files-found: error
       
       - name: Upload Lighthouse artifacts
         if: failure()
@@ -210,6 +214,7 @@ jobs:
         with:
           name: lighthouse-report
           path: .lighthouseci
+          if-no-files-found: ignore
 
 
 
