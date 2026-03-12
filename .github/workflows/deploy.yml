@@ -123,7 +123,7 @@ jobs:
           VITE_BASE: "/"
 
       - name: Run Playwright tests
-        run: npx playwright test --reporter=line,json --project=${{ matrix.browser }}
+        run: npx playwright test --reporter=dot,junit --project=${{ matrix.browser }}
 
       - name: Generate flaky summary
         if: always()
