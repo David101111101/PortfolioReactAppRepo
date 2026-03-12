@@ -24,9 +24,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -71,9 +70,9 @@ jobs:
       - name: Capture start
         run: echo "START=$(date +%s)" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -91,7 +90,12 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Chromium browser
-        run: npx playwright install chromium --with-deps
+        run: |
+          for i in 1 2 3; do
+            npx playwright install chromium --with-deps && break
+            echo "Retrying browser install..."
+            sleep 10
+          done
 
       - name: Build (for preview server)
         run: npm run build
@@ -193,9 +197,9 @@ jobs:
       VITE_BASE: /
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"

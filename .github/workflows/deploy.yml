@@ -29,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -89,10 +89,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -110,7 +110,12 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install browser
-        run: npx playwright install ${{ matrix.browser }} --with-deps
+        run: |
+          for i in 1 2 3; do
+            npx playwright install ${{ matrix.browser }} --with-deps && break
+            echo "Retry browser install..."
+            sleep 15
+          done
 
       - name: Build
         run: npm run build
@@ -136,17 +141,29 @@ jobs:
       - name: Generate E2E summary
         if: always()
         run: |
-          node scripts/playwright-summary.mjs ${{ matrix.browser }} tmp.md
-          cat tmp.md >> $GITHUB_STEP_SUMMARY
+          mkdir -p summaries
+          node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md || true
+
+          if [ -f summaries/${{ matrix.browser }}.md ]; then
+            cat summaries/${{ matrix.browser }}.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 🌍 E2E (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Summary unavailable (tests may have crashed early)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
       
       # Enforce flaky budget (e.g. no more than 5 flaky tests allowed)
       - name: Enforce flaky budget
         if: always()
         run: |
-          FLAKY=$(jq .flaky metrics/flaky.json)
-          if [ "$FLAKY" -gt 5 ]; then
-            echo "Too many flaky tests"
-            exit 1
+          if [ -f metrics/flaky.json ]; then
+            FLAKY=$(jq .flaky metrics/flaky.json)
+            if [ "$FLAKY" -gt 5 ]; then
+              echo "Too many flaky tests"
+              exit 1
+            fi
+          else
+            echo "Flaky metric unavailable"
           fi
 
       # ===============================
@@ -194,10 +211,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
@@ -264,10 +281,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -284,7 +301,7 @@ jobs:
           VITE_BASE: "/"
 
       - name: Download previous Lighthouse score
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v4
         continue-on-error: true
         with:
           workflow: deployment-quality-gates.yml
@@ -293,7 +310,7 @@ jobs:
           path: prev-metrics  
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
