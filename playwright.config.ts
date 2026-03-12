@@ -22,6 +22,7 @@ export default defineConfig({
     ['dot'],
     ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/report.json" }],
+    ['dot'],
     ["junit", { outputFile: "playwright-report/junit.xml" }],
   ],
 
