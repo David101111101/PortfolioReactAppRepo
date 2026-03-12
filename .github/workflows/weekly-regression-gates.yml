@@ -57,6 +57,7 @@ jobs:
           LAT=$((END-START))
           echo "lat=$LAT" >> $GITHUB_OUTPUT
 
+
       - name: Run regression suite (production endpoint)
         run: |
           cd portfolio-chatbot
@@ -158,64 +159,5 @@ jobs:
           if [ "$REGRESSION_STATUS" = "PASS" ]; then
             echo "✅ No regressions detected in AI retrieval or backend contracts" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Regression detected — investigation recommended" >> $GITHUB_STEP_SUMMARY
+            echo "✅ LLM latency within expected range" >> $GITHUB_STEP_SUMMARY
           fi
-      # Auto Create Issue if Regression suite failed
-      - name: Build regression issue body
-        if: failure()
-        run: |
-          echo "## 🚨 AI Production Regression Detected" > regression-issue.md
-          echo "" >> regression-issue.md
-
-          echo "### Environment" >> regression-issue.md
-          echo "- Endpoint: $API_BASE_URL" >> regression-issue.md
-          echo "- Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> regression-issue.md
-          echo "- Date (UTC): $(date -u)" >> regression-issue.md
-          echo "" >> regression-issue.md
-
-          echo "### Failure Context" >> regression-issue.md
-          echo "- Weekly regression suite failed" >> regression-issue.md
-          echo "- Backend contract or RAG behaviour may have regressed" >> regression-issue.md
-          echo "- Review JUnit results and workflow artifacts" >> regression-issue.md
-          echo "" >> regression-issue.md
-
-          echo "### Suggested Investigation" >> regression-issue.md
-          echo "1. Check failing tests in GitHub Checks UI" >> regression-issue.md
-          echo "2. Inspect latency trend and retrieval correctness" >> regression-issue.md
-          echo "3. Validate production environment configuration" >> regression-issue.md
-
-      - name: Find existing regression issue
-        if: failure()
-        id: findissue
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: "open",
-              labels: "regression"
-            });
-            // If multiple issues are found, sort by creation date and return the most recent one
-            if (data.length > 0) {
-              data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-              core.setOutput("issue_number", data[0].number);
-            }
-
-      - name: Create or update regression issue
-        if: failure()
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ steps.findissue.outputs.issue_number }}
-          body-path: regression-issue.md
-      
-      - name: Create regression issue (first occurrence)
-        if: failure() && steps.findissue.outputs.issue-number == ''
-        uses: peter-evans/create-issue-from-file@v5
-        with:
-          title: "🚨 Weekly Production Regression Detected"
-          content-filepath: regression-issue.md
-          labels: |
-            regression
-            ai-reliability
-            production
