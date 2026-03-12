@@ -29,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -89,10 +89,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -110,7 +110,12 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install browser
-        run: npx playwright install ${{ matrix.browser }} --with-deps
+        run: |
+          for i in 1 2 3; do
+            npx playwright install ${{ matrix.browser }} --with-deps && break
+            echo "Retry browser install..."
+            sleep 15
+          done
 
       - name: Build
         run: npm run build
@@ -194,10 +199,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
@@ -264,10 +269,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: "npm"
@@ -284,7 +289,7 @@ jobs:
           VITE_BASE: "/"
 
       - name: Download previous Lighthouse score
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v4
         continue-on-error: true
         with:
           workflow: deployment-quality-gates.yml
@@ -293,7 +298,7 @@ jobs:
           path: prev-metrics  
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
