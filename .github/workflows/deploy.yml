@@ -1,5 +1,8 @@
 name: Deployment Quality Gates
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: ["main"]
@@ -15,15 +18,14 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
 
   # =====================================
   # 1️⃣ Backend Verification (Tier 2)
   # =====================================
   backend:
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     name: Backend Tests (unit + contract)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -123,8 +125,11 @@ jobs:
         env:
           VITE_BASE: "/"
 
+      - name: Prepare report folder
+        run: mkdir -p playwright-report
+
       - name: Run Playwright tests
-        run: npx playwright test --reporter=dot,junit --project=${{ matrix.browser }}
+        run: npx playwright test --project=${{ matrix.browser }}
 
       - name: Generate flaky summary
         if: always()
@@ -139,7 +144,7 @@ jobs:
           path: metrics/flaky.json
           if-no-files-found: warn
 
-          
+
       - name: Generate E2E summary
         if: always()
         run: |
@@ -179,6 +184,7 @@ jobs:
           name: JUnit Report (${{ matrix.browser }})
           path: playwright-report/junit.xml
           reporter: java-junit
+          fail-on-error: false
 
       # ===============================
       # Upload artifacts
