@@ -19,6 +19,7 @@ export default defineConfig({
 
   reporter: [
     ["line"],
+    ['dot'],
     ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/report.json" }],
     ["junit", { outputFile: "playwright-report/junit.xml" }],
