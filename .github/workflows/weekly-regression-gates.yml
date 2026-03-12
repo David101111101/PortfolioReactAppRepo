@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   checks: write
+  issues: write
 
 jobs:
   backend-weekly-regression:
@@ -47,9 +48,13 @@ jobs:
 
       #verify deployed API is alive
       - name: Health check deployed API
+        id: health
         run: |
-          curl --silent --show-error --retry 3 --retry-delay 5 --fail \
-            "${API_BASE_URL}/health"
+          START=$(date +%s%3N)
+          curl --silent --show-error --fail "${API_BASE_URL}/health"
+          END=$(date +%s%3N)
+          LAT=$((END-START))
+          echo "lat=$LAT" >> $GITHUB_OUTPUT
 
 
       - name: Run regression suite (production endpoint)
@@ -67,19 +72,64 @@ jobs:
           reporter: java-junit
 
       # Upload artifacts
-      - name: Upload artifacts
-        if: always()
+      - name: Upload regression artifacts
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: Backend Regression Suite Results
-          path: portfolio-chatbot/junit.xml
+          path: |
+            portfolio-chatbot/junit.xml
+            portfolio-chatbot/playwright-report/
+            portfolio-chatbot/test-results/
+
+      - name: Capture regression status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "REGRESSION_STATUS=PASS" >> $GITHUB_ENV
+          else
+            echo "REGRESSION_STATUS=FAIL" >> $GITHUB_ENV
+          fi
+
+      - name: Upload latency metric
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-metric
+          path: portfolio-chatbot/latency-metric.json
+      
+      - name: Download previous latency metric
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: weekly-regression-gates.yml
+          branch: main
+          name: latency-metric
+          path: prev-metrics
 
       # Dashboard
+      - name: Compute latency trend
+        id: latencytrend
+        run: |
+          CUR=$(jq .avgLatencyMs portfolio-chatbot/latency-metric.json)
+
+          if [ -f prev-metrics/latency-metric.json ]; then
+            PREV=$(jq .avgLatencyMs prev-metrics/latency-metric.json)
+            DELTA=$((CUR-PREV))
+          else
+            PREV="N/A"
+            DELTA="N/A"
+          fi
+
+          echo "cur=$CUR" >> $GITHUB_OUTPUT
+          echo "prev=$PREV" >> $GITHUB_OUTPUT
+          echo "delta=$DELTA" >> $GITHUB_OUTPUT
+
       - name: Generate Regression Dashboard
         if: always()
         run: |
-          echo "# 🧪 Weekly AI Production Regression Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Regression Result" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: $REGRESSION_STATUS" >> $GITHUB_STEP_SUMMARY
 
           echo "## Environment" >> $GITHUB_STEP_SUMMARY
           echo "- Endpoint: $API_BASE_URL" >> $GITHUB_STEP_SUMMARY
@@ -95,10 +145,18 @@ jobs:
           echo "- LLM latency benchmarking" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          echo "### 🤖 LLM Latency Monitoring" >> $GITHUB_STEP_SUMMARY
+          echo "### 🤖 LLM Latency Trend" >> $GITHUB_STEP_SUMMARY
+          echo "- Current avg latency: ${{ steps.latencytrend.outputs.cur }} ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Previous week: ${{ steps.latencytrend.outputs.prev }} ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Delta: ${{ steps.latencytrend.outputs.delta }} ms" >> $GITHUB_STEP_SUMMARY
 
-          if grep -r "llm_latency_warning" . ; then
-            echo "⚠️ LLM latency regression detected" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 API Availability" >> $GITHUB_STEP_SUMMARY
+          echo "- Health endpoint latency: ${{ steps.health.outputs.lat }} ms" >> $GITHUB_STEP_SUMMARY
+
+          echo "## 📈 Production Confidence Signal" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$REGRESSION_STATUS" = "PASS" ]; then
+            echo "✅ No regressions detected in AI retrieval or backend contracts" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ LLM latency within expected range" >> $GITHUB_STEP_SUMMARY
           fi

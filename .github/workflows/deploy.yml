@@ -118,13 +118,11 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
 
-      - name: Append E2E summary
+      - name: Generate E2E summary
         if: always()
         run: |
-          echo "## 🌍 E2E Verification (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
-          echo "- Playwright tests executed" >> $GITHUB_STEP_SUMMARY
-          echo "- JUnit results published" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          node scripts/playwright-summary.mjs ${{ matrix.browser }} tmp.md
+          cat tmp.md >> $GITHUB_STEP_SUMMARY
 
       # ===============================
       # Publish JUnit to GitHub Checks
@@ -141,7 +139,7 @@ jobs:
       # Upload artifacts
       # ===============================
       - name: Upload Playwright artifacts
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-${{ matrix.browser }}
@@ -156,23 +154,18 @@ jobs:
         if: always()
         run: node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md
 
-      - name: Upload summary snippet
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pw-summary-${{ matrix.browser }}
-          path: summaries/${{ matrix.browser }}.md
 
   # =====================================
-  # 3️⃣ Lighthouse Lighthouse - Performance & Accessibility Gate
+  # 3️⃣ Lighthouse Lighthouse - Performance, SEO & Accessibility Gate
   # =====================================
   lighthouse:
-    name: Lighthouse - Performance & Accessibility Gate
+    name: Lighthouse - Performance, SEO & Accessibility Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: backend
+    needs: e2e
     env:
       VITE_BASE: "/"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -181,7 +174,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 22
           cache: "npm"
           cache-dependency-path: |
             package-lock.json
@@ -196,16 +189,34 @@ jobs:
       - name: Audit with Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json
-          uploadArtifacts: true
-
-      - name: Append Lighthouse summary
+          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
+          uploadArtifacts: false
+      
+      - name: Generate Lighthouse summary
         if: always()
         run: |
-          echo "## 🔎 Lighthouse Budget Gate" >> $GITHUB_STEP_SUMMARY
-          echo "- Performance budgets enforced" >> $GITHUB_STEP_SUMMARY
-          echo "- Accessibility thresholds validated" >> $GITHUB_STEP_SUMMARY
+          mkdir -p metrics
+          echo "## 🔎 Lighthouse Gate" >> $GITHUB_STEP_SUMMARY
+          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Lighthouse metric
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-score
+          path: metrics/lighthouse.json
+          if-no-files-found: error
+      
+      - name: Upload Lighthouse artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci
+          if-no-files-found: ignore
+
+
 
   # =====================================
   # 4️⃣ Deploy (only if all verification passes)
@@ -238,6 +249,15 @@ jobs:
         env:
           VITE_BASE: "/"
 
+      - name: Download previous Lighthouse score
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: deployment-quality-gates.yml
+          branch: main
+          name: lighthouse-score
+          path: prev-metrics  
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -253,6 +273,31 @@ jobs:
   # ==============================
   # 5️⃣ PR Comment with Results
   # ==============================
+      - name: Compute Lighthouse trend
+        id: lhtrend
+        run: |
+          CURRENT=$(cat metrics/lighthouse.json | jq .score)
+
+          if [ "$DELTA" != "N/A" ]; then
+            if [ "$DELTA" -gt 0 ]; then ICON="⬆️"
+            elif [ "$DELTA" -lt 0 ]; then ICON="⬇️"
+            else ICON="➡️"
+            fi
+          fi
+
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "prev=$PREV" >> $GITHUB_OUTPUT
+          echo "delta=$DELTA" >> $GITHUB_OUTPUT
+          
+      - name: Deployment quality summary
+        run: |
+          echo "## 📊 Release Quality Trend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Lighthouse score: ${{ steps.lhtrend.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Previous deploy: ${{ steps.lhtrend.outputs.prev }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Trend: ${{ steps.lhtrend.outputs.delta }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: Final deployment summary
         if: always()
         run: |
@@ -261,3 +306,10 @@ jobs:
           echo "- All verification gates passed before release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 Environment URL: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+
+      # Upload current Lighthouse scores to calculate trend for next run 
+      - name: Persist Lighthouse score
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-score
+          path: metrics/lighthouse.json

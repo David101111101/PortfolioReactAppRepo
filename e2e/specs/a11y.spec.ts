@@ -15,4 +15,5 @@ test("no critical accessibility violations on landing page", async ({ page, home
 
   const critical = results.violations.filter((v) => v.impact === "critical");
   expect(critical, `Critical a11y issues:\n${critical.map((v) => v.id).join(", ")}`).toEqual([]);
+  process.env.AXE_CRITICAL_COUNT = String(critical.length);
 });

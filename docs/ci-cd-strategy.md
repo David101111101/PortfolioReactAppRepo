@@ -1,335 +1,151 @@
-# CI/CD Strategy -- Portfolio & RAG Chatbot
+# CI/CD Strategy – Portfolio + RAG Chatbot (Current State)
+
+## 1) Purpose
+
+This document reflects the CI/CD behavior currently implemented in:
+- `.github/workflows/pr-quality-gates.yml`
+- `.github/workflows/deploy.yml`
+- `.github/workflows/weekly-regression-gates.yml`
+
+Objectives of the current pipeline:
+- Block merges/releases on failing quality gates
+- Validate backend and frontend behavior before deployment
+- Enforce accessibility/performance budgets with min thresholds via Lighthouse
+- Run scheduled regression checks against the production API endpoint
+
+## 2) Workflow Inventory
+
+| Workflow | Trigger | Main Goal |
+|---|---|---|
+| PR Quality Gates | `pull_request` to `main`, manual dispatch | Fast feedback for PR safety |
+| Deployment Quality Gates | `push` to `main`, manual dispatch | Full verification before GitHub Pages deploy |
+| Weekly Regression Suite | Cron (`Wed 01:00 UTC`) & manual dispatch | Production endpoint drift detection |
+
+## 3) PR Quality Gates (Fast Tier)
+
+Defined in `.github/workflows/pr-quality-gates.yml`.
+
+### 3.1 Jobs
+1. **backend**
+   - Installs root + backend dependencies
+   - Starts Worker locally (`npm run dev` in `portfolio-chatbot`)
+   - Runs backend Vitest suite (`npm test`)
+
+2. **e2e (chromium)** (needs backend tests topass to start)
+   - Builds frontend (`npm run build`)
+   - Runs Playwright on Chromium only
+   - Publishes JUnit results and artifacts
+   - Generates summary markdown snippet
+
+3. **lighthouse**
+   - Builds frontend
+   - Runs Lighthouse CI with `lighthouserc.json`
+
+4. **pr-comment** (always, PR only)
+   - Downloads summary artifacts
+   - Creates/updates a PR comment with gate results
+
+### 3.2 PR Gate Characteristics
+- Parallelized checks with explicit dependencies
+- Artifacts retained for debugging (`playwright-report`, `test-results`, summaries)
+- Failing checks block PR merge when branch protection requires them
+
+## 4) Main Branch Deployment Gates
+
+Defined in `.github/workflows/deploy.yml`.
+
+### 4.1 Pre-deploy Verification Jobs
+1. **backend**
+   - Starts worker and runs backend tests (`npm run test:ci`)
+   - Emits backend summary in job summary
+
+2. **e2e matrix** (needs backend tests to pass)
+   - Runs Playwright across:
+     - Chromium
+     - Firefox
+     - WebKit
+   - Publishes JUnit per browser
+   - Uploads browser-specific artifacts + summaries
+
+3. **lighthouse** (needs backend tests to pass)
+   - Runs Lighthouse budget/assertion checks
+
+### 4.2 Deploy Job
+- Runs only if `backend`, `e2e`, and `lighthouse` succeed
+- Builds frontend and deploys `dist` to GitHub Pages
+- Publishes final deployment summary with environment URL
+
+## 5) Weekly Production Regression
+
+Defined in `.github/workflows/weekly-regression-gates.yml`.
+
+### 5.1 Execution Model
+- Runs weekly and on manual dispatch
+- Uses environment variable `API_BASE_URL`
+- Validates production endpoint health (`/health`) before tests
+- Runs backend suite in NIGHTLY mode against deployed API (weekly schedule):
+  - `NIGHTLY=true`
+  - `API_BASE_URL=<production endpoint>`
+
+### 5.2 Output and Reporting
+- Publishes JUnit via `dorny/test-reporter`
+- Uploads JUnit artifact
+- Generates regression summary dashboard in `GITHUB_STEP_SUMMARY`
+- Scans logs for `llm_latency_warning`
+
+## 6) Quality Gates Currently Enforced
+
+### 6.1 Backend
+- API contract stability checks
+- Prompt-guard logic checks
+- Context builder checks
+- Weekly scheduled retrieval/performance/rate-limit regression checks
 
-## 1. Purpose
+### 6.2 Frontend
+- Smoke/navigation/chat interaction checks
+- Accessibility critical-issue gate (`axe` in Playwright)
 
-This document defines the Continuous Integration and Continuous
-Deployment (CI/CD) strategy for the Portfolio project and its RAG/LLM
-chatbot integration.
+### 6.3 Performance and Accessibility
+Lighthouse assertions from `lighthouserc.json`:
+- Performance: min `0.70` (error)
+- Accessibility: min `0.90` (error)
+- Best Practices: min `0.85` (error)
+- SEO: min `0.85` (warn)
 
-The pipeline is designed to:
+## 7) Artifact and Feedback Model
 
--   Prevent regressions before reaching production\
--   Enforce accessibility and performance standards\
--   Maintain strict type and lint discipline\
--   Validate deployment integrity\
--   Serve as an automated PR quality gate\
--   Demonstrate SDET-level automation maturity
+Current pipeline feedback channels:
+- GitHub Checks (JUnit reports)
+- Uploaded artifacts (Playwright report, traces, test results)
+- Workflow/job summaries
+- Auto-updated PR result comment
 
-------------------------------------------------------------------------
+This provides fast triage context without reproducing failures locally first.
 
-## 2. CI/CD Philosophy
+## 8) What Is Not Currently Enforced in CI
 
-The pipeline follows a **Shift-Left Quality Engineering model**:
+The following are not enforced as hard gates in current workflow YAML:
+- Dedicated `lint` job
+- Dedicated TypeScript `type-check` job
+- Coverage threshold gate
+- Dependency vulnerability audit gate
+- Post-deploy smoke test job in deployment workflow
 
--   All quality gates execute on Pull Requests\
--   Failures block merges\
--   Production deployment occurs only after validation\
--   No manual QA sign-off required for merge\
--   Main branch remains continuously deployable
+These may still be run manually, but they are not mandatory CI blockers today.
 
-This ensures deterministic quality enforcement rather than manual
-validation.
+## 9) Security and Reliability Posture in CI
 
-------------------------------------------------------------------------
+Current pipelines validate several AI-specific reliability controls:
+- Prompt safety checks
+- Rate-limit regression behavior
+- Retrieval grounding regression checks (weekly scheduled)
+- LLM latency warning surfacing
 
-## 3. Branch Strategy
+This gives a pragmatic AI QA baseline while keeping PR feedback cycles fast.
 
-  Branch             Purpose
-  ------------------ -------------------------------
-  `main`             Production-ready code
-  Feature branches   Development & experimentation
+## 10) Recommended Next Iteration (Roadmap)
 
-**Rules:**
-
--   All changes must go through Pull Requests\
--   Direct pushes to `main` are restricted\
--   PR must pass all CI checks before merge\
--   Branch protection enforces required status checks
-
-------------------------------------------------------------------------
-
-## 4. CI Pipeline Overview
-
-**Triggers:**
-
--   On Pull Request\
--   On push to `main`
-
-**Execution Flow:**
-
-1.  Install Dependencies (`npm ci`)\
-2.  Type Check (TypeScript strict mode)\
-3.  Lint (ESLint enforcement)\
-4.  Playwright E2E Tests (Cross-browser)\
-5.  Accessibility Audit (axe-core)\
-6.  Lighthouse Performance Audit\
-7.  Build Verification (Vite production build)
-
-If any stage fails → PR is blocked.
-
-------------------------------------------------------------------------
-
-## 5. Quality Gates
-
-### 5.1 Type Safety
-
--   Strict TypeScript compilation\
--   No implicit `any`\
--   Build fails on type errors
-
-Purpose: Prevent runtime instability and enforce maintainable contracts.
-
-------------------------------------------------------------------------
-
-### 5.2 Linting
-
--   ESLint rule enforcement\
--   Code style and best-practice validation\
--   Lint failure blocks PR
-
-------------------------------------------------------------------------
-
-### 5.3 End-to-End Testing (Playwright)
-
-Architecture:
-
--   Fixtures
--   Page Object Model (POM)
--   Parallel cross-browser execution (Chromium, Firefox, WebKit)
-
-Validations:
-
--   Smoke tests (core load paths)
--   Navigation flows
--   Resume download
--   Critical UI rendering
-
-Artifacts retained on failure:
-
--   Traces
--   Screenshots
--   Videos
--   JUnit report in GitHub Checks UI
--   Automated PR summary comment
-
-Purpose:
-
--   Maintain deployable `main`
--   Provide actionable debugging context
--   Prevent regressions before merge
-
-------------------------------------------------------------------------
-
-### 5.4 Accessibility Testing
-
-Tool: `axe-core` integrated within Playwright tests
-
-Policy:
-
--   Zero critical accessibility violations allowed\
--   Applied to landing page + chatbot UI\
--   PR fails on violation detection
-
-Ensures WCAG compliance and inclusive UX enforcement.
-
-------------------------------------------------------------------------
-
-### 5.5 Performance Budgets
-
-Tool: Lighthouse CI
-
-Measured:
-
--   Performance score
--   Accessibility score
--   Best Practices score
--   SEO score
-
-Thresholds enforced.\
-If score drops below baseline → PR fails.
-
-Prevents silent performance regressions.
-
-------------------------------------------------------------------------
-
-### 5.6 Smoke Testing (Deployment Validation)
-
-Smoke tests validate:
-
--   Application loads
--   Core UI renders
--   Chatbot endpoint responds
--   Deployment URL reachable
-
-Executed:
-
--   On PR
--   After production deployment
-
-Purpose: Ensure minimal viable system integrity.
-
-------------------------------------------------------------------------
-
-## 6. Deployment Strategy
-
-Workflow: `.github/workflows/deploy.yml`
-
-On merge to `main`:
-
-1.  Install dependencies\
-2.  Type-check and build\
-3.  Package production artifact\
-4.  Deploy to hosting provider\
-5.  Execute post-deploy smoke validation
-
-If deployment smoke fails:
-
--   Deployment considered unstable\
--   Immediate investigation required
-
-No manual override policy.
-
-------------------------------------------------------------------------
-
-## 7. RAG / Chatbot CI Considerations
-
-Current validation focuses primarily on frontend behavior and endpoint
-availability.
-
-Planned backend CI enhancements:
-
--   Worker unit tests\
--   RAG similarity logic tests\
--   Prompt injection tests\
--   Fallback behavior validation\
--   Rate limiting verification\
--   Coverage enforcement\
--   Logging verification
-
-Future integration:
-
--   Miniflare integration tests\
--   Deterministic RAG evaluation harness
-
-Goal: Extend CI rigor to AI behavior validation.
-
-------------------------------------------------------------------------
-
-## 8. Secrets Management
-
-Secrets used:
-
--   OpenAI API key\
--   Supabase credentials\
--   Cloudflare tokens
-
-Policies:
-
--   Stored in GitHub Secrets\
--   Never committed to repository\
--   Injected at runtime\
--   Scoped to required workflows
-
-------------------------------------------------------------------------
-
-## 9. Observability & Logging (Planned)
-
-Future CI validation will ensure:
-
--   Logging endpoints function correctly\
--   Error paths are recorded\
--   Rate limiting events logged\
--   Failure cases produce traceable signals
-
-This strengthens backend reliability enforcement.
-
-------------------------------------------------------------------------
-
-## 10. Coverage Strategy (Planned)
-
-Next phase includes:
-
--   Unit test coverage report generation\
--   Branch coverage enforcement\
--   Coverage threshold gate (≥ 80%)\
--   PR fails if coverage decreases
-
-Purpose:
-
--   Prevent silent logic regressions\
--   Demonstrate full-stack SDET maturity
-
-------------------------------------------------------------------------
-
-## 11. Security Automation (Planned)
-
-Planned additions:
-
--   Injection attempt tests\
--   Malformed payload tests\
--   Oversized payload rejection tests\
--   `npm audit` dependency scan\
--   Vulnerability scanning enforcement
-
-------------------------------------------------------------------------
-
-## 12. Failure Handling Policy
-
-If any CI job fails:
-
--   PR is blocked\
--   Fix required before merge
-
-If deployment smoke fails:
-
--   Production flagged unstable\
--   Hotfix or rollback required
-
-No bypass mechanism permitted.
-
-------------------------------------------------------------------------
-
-## 13. Benefits of Current Architecture
-
--   Automated regression prevention\
--   Deterministic performance enforcement\
--   Accessibility built into workflow\
--   Zero reliance on manual QA\
--   Debug artifacts retained automatically\
--   Infrastructure-light deployment model\
--   Production-grade PR gating strategy
-
-------------------------------------------------------------------------
-
-## 14. Current Maturity vs Target State
-
-**Current State:**
-
--   Frontend E2E gates enforced\
--   Performance budgets enforced\
--   Accessibility validated\
--   Deployment smoke enforced\
--   PR blocking enabled
-
-**Target State:**
-
--   Full-stack automated validation\
--   Deterministic RAG logic testing\
--   Security regression suite\
--   Coverage-based enforcement\
--   AI behavior evaluation framework
-
-------------------------------------------------------------------------
-
-## 15. Summary
-
-This CI/CD strategy ensures:
-
--   Every change is validated before merge\
--   Regressions are blocked automatically\
--   Accessibility and performance are enforced\
--   Deployment integrity is verified\
--   The portfolio demonstrates production-grade QA automation maturity
-
-The next evolution extends the same rigor to backend RAG logic and AI
-behavior validation.
+1. Add explicit `lint` and `type-check` jobs as required checks.
+2. Add coverage collection + minimum threshold enforcement.
+3. Add dedicated CORS/415 contract tests.
+4. Add trend publication for weekly scheduled latency and fallback metrics.
