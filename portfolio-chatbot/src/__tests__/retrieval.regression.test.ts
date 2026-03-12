@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
+import path from "path";
 
 const BASE_URL =
   process.env.API_BASE_URL ??
@@ -74,10 +75,12 @@ describe.runIf(process.env.NIGHTLY === "true")(
       });
       // Save latency metric for monitoring
       // Full API latency = network + worker + retrieval + streaming + LLM
-      fs.writeFileSync(
-      "portfolio-chatbot/latency-metric.json",
-      JSON.stringify({ avgLatencyMs })
-    );
+      const metricPath = path.join(process.cwd(), "latency-metric.json");
+      try {
+        fs.writeFileSync(metricPath, JSON.stringify({ avgLatencyMs }));
+      } catch (e) {
+        console.warn("Latency metric write failed", e);
+      }
       /**
        * Require minimum concept coverage
        */

@@ -20,6 +20,7 @@ jobs:
     env:
       NIGHTLY: "true"
       API_BASE_URL: ${{ vars.API_BASE_URL }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout

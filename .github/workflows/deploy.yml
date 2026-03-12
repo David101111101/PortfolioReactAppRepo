@@ -14,6 +14,8 @@ permissions:
 concurrency:
   group: "pages"
   cancel-in-progress: true
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
 
@@ -116,13 +118,36 @@ jobs:
           VITE_BASE: "/"
 
       - name: Run Playwright tests
-        run: npx playwright test --project=${{ matrix.browser }}
+        run: npx playwright test --reporter=line,json --project=${{ matrix.browser }}
+
+      - name: Generate flaky summary
+        if: always()
+        run: |
+          mkdir -p metrics
+          node scripts/flaky-summary.mjs >> $GITHUB_STEP_SUMMARY
+      
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-metric-${{ matrix.browser }}
+          path: metrics/flaky.json
+          if-no-files-found: warn
 
       - name: Generate E2E summary
         if: always()
         run: |
           node scripts/playwright-summary.mjs ${{ matrix.browser }} tmp.md
           cat tmp.md >> $GITHUB_STEP_SUMMARY
+      
+      # Enforce flaky budget (e.g. no more than 5 flaky tests allowed)
+      - name: Enforce flaky budget
+        if: always()
+        run: |
+          FLAKY=$(jq .flaky metrics/flaky.json)
+          if [ "$FLAKY" -gt 5 ]; then
+            echo "Too many flaky tests"
+            exit 1
+          fi
 
       # ===============================
       # Publish JUnit to GitHub Checks
@@ -196,6 +221,11 @@ jobs:
         if: always()
         run: |
           mkdir -p metrics
+          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY || true
+          # fallback metric to avoid artifact failure
+          if [ ! -f metrics/lighthouse.json ]; then
+            echo '{ "score": 0 }' > metrics/lighthouse.json
+          fi
           echo "## 🔎 Lighthouse Gate" >> $GITHUB_STEP_SUMMARY
           node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -206,7 +236,11 @@ jobs:
         with:
           name: lighthouse-score
           path: metrics/lighthouse.json
-          if-no-files-found: error
+          if-no-files-found: warn
+      
+      - name: Debug lighthouse files
+        if: always()
+        run: ls -R .lighthouseci || true
       
       - name: Upload Lighthouse artifacts
         if: failure()
