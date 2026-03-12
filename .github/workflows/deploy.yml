@@ -123,7 +123,7 @@ jobs:
           VITE_BASE: "/"
 
       - name: Run Playwright tests
-        run: npx playwright test --reporter=line,json --project=${{ matrix.browser }}
+        run: npx playwright test --reporter=dot,junit --project=${{ matrix.browser }}
 
       - name: Generate flaky summary
         if: always()
@@ -142,13 +142,14 @@ jobs:
         if: always()
         run: |
           mkdir -p summaries
+
           node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md || true
 
           if [ -f summaries/${{ matrix.browser }}.md ]; then
             cat summaries/${{ matrix.browser }}.md >> $GITHUB_STEP_SUMMARY
           else
             echo "### 🌍 E2E (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Summary unavailable (tests may have crashed early)" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Summary unavailable" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
       
