@@ -68,6 +68,9 @@ jobs:
       VITE_BASE: /
 
     steps:
+      - name: Capture start
+        run: echo "START=$(date +%s)" >> $GITHUB_ENV
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
@@ -94,9 +97,27 @@ jobs:
         run: npm run build
         env:
           VITE_BASE: /
+      
+      - name: Measure bundle size
+        run: |
+          SIZE=$(du -sk dist | cut -f1)
+          mkdir -p metrics
+          echo "{ \"bundleKB\": $SIZE }" > metrics/bundle.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metrics-bundle
+          path: metrics/bundle.json    
 
       - name: Run Playwright tests
         run: npx playwright test --project=chromium
+
+      - name: Write accessibility metrics
+        if: always()
+        run: |
+          mkdir -p metrics
+          echo "{ \"axeCritical\": ${AXE_CRITICAL_COUNT:-0} }" > metrics/a11y.json
 
       - name: Publish test results (JUnit → GitHub UI)
         if: always()
@@ -105,12 +126,16 @@ jobs:
           name: Junit Report
           path: playwright-report/junit.xml
           reporter: java-junit
+      
+      - name: Compute PR Quality Score
+        run: node scripts/pr-quality-score.mjs >> comment.md
 
       - name: Write summary snippet
         if: always()
-        run: node scripts/playwright-summary.mjs chromium summaries/chromium.md
+        run: |
+          node scripts/playwright-summary.mjs chromium summaries/chromium.md
 
-      - name: Upload summary snippet
+      - name: Upload summary snippet (always for PR comment)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -119,13 +144,43 @@ jobs:
 
 
       - name: Upload Playwright artifacts
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-chromium
           path: |
             playwright-report/
             test-results/
+
+      - name: Write E2E metrics
+        if: always()
+        run: |
+          mkdir -p metrics
+          if [ "${{ job.status }}" = "success" ]; then
+            echo '{ "e2e":"pass" }' > metrics/e2e.json
+          else
+            echo '{ "e2e":"fail" }' > metrics/e2e.json
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metrics-e2e
+          path: metrics/e2e.json
+      
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metrics-duration
+          path: metrics/duration.json
+      
+      - name: Capture duration
+        if: always()
+        run: |
+          END=$(date +%s)
+          DURATION=$((END-START))
+          mkdir -p metrics
+          echo "{ \"durationSec\": $DURATION }" > metrics/duration.json
   # ==============================
   # 3️⃣ Lighthouse - Performance & Accessibility Gate
   # ==============================
@@ -153,10 +208,29 @@ jobs:
         run: npm run build
 
       - name: Audit with Lighthouse CI
+        id: lhci
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json
-          uploadArtifacts: true
+          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
+          uploadArtifacts: false
+
+      - name: Generate Lighthouse summary
+        if: always()
+        run: node scripts/lighthouse-summary.mjs > summaries/lighthouse.md
+      
+      - name: Upload Lighthouse summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-summary
+          path: summaries/lighthouse.md
+
+      - name: Upload Lighthouse artifacts (only on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci
 
   pr-comment:
     if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs
@@ -166,9 +240,16 @@ jobs:
       - name: Download summaries
         uses: actions/download-artifact@v4
         with:
-          pattern: pw-summary-*
+          pattern: "*summary*"
           merge-multiple: true
           path: summaries
+
+      - name: Download metrics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: metrics-*
+          merge-multiple: true
+          path: metrics
 
       - name: Build PR comment body
         run: |
@@ -179,7 +260,7 @@ jobs:
           echo "### 🔎 Lighthouse" >> comment.md
           echo "- See Lighthouse artifact in this workflow run (Scores + failing assertions are visible in the action UI)." >> comment.md
           echo "" >> comment.md
-          echo "_Debug: PR → Checks → failing job → Artifacts → open playwright-report/index.html; traces via npx playwright show-trace trace.zip_" >> comment.md
+          echo "_Debug: For Debugging PR → Checks → failing job → Artifacts → open playwright-report/index.html; traces via npx playwright show-trace trace.zip_" >> comment.md
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3

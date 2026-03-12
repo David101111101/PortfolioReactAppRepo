@@ -1,222 +1,146 @@
-# RAG Chatbot – Test Plan
+# RAG Chatbot – Test Plan (Current Implementation)
 
-## 1. Document Information
+## 1) Document Information
 
-| Field        | Value                                                      |
-|--------------|------------------------------------------------------------|
-| Project      | Portfolio RAG Chatbot                                      |
-| Architecture | Cloudflare Worker + Durable Objects + Supabase + OpenAI    |
-| Author       | David                                                      |
-| Version      | 1.0                                                        |
-|--------------|------------------------------------------------------------|
+| Field | Value |
+|---|---|
+| Project | Portfolio RAG Chatbot |
+| Runtime | Cloudflare Worker + Durable Object |
+| Data/AI | Supabase RPC + OpenAI embeddings/chat |
+| Test Frameworks | Vitest, Playwright, Lighthouse CI |
+| Version | 1.1 (current-state refresh) |
 
-## 2. Purpose
+## 2) Purpose
 
-This document defines the testing strategy, scope, coverage criteria, and validation mechanisms for the Portfolio RAG Chatbot system.
+Define what is actually tested today across backend, frontend, CI gates, and weekly production regression.
 
-The objective is to:
-- Ensure functional correctness
-- Prevent prompt injection & abuse
-- Validate RAG grounding behavior
-- Verify system resilience under load
-- Demonstrate CI-integrated automated validation
+Primary objectives:
+- Validate API contract and request handling
+- Validate prompt guard and abuse controls
+- Validate retrieval and context behavior
+- Validate frontend critical paths and accessibility
+- Detect regressions in deployed production endpoint
 
-## 3. System Overview
+## 3) System Under Test
 
-### 3.1 Architecture Components
-- Cloudflare Worker (Edge runtime)
-- Durable Object (Rate Limiter)
-- OpenAI Embeddings + LLM API
-- Supabase (Vector search via RPC)
-- Logging Table (abuse_logs)
+### 3.1 Core Components
+- Worker handler (`portfolio-chatbot/src/index.ts`)
+- Durable Object rate limiter (`portfolio-chatbot/src/rateLimiter.ts`)
+- Prompt guard (`portfolio-chatbot/src/security/promptGuard/promptGuard.ts`)
+- Retrieval guard (`portfolio-chatbot/src/security/retrievalGuard.ts`)
+- Context builder (`portfolio-chatbot/src/rag/contextBuilder.ts`)
+- Frontend + chat widget (`src`, `e2e/specs`)
 
-### 3.2 High-Level Flow
-1. Validate request
-2. Rate limit by IP
-3. Generate embedding
-4. Perform vector search
-5. Filter by similarity threshold
-6. Build context
-7. Call LLM (streaming)
-8. Log result
+### 3.2 Runtime Flow Covered by Tests
+1. Request entry + validation
+2. Per-IP rate limiting
+3. Prompt guard checks
+4. Retrieval quality path / fallback behavior
+5. LLM/stream behavior (direct or mocked path depending on suite)
 
-## 4. Test Strategy
+## 4) Test Strategy
 
-### 4.1 Testing Levels
-| Level         | Purpose                    | Tools                        |
-|--------------|----------------------------|------------------------------|
-| Unit         | Validate pure logic        | Vitest                       |
-| Integration  | Validate worker behavior   | Miniflare                    |
-| Security     | Validate abuse mitigation  | Custom tests                 |
-| RAG Validation | Validate retrieval & fallback | Mocked embedding + RPC   |
-| CI/CD        | Automated validation pipeline | GitHub Actions           |
+### 4.1 Test Levels in Use
+| Level | Scope | Tooling |
+|---|---|---|
+| Backend unit/integration-style | Worker behavior + helper modules | Vitest + live local worker |
+| Security | Prompt guard categories + blocking behavior | Vitest |
+| Regression (weekly scheduled, NIGHTLY mode) | Production endpoint validation | Vitest (`NIGHTLY=true`) |
+| Frontend E2E | Navigation, smoke, chat UI, a11y | Playwright + axe |
+| Quality budget | Performance/accessibility scoring | Lighthouse CI |
 
-## 5. Test Scope
+### 4.2 Execution Modes
+- **PR / main pipelines:** run fast checks and deployment gates.
+- **Weekly regression:** runs backend regression suite against deployed API URL.
 
-### 5.1 In Scope
-- Request validation
-- Rate limiting
-- Prompt injection filtering
-- Similarity threshold behavior
-- Context truncation
-- Streaming error handling
-- Logging behavior
-- Fallback logic
-- Error responses
-- RAG grounding enforcement
+## 5) Current Test Inventory
 
-### 5.2 Out of Scope
-- OpenAI model internal behavior
-- Supabase internal vector indexing
-- Internet-level DDoS mitigation
+### 5.1 Backend (`portfolio-chatbot/src/__tests__`)
+- `api.contract.test.ts`
+  - Verifies contract response shape in `x-test-mode`
+  - Ensures status `200` + JSON schema (`answer: string`)
+- `promptGuard.test.ts`
+  - Validates safe input and blocked categories (PII, SQLi, XSS, injection, encoded payload, size, symbol density)
+- `prompt.test.ts`
+  - Uses `x-mock-rag=true` to verify safe non-hallucination fallback text path
+- `contextBuilder.test.ts`
+  - Validates joining, truncation, malformed inputs, empty-doc behavior
+- `retrieval.regression.test.ts` (weekly scheduled)
+  - Validates grounded response concept coverage against production endpoint
+- `rateLimit.test.ts` (weekly scheduled)
+  - Validates repeated requests produce `429`
+- `performance.test.ts` (weekly scheduled)
+  - Validates latency profile and light concurrency behavior
 
-## 6. Functional Test Cases
+### 5.2 Frontend (`e2e/specs`)
+- `smoke.spec.ts` (hero render, theme toggle, chat bubble, chat open/respond with mocked backend)
+- `navigation.spec.ts` (section navigation, external links, email actions, chatbot mock response)
+- `a11y.spec.ts` (axe scan, no critical violations)
 
-### 6.1 Request Validation
-| ID      | Scenario                | Expected Result |
-|---------|-------------------------|-----------------|
-| FUNC-01 | Valid POST request      | 200             |
-| FUNC-02 | GET request             | 405             |
-| FUNC-03 | Invalid JSON            | 400             |
-| FUNC-04 | Missing question field  | 400             |
-| FUNC-05 | Empty question          | 400             |
-| FUNC-06 | Question > 1000 chars   | 400             |
+## 6) Functional Cases (Current Behavior)
 
-### 6.2 Rate Limiting
-| ID    | Scenario                  | Expected        |
-|-------|---------------------------|-----------------|
-| RL-01 | First request             | Allowed         |
-| RL-02 | Within allowed threshold  | Allowed         |
-| RL-03 | Exceeds threshold         | 429             |
-| RL-04 | Rate-limited requ  logged | reason = rate_limited |
+### 6.1 Request / Protocol Validation
+| ID | Scenario | Expected |
+|---|---|---|
+| FUNC-01 | Valid POST JSON payload | `200` (or streamed text path) |
+| FUNC-02 | `HEAD` request | `200` |
+| FUNC-03 | Method other than POST/HEAD/OPTIONS | `405` |
+| FUNC-04 | Missing/invalid JSON | `400` |
+| FUNC-05 | Unsupported content type | `415` |
+| FUNC-06 | Empty question after trim | `400` |
 
-### 6.3 Prompt Injection Protection
-| ID     | Scenario                        | Expected |
-|--------|---------------------------------|----------|
-| SEC-01 | “ignore previous instructions”  | 400      |
-| SEC-02 | “system prompt”                 | 400      |
-| SEC-03 | Case-variant injection          | Blocked  |
-| SEC-04 | Jailbreak attempt               | Blocked  |
+### 6.2 Abuse / Guardrails
+| ID | Scenario | Expected |
+|---|---|---|
+| RL-01 | <= 10 req/min per IP | allowed |
+| RL-02 | > 10 req/min per IP | `429` |
+| SEC-01 | prompt injection pattern | `400` blocked |
+| SEC-02 | PII pattern | `400` blocked |
+| SEC-03 | high symbol density | `400` blocked |
+| SEC-04 | question length > 1000 | `400` blocked |
 
-## 7. RAG-Specific Test Cases
+### 6.3 Retrieval / Grounding
+| ID | Scenario | Expected |
+|---|---|---|
+| RAG-01 | Retrieval response malformed | guarded fallback behavior |
+| RAG-02 | Low/empty relevant retrieval | fallback or constrained response path |
+| RAG-03 | Context exceeds max size | deterministic truncation at 6000 chars |
+| RAG-04 | Weekly scheduled architecture question | response includes grounded concepts (score gate) |
 
-This section demonstrates ML system awareness.
+## 7) Performance and Stability Checks
 
-### 7.1 Similarity Threshold Behavior
-| ID     | Scenario                | Expected         |
-|--------|-------------------------|------------------|
-| RAG-01 | similarity < 0.30       | fallback         |
-| RAG-02 | similarity >= 0.30      | LLM called       |
-| RAG-03 | Empty retrieval array   | fallback         |
-| RAG-04 | Invalid retrieval format| 500              |
+### 7.1 In-Test Thresholds Currently Enforced
+- Weekly scheduled latency guard in `performance.test.ts`:
+  - `median < 8000ms`
+  - `max < 10000ms` (`1.25 * 8000`)
+- Light concurrency check currently runs with 3 parallel requests.
 
-### 7.2 Hallucination Prevention
-| ID     | Scenario                  | Expected             |
-|--------|---------------------------|----------------------|
-| RAG-05 | Question not in dataset   | fallback message     |
-| RAG-06 | Question in dataset       | grounded answer      |
-| RAG-07 | LLM attempts fabrication  | constrained by context |
+### 7.2 Runtime Telemetry (Non-test assertions)
+Worker logs:
+- retrieval latency
+- LLM latency
+- total latency
+- warning event if LLM latency exceeds `3500ms`
 
-### 7.3 Context Truncation
-| ID     | Scenario                | Expected                   |
-|--------|-------------------------|----------------------------|
-| RAG-08 | Large combined docs     | Context sliced to 6000 chars|
-| RAG-09 | Small docs              | No truncation              |
+## 8) CI/CD Validation Mapping
 
-## 8. Security Testing
+| Stage | What Runs |
+|---|---|
+| PR Quality Gates | Backend tests, Playwright Chromium, Lighthouse, PR comment summary |
+| Main Deploy Gates | Backend tests, Playwright matrix (chromium/firefox/webkit), Lighthouse, deploy to GitHub Pages |
+| Weekly Regression | Backend regression suite against `API_BASE_URL` production endpoint + JUnit report |
 
-### 8.1 Injection Testing
-- Prompt injection attempts
-- SQL injection strings
-- XSS payloads
-- Unicode bypass attempts
+## 9) Out of Scope (Current)
 
-### 8.2 Abuse Testing
-- Rapid request flood
-- Rotating IP simulation
-- Long payload attack
-- Malformed RPC responses
+- LLM internal model correctness beyond black-box assertions
+- Semantic output moderation/post-generation policy enforcement
+- Internet-scale DDoS resilience
+- Deterministic retrieval scoring benchmark harness beyond current weekly scheduled concept checks
 
-## 9. Observability & Logging Validation
-| ID     | Scenario            | Expected                  |
-|--------|---------------------|---------------------------|
-| LOG-01 | Successful request  | Logged with reason=success|
-| LOG-02 | Fallback            | reason=fallback           |
-| LOG-03 | Error               | reason=error              |
-| LOG-04 | Rate limited        | reason=rate_limited       |
+## 10) Current Gaps / Next Improvements
 
-Validate:
-- IP stored
-- Question stored
-- Answer stored
-- No sensitive system prompt logged
-
-## 10. Performance Testing
-
-### 10.1 Latency Targets
-| Operation      | Target     |
-|---------------|------------|
-| Validation     | < 10ms     |
-| Embedding      | < 800ms    |
-| Vector search  | < 300ms    |
-| Full response  | < 2.5s     |
-
-### 10.2 Streaming Validation
-- First token < 1.5s
-- No abrupt termination
-- Graceful interruption handling
-
-## 11. Resilience Testing
-| Scenario              | Expected                      |
-|-----------------------|-------------------------------|
-| OpenAI timeout        | 503                           |
-| Supabase unavailable  | 500                           |
-| JSON parse failure    | 500                           |
-| Streaming interruption| Partial message + safe close  |
-
-## 12. CI/CD Validation
-
-### 12.1 Automated Steps
-- Lint
-- Type check
-- Unit tests
-- Coverage enforcement
-- Dependency audit
-- Scheduled/Nightly Runs
-
-### 12.2 Coverage Threshold
-- Minimum 80% branch coverage
-- 90% for validation logic
-
-## 13. Known Limitations
-- Basic string-based injection detection
-- No semantic classifier for prompt injection
-- IP-based rate limiting vulnerable to VPN rotation
-- No CAPTCHA layer
-- Output not post-filtered
-
-## 14. Risk Assessment
-| Risk            | Mitigation           |
-|-----------------|---------------------|
-| Hallucination   | Similarity threshold |
-| Prompt injection| Input filtering      |
-| Abuse           | Rate limiting        |
-| Data leakage    | Context-only prompt  |
-| Overload        | Graceful fallback    |
-
-## 15. Future Improvements
-- Add semantic injection detection
-- Add CAPTCHA/Turnstile
-- Add output filtering
-- Add structured request ID
-- Add evaluation harness
-- Add automated RAG evaluation scoring
-
-## 16. Traceability Matrix
-| Safeguard         | Test Case   |
-|-------------------|------------|
-| Rate limiting     | RL-*       |
-| Injection filter  | SEC-*      |
-| Similarity threshold | RAG-01  |
-| Context truncation| RAG-08     |
-| Logging           | LOG-*      |
+1. Add explicit assertions for dynamic retrieval thresholds (`0.35` default, `0.23` short-question path).
+2. Add dedicated tests for `415` content-type rejection and CORS `403` behavior.
+3. Add stronger output-safety checks (leakage/moderation assertions).
+4. Add request-correlation ID assertions once implemented.
+5. Add trend reporting for weekly scheduled latency and fallback-rate drift.

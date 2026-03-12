@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import fs from "fs";
 
 const BASE_URL =
   process.env.API_BASE_URL ??
@@ -68,6 +69,11 @@ describe.runIf(process.env.NIGHTLY === "true")(
         concept_score: score,
         concepts_checked: EXPECTED_CONCEPTS.length,
       });
+
+      fs.writeFileSync(
+      "latency-metric.json",
+      JSON.stringify({ avgLatencyMs })
+    );
       /**
        * Require minimum concept coverage
        */

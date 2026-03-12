@@ -10,15 +10,15 @@ The strategy demonstrates how QA automation engineers can shift left on AI assur
 ```mermaid
 flowchart TD
   DevCommit["Developer Commit
-(Feature Branch)"]
+(Feature/Fix Branch)"]
 
   DevCommit --> PRGate
 
-  subgraph PRGate["1. PR Quality Gate (Fast Tier)"]
-    PRBackend["Backend Unit & Contract Tests"]
-    PRSecurity["Security Tests"]
-    PRE2E["E2E Chromium Smoke"]
-    PRLighthouse["Lighthouse Performance Budget"]
+  subgraph PRGate["1. PR Quality Gate"]
+    PRBackend["Backend Unit & API Contract Tests"]
+    PRSecurity["Security & PII Tests"]
+    PRE2E["E2E Chromium Smoke tests"]
+    PRLighthouse["Lighthouse SEO, Accessibility & Performance Thresholds"]
   end
 
   PRGate -->|Pass| BuildArtifacts["Build Artifacts
@@ -27,14 +27,13 @@ Generated"]
 
   BuildArtifacts --> DeployGate
 
-  subgraph DeployGate["2. Deployment Quality Gate (Comprehensive)"]
+  subgraph DeployGate["2. Deploy Quality Gate"]
     DepBackend["Backend Unit & Contract Tests"]
     DepMultiBrowser["Multi-Browser E2E
 Chromium, Firefox, WebKit"]
     DepJUnit["JUnit Results to
 GitHub Checks"]
-    DepLighthouse["Lighthouse: Performance
-& Accessibility Thresholds"]
+    DepLighthouse["Lighthouse SEO, Accessibility & Performance Thresholds"]
   end
 
   DeployGate -->|Pass| ProductionDeploy["Deploy to
@@ -43,18 +42,17 @@ GitHub Pages"]
 
   ProductionDeploy --> RegressionMonitor
 
-  subgraph RegressionMonitor["3. Weekly Production Regression (Nightly)"]
+  subgraph RegressionMonitor["3. Weekly Regression Suite"]
     ProdHealth["Health Check:
 Deployed API Endpoint"]
     ProdBackend["Regression Tests vs
 Production Endpoint"]
-    ProdFull["Full Conversation Flows"]
-    ProdRAG["RAG Accuracy &
-Retrieval Regressions"]
-    ProdSecurity["Prompt Injection
-Scenarios"]
+    ProdRAG["RAG Retrieval
+  Regression Checks"]
+    ProdRateLimit["Rate Limiting
+  Regression Checks"]
     ProdLatency["LLM Latency
-Benchmarking"]
+  Monitoring and Drift"]
   end
 
   RegressionMonitor --> Observability
@@ -78,12 +76,13 @@ flowchart LR
     UnitTests["api.contract.test.ts
 contextBuilder.test.ts
 promptGuard.test.ts
-rateLimit.test.ts"]
+prompt.test.ts"]
   end
 
   subgraph Semantic["Semantic & Integration (Deployment)"]
-    ContractTests["prompt.test.ts
-performance.test.ts"]
+  ContractTests["api.contract.test.ts
+contextBuilder.test.ts
+promptGuard.test.ts"]
     E2E["a11y.spec.ts
 navigation.spec.ts
 smoke.spec.ts"]
@@ -91,19 +90,19 @@ smoke.spec.ts"]
 CLS, Accessibility Score"]
   end
 
-  subgraph Safety["Safety & Stability (Weekly)"]
+  subgraph Safety["Safety & Stability (Weekly Scheduled)"]
     RAGTests["retrieval.regression.test.ts
 Retrieval threshold gate"]
-    InjectionTests["Prompt injection patterns
-PII detection scenarios"]
-    ConversationTests["Multi-turn conversation flows
-Context truncation edge cases"]
+  RateLimitTests["rateLimit.test.ts
+Per-IP throttle regression"]
+  PerfTests["performance.test.ts
+Median/max latency stability checks"]
   end
 
   subgraph Performance["Performance Monitoring (Continuous)"]
-    LatencyBudget["Rate limiter: 10 req/min
-LLM response time less than 3.5s
-Query embedding latency"]
+  LatencyBudget["Rate limiter: 10 req/min
+LLM warning threshold: 3.5s
+Weekly latency gate: median and max"]
     StressTests["Concurrent request
 burden tests"]
     LLMBehavior["Model response assertion
@@ -115,7 +114,7 @@ Fallback accuracy"]
   Semantic -->|Pre-release gate| DeployStage["Deployment Gate
 (Comprehensive)"]
   Safety -->|Production health| ProdStage["Production Monitoring
-(Nightly and On-demand)"]
+(Weekly schedule and On-demand)"]
   Performance -->|Continuous SLO track| Observability["QA Dashboard
 & Alerting"]
 
@@ -129,11 +128,11 @@ Fallback accuracy"]
 
 | Category | Test Files | Purpose | Frequency |
 |----------|-----------|---------|----------|
-| **Backend Unit** | `api.contract.test.ts`, `contextBuilder.test.ts`, `promptGuard.test.ts`, `rateLimit.test.ts` | API contract validation, guard logic, rate limiter sliding window | PR + Deploy |
-| **Backend Regression** | `retrieval.regression.test.ts`, `performance.test.ts`, `prompt.test.ts` | RAG accuracy, LLM latency, prompt handling | Weekly (production endpoint) |
-| **Frontend E2E** | `a11y.spec.ts`, `navigation.spec.ts`, `smoke.spec.ts` | Accessibility, page navigation, critical user paths | Deployment (multi-browser) + Weekly (chromium) |
-| **Security Scenarios** | Prompt injection tests, PII detection, SSRF/SQL injection patterns, XSS payloads | Input validation, guard effectiveness, abuse detection | PR (fast checks) + Weekly (full suite) |
-| **Performance Gates** | Lighthouse budget, LLM response time thresholds, rate limit enforcement | Web performance, Core Web Vitals, accessibility score, LLM latency SLO | All stages |
+| **Backend PR/Deploy Core** | `api.contract.test.ts`, `contextBuilder.test.ts`, `promptGuard.test.ts`, `prompt.test.ts` | API contract validation, prompt safety checks, context builder behavior | PR + Deploy |
+| **Backend Weekly Regression** | `retrieval.regression.test.ts`, `performance.test.ts`, `rateLimit.test.ts` | Retrieval grounding drift, latency stability, rate-limit enforcement on deployed API | Weekly (production endpoint) |
+| **Frontend E2E** | `a11y.spec.ts`, `navigation.spec.ts`, `smoke.spec.ts` | Accessibility, navigation, critical UX + chatbot mocked interaction | PR (chromium) + Deploy (chromium/firefox/webkit) |
+| **Security Scenarios** | Prompt injection, PII detection, SQL/XSS/encoded payload patterns | Input validation and guard effectiveness at request layer | PR + Deploy |
+| **Performance Gates** | Lighthouse assertions, weekly scheduled latency checks, rate limit regression | Web vitals/accessibility budgets + backend latency guardrails | Deploy + Weekly |
 
 ## Why This Approach Matters For AI Assurance
 

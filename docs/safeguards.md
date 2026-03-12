@@ -1,254 +1,174 @@
-# RAG Chatbot – Security & Safeguards
+# RAG Chatbot – Security & Safeguards (Current Implementation)
 
-## 1. Purpose
+## 1) Purpose
 
-This document describes the security controls, abuse mitigations, architectural safeguards, and known limitations of the Portfolio RAG Chatbot system.
+This document describes the security controls currently implemented in the portfolio chatbot backend (`portfolio-chatbot/src/index.ts`) and related modules.
 
-The objective is to:
-- Prevent prompt injection
-- Prevent abuse and spam
-- Reduce hallucinations
-- Protect system prompts
-- Protect backend services
-- Ensure safe degradation under failure
+Goals of the current design:
+- Block abusive or suspicious input early
+- Reduce low-confidence retrieval before generation
+- Protect backend services from request flooding
+- Keep degraded behavior deterministic and user-safe
+- Preserve observability for incident review
 
-## 2. Threat Model
+## 2) System Threat Surface
 
-### 2.1 Assets to Protect
-- System prompt integrity
-- Portfolio document embeddings
-- Supabase database
-- OpenAI API key
-- Worker runtime stability
-- Logging integrity
+### 2.1 Protected Assets
+- Worker runtime availability
+- OpenAI API key (server-side only)
+- Supabase service-role access path
+- Retrieval quality and grounded responses
+- Audit trail in `abuse_logs`
 
-### 2.2 Threat Categories
-| Category           | Example                           |
-|--------------------|-----------------------------------|
-| Prompt Injection   | “Ignore previous instructions…”   |
-| Data Exfiltration  | “Reveal your system prompt”       |
-| Abuse              | Rapid request flooding            |
-| Hallucination      | Fabricated experience             |
-| Resource Exhaustion| Long payload attack               |
-| Database Abuse     | Direct RPC abuse                  |
+### 2.2 Main Threat Categories
+| Category | Current Mitigation |
+|---|---|
+| Prompt injection / jailbreak | `inspectPrompt()` pattern + normalization checks |
+| PII submission | PII pattern detection in prompt guard |
+| Abuse / spam | Per-IP Durable Object rate limiter |
+| Low-confidence retrieval | Similarity-based retrieval guard + fallback |
+| Resource abuse | Input-size limits + strict content-type |
+| Backend dependency failure | Controlled fallback and error responses |
 
-## 3. Implemented Safeguards
+## 3) Implemented Safeguards
 
-### 3.1 Network-Level Controls
-#### 3.1.1 CORS Allowlist
-Only approved origins are allowed:
-- Production domain
-- Localhost (development)
+### 3.1 Network and Request Entry Controls
 
-If origin is not in allowlist:
-- `Access-Control-Allow-Origin: null`
+#### 3.1.1 CORS Allowlist + Origin Enforcement
+Allowed origins are explicitly listed in code:
+- `https://www.daveautomation.dev`
+- `https://daveautomation.dev`
+- `http://localhost:5173`
+- `https://portfolio-chatbot.davidstevenabril.workers.dev`
 
-This prevents browser-based cross-site exploitation.
+Behavior:
+- If `Origin` header is present and not allowlisted, request is rejected with `403 Forbidden`.
+- CORS headers are returned for allowed origins.
 
-#### 3.1.2 POST-Only Enforcement
-All non-POST requests return:
-- HTTP 405
+#### 3.1.2 Method Handling
+- `OPTIONS` → preflight response
+- `HEAD` → `200`
+- `POST` → main chat handler
+- Any other method → `405`
 
-Reduces attack surface.
+#### 3.1.3 Content-Type Enforcement
+- Requests not including `application/json` are rejected with `415 Unsupported Content-Type`.
 
 ### 3.2 Abuse Mitigation
+
 #### 3.2.1 Rate Limiting (Durable Object)
-Rate limiting is enforced per IP address using a Cloudflare Durable Object.
+Implemented in `portfolio-chatbot/src/rateLimiter.ts`:
+- Sliding window: `60s`
+- Max requests: `10` per IP per window
+- Exceeded limit response: `429`
 
-Mitigates:
-- Flood attacks
-- Scripted abuse
-- Token exhaustion attempts
+### 3.3 Input Validation and Prompt Safety
 
-When exceeded:
-- HTTP 429
-- Logged with reason = rate_limited
+#### 3.3.1 JSON / Schema Validation
+- Invalid JSON → `400 Invalid JSON`
+- Missing or invalid `question` field → `400 Invalid request format`
+- Empty question after trim → `400`
 
-#### 3.2.2 Input Size Limitation
-Maximum question length: **1000 characters**
+#### 3.3.2 Prompt Guard (`inspectPrompt`)
+Guard behavior in `portfolio-chatbot/src/security/promptGuard/promptGuard.ts`:
+- Input normalization before matching
+- Length check (`> 1000`) blocks request
+- High symbol-density pattern blocks request
+- PII patterns block request
+- Category-based pattern matching blocks request:
+  - `PROMPT_INJECTION`
+  - `DATA_EXFILTRATION`
+  - `SQL_INJECTION`
+  - `XSS`
+  - `COMMAND_INJECTION`
+  - `SSRF`
+  - `ENCODED_PAYLOAD`
 
-Prevents:
-- Token abuse
-- Oversized payload attacks
-- Prompt stuffing
+Blocked prompt behavior:
+- `400` with safe text response
+- RAG pipeline is not executed
+- Event is logged asynchronously
 
-### 3.3 Input Validation
-Strict JSON parsing:
-- Invalid JSON → 400
-- Missing question → 400
-- Empty question → 400
-- Oversized question → 400
+### 3.4 Retrieval Safety Controls
 
-This ensures schema-level safety before model interaction.
+#### 3.4.1 Embedding + Search Path
+- Query embedding model: `text-embedding-3-small`
+- Vector lookup via Supabase RPC: `match_documents`
 
-### 3.4 Prompt Injection Mitigation
-The system performs case-insensitive filtering of suspicious patterns including:
-- “ignore previous instructions”
-- “system prompt”
-- “jailbreak”
-- “act as”
+#### 3.4.2 Similarity Guard
+Implemented in `inspectRetrieval(documents, minSimilarity)`:
+- Default minimum similarity used by handler: `0.35`
+- For short questions (`<= 4` words), threshold is reduced to `0.23`
+- Match count defaults to `7`, increased to `9` for short questions
 
-If detected:
-- Request rejected (400)
-- No LLM call made
+#### 3.4.3 Context Construction
+`buildContext()` safeguards:
+- Priority order: `high -> medium -> normal`
+- Deterministic truncation up to `6000` characters
 
-Purpose:
-- Prevent system prompt override
-- Prevent instruction manipulation
-- Prevent jailbreak attempts
+### 3.5 Generation and Output Handling
 
-### 3.5 Retrieval Safety (RAG Controls)
-#### 3.5.1 Similarity Threshold
-Minimum similarity threshold: **0.45**
+#### 3.5.1 Constrained Generation Configuration
+- Model: `gpt-4o-mini`
+- `temperature: 0`
+- `max_tokens: 300`
+- Streaming enabled
 
-Documents below threshold are discarded.
-If no document meets threshold:
-- Fallback response is returned
-- LLM is NOT called
+System prompt constraints include:
+- first-person persona
+- context-only answering
+- no fabrication
+- no prompt rule disclosure
 
-This reduces hallucination risk.
+#### 3.5.2 Safe Degradation and Fallbacks
+Current fallback/error behavior:
+- Supabase retrieval error/parsing issue → `500` with safe message
+- OpenAI stream initialization failure → `503` with safe message
+- Streaming interruption → safe interruption message in stream
+- Global unexpected error → `500` with safe generic message
 
-#### 3.5.2 Context Truncation
-Combined document context is truncated to **6000 characters**.
+### 3.6 Observability and Logging
 
-Prevents:
-- Context overflow
-- Excessive token usage
-- Prompt injection via long context
+Asynchronous logging to Supabase `abuse_logs` includes:
+- `question`
+- `reason`
+- `answer`
 
-#### 3.5.3 Context-Only System Prompt
-The system prompt enforces:
-- Use only provided context
-- No general knowledge
-- No fabrication
-- Professional tone
+Operational signals also include:
+- retrieval latency
+- LLM latency
+- total RAG latency
+- warning when LLM latency exceeds `3500ms`
 
-This constrains the LLM behavior.
+Note: current application-level logging payload does not explicitly store IP.
 
-### 3.6 Output Handling
-#### 3.6.1 Controlled Streaming
-- LLM responses streamed incrementally
-- Streaming errors gracefully handled
-- Partial interruption returns safe notice
+### 3.7 Secret Handling
+- OpenAI and Supabase credentials are read from Worker environment bindings.
+- Secrets are not returned to the client.
 
-Prevents:
-- Broken response states
-- Uncontrolled error leakage
+## 4) Known Limitations (Current State)
 
-#### 3.6.2 Fallback Responses
-When:
-- Retrieval fails
-- Similarity threshold unmet
-- Supabase errors
-- OpenAI errors
+1. Prompt guard is primarily pattern-based and can be bypassed by novel obfuscation.
+2. No dedicated post-generation output moderation/sanitization layer.
+3. Rate limiting is IP-based and can be imperfect with VPN/shared IP scenarios.
+4. No request correlation ID in response headers/log events.
+5. Logging schema in DB is minimal for now.
 
-A deterministic safe message is returned.
+## 5) Residual Risk Snapshot
 
-This ensures no undefined behavior.
+| Risk | Current Residual Level | Why |
+|---|---|---|
+| Prompt injection bypass | Medium | Pattern-based guard without semantic classifier |
+| Hallucination | Low-Medium | Retrieval guard + context constraints, but no output verifier |
+| Abuse/flooding | Medium | Strong basic IP throttling, no CAPTCHA/device layer |
+| Data leakage | Low | Context-constrained prompt and server-side secrets |
+| Service degradation | Low-Medium | Graceful fallbacks implemented; third-party dependency risk remains |
 
-### 3.7 Observability & Logging
-All requests are logged asynchronously with:
-- IP
-- Question
-- Answer
-- Result reason
+## 6) Security Roadmap (Not Yet Implemented)
 
-Reasons include:
-- success
-- fallback
-- rate_limited
-- error
-
-This enables:
-- Abuse monitoring
-- Model improvement
-- Future fine-tuning dataset
-- Incident traceability
-
-Logging failures do not block response.
-
-### 3.8 Secret Management
-Secrets are injected via environment API keys that are saved once and can't be consulted.
-Keys are never exposed to client.
-
-## 4. Database Security
-
-### 4.1 Supabase Access
-The worker communicates with Supabase via:
-- RPC (`match_documents`)
-- Insert into `abuse_logs`
-
-**RLS Requirement:**
-Row-Level Security must be enabled to ensure:
-- Direct client access is blocked
-- RPC is restricted to authorized roles
-- Logging table is protected
-
-## 5. Failure Containment
-| Failure            | Behavior                        |
-|--------------------|---------------------------------|
-| OpenAI failure     | 503 response                    |
-| Supabase failure   | 500 response                    |
-| JSON parse failure | 400                             |
-| Streaming failure  | Safe interruption message       |
-
-No internal stack traces are exposed.
-
-## 6. Known Limitations
-
-### 6.1 Injection Detection is String-Based
-Current filtering uses pattern matching.
-
-Limitations:
-- Can be bypassed with obfuscation
-- Does not use semantic classification
-
-Future improvement:
-- LLM-based injection classifier
-- Heuristic scoring
-
-### 6.2 IP-Based Rate Limiting
-Limitations:
-- VPN rotation can bypass
-- Shared IP users may be throttled
-
-Future improvement:
-- CAPTCHA (Cloudflare Turnstile)
-- Device fingerprinting
-- Token-based rate limiting
-
-### 6.3 No Output Sanitization
-Currently:
-- Input is filtered
-- Output is not post-validated
-
-Future improvement:
-- System prompt leakage detection
-- Markdown sanitization
-- Content moderation filter
-
-### 6.4 No Request Correlation ID
-Current limitation:
-- No request ID for trace tracing
-
-Future improvement:
-- Generate UUID per request
-- Include in logs and response headers
-
-## 7. Residual Risk Assessment
-| Risk            | Residual Level | Justification                |
-|-----------------|---------------|------------------------------|
-| Hallucination   | Low           | Similarity + fallback        |
-| Prompt injection| Medium        | String-based filtering       |
-| Abuse           | Medium        | IP-based rate limiting       |
-| Data leakage    | Low           | Context-only enforcement     |
-| Service overload| Low           | Graceful degradation         |
-
-## 8. Future Security Roadmap
-- Add request correlation IDs
-- Add output filtering layer
-- Add semantic injection classifier
-- Integrate Cloudflare Turnstile
-- Add evaluation harness for grounding accuracy
-- Implement structured audit logging
-- Add timeout with AbortController
+- Semantic prompt-injection classifier
+- Output safety moderation layer
+- Request correlation IDs
+- Structured audit logging schema
+- CAPTCHA / Turnstile for abuse-resistant public traffic
+- Stronger policy checks around retrieval-to-answer grounding
