@@ -56,6 +56,7 @@ jobs:
           LAT=$((END-START))
           echo "lat=$LAT" >> $GITHUB_OUTPUT
 
+
       - name: Run regression suite (production endpoint)
         run: |
           cd portfolio-chatbot
