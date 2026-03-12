@@ -17,7 +17,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
+  
 jobs:
 
   # =====================================
@@ -143,30 +143,17 @@ jobs:
       - name: Generate E2E summary
         if: always()
         run: |
-          mkdir -p summaries
-
-          node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md || true
-
-          if [ -f summaries/${{ matrix.browser }}.md ]; then
-            cat summaries/${{ matrix.browser }}.md >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### 🌍 E2E (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Summary unavailable" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
+          node scripts/playwright-summary.mjs ${{ matrix.browser }} tmp.md
+          cat tmp.md >> $GITHUB_STEP_SUMMARY
       
       # Enforce flaky budget (e.g. no more than 5 flaky tests allowed)
       - name: Enforce flaky budget
         if: always()
         run: |
-          if [ -f metrics/flaky.json ]; then
-            FLAKY=$(jq .flaky metrics/flaky.json)
-            if [ "$FLAKY" -gt 5 ]; then
-              echo "Too many flaky tests"
-              exit 1
-            fi
-          else
-            echo "Flaky metric unavailable"
+          FLAKY=$(jq .flaky metrics/flaky.json)
+          if [ "$FLAKY" -gt 5 ]; then
+            echo "Too many flaky tests"
+            exit 1
           fi
 
       # ===============================
