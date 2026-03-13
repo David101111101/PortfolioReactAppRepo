@@ -12,6 +12,7 @@ Objectives of the current pipeline:
 - Validate backend and frontend behavior before deployment
 - Enforce accessibility/performance budgets with min thresholds via Lighthouse
 - Run scheduled regression checks against the production API endpoint
+- Preserve execution metrics that can be reused for PR summaries and trend reporting
 
 ## 2) Workflow Inventory
 
@@ -31,23 +32,24 @@ Defined in `.github/workflows/pr-quality-gates.yml`.
    - Starts Worker locally (`npm run dev` in `portfolio-chatbot`)
    - Runs backend Vitest suite (`npm test`)
 
-2. **e2e (chromium)** (needs backend tests topass to start)
+2. **e2e (chromium)** (needs backend to pass)
    - Builds frontend (`npm run build`)
    - Runs Playwright on Chromium only
-   - Publishes JUnit results and artifacts
-   - Generates summary markdown snippet
+   - Captures bundle size, accessibility, pass/fail, and duration metrics as artifacts
+   - Publishes JUnit results and summary markdown
 
-3. **lighthouse**
+3. **lighthouse** (needs `e2e`)
    - Builds frontend
    - Runs Lighthouse CI with `lighthouserc.json`
+   - Uploads a Lighthouse summary artifact
 
 4. **pr-comment** (always, PR only)
-   - Downloads summary artifacts
+   - Downloads summary and metric artifacts
    - Creates/updates a PR comment with gate results
 
 ### 3.2 PR Gate Characteristics
-- Parallelized checks with explicit dependencies
-- Artifacts retained for debugging (`playwright-report`, `test-results`, summaries)
+- Linear gate sequence: `backend` → `e2e` → `lighthouse`, then `pr-comment`
+- Artifacts retained for debugging and telemetry (`playwright-report`, `test-results`, summaries, metrics)
 - Failing checks block PR merge when branch protection requires them
 
 ## 4) Main Branch Deployment Gates
@@ -65,15 +67,19 @@ Defined in `.github/workflows/deploy.yml`.
      - Firefox
      - WebKit
    - Publishes JUnit per browser
-   - Uploads browser-specific artifacts + summaries
+   - Writes per-browser summaries to `GITHUB_STEP_SUMMARY`
+   - Uploads flaky metrics and browser-specific failure artifacts
+   - Enforces a flaky-test budget (`> 5` flakes fails the job)
 
-3. **lighthouse** (needs backend tests to pass)
+3. **lighthouse** (needs `e2e` matrix completion)
    - Runs Lighthouse budget/assertion checks
+   - Uploads a `lighthouse-score` artifact for later comparison
 
 ### 4.2 Deploy Job
 - Runs only if `backend`, `e2e`, and `lighthouse` succeed
 - Builds frontend and deploys `dist` to GitHub Pages
-- Publishes final deployment summary with environment URL
+- Downloads the prior Lighthouse score artifact when available
+- Publishes deployment summary with environment URL and release trend data
 
 ## 5) Weekly Production Regression
 
@@ -83,15 +89,17 @@ Defined in `.github/workflows/weekly-regression-gates.yml`.
 - Runs weekly and on manual dispatch
 - Uses environment variable `API_BASE_URL`
 - Validates production endpoint health (`/health`) before tests
-- Runs backend suite in NIGHTLY mode against deployed API (weekly schedule):
+- Runs backend suite in NIGHTLY mode against deployed API:
   - `NIGHTLY=true`
   - `API_BASE_URL=<production endpoint>`
+- Captures and persists latency metrics for comparison with the previous weekly run
 
 ### 5.2 Output and Reporting
 - Publishes JUnit via `dorny/test-reporter`
-- Uploads JUnit artifact
+- Uploads regression artifacts on failure
+- Uploads latency metric artifact on every run
 - Generates regression summary dashboard in `GITHUB_STEP_SUMMARY`
-- Scans logs for `llm_latency_warning`
+- Computes current vs previous average latency trend
 
 ## 6) Quality Gates Currently Enforced
 
@@ -116,9 +124,10 @@ Lighthouse assertions from `lighthouserc.json`:
 
 Current pipeline feedback channels:
 - GitHub Checks (JUnit reports)
-- Uploaded artifacts (Playwright report, traces, test results)
+- Uploaded artifacts (Playwright report, traces, test results, metrics)
 - Workflow/job summaries
 - Auto-updated PR result comment
+- Release and weekly trend artifacts (`lighthouse-score`, `latency-metric`)
 
 This provides fast triage context without reproducing failures locally first.
 
@@ -139,7 +148,8 @@ Current pipelines validate several AI-specific reliability controls:
 - Prompt safety checks
 - Rate-limit regression behavior
 - Retrieval grounding regression checks (weekly scheduled)
-- LLM latency warning surfacing
+- LLM latency trend reporting
+- Production API health verification before weekly regression execution
 
 This gives a pragmatic AI QA baseline while keeping PR feedback cycles fast.
 
@@ -148,4 +158,4 @@ This gives a pragmatic AI QA baseline while keeping PR feedback cycles fast.
 1. Add explicit `lint` and `type-check` jobs as required checks.
 2. Add coverage collection + minimum threshold enforcement.
 3. Add dedicated CORS/415 contract tests.
-4. Add trend publication for weekly scheduled latency and fallback metrics.
+4. Extend trend publication to cover fallback rate alongside latency/Lighthouse.

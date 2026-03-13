@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { sendChatQuestion } from "../api/chatApi";
 import { streamAssistantResponse } from "../services/streamAssistant";
+import { useModal } from "../hooks/useModal";
 
 
 type Message = {
@@ -14,31 +15,59 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [hasGreeted, setHasGreeted] = useState(false);
+  const lockScrollRef = useRef(false);
+  const anchorOffsetRef = useRef(0);
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const TYPING_SPEED = 10; // milliseconds per character
-  const INITIAL_GREETING = `i developed this assistant using production engineering standards to showcase my foundation in Backend & QA Automation, along with my approach to exploring and adapting to modern AI testing practices.
+  const savedScrollTopRef = useRef(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const bubbleRef = useRef<HTMLButtonElement | null>(null);
+  
+  const requestClose = () => {
+  if (scrollContainerRef.current) {
+    savedScrollTopRef.current =
+      scrollContainerRef.current.scrollTop;
+  }
+  
+  setVisible(false);
+  setTimeout(() => setIsOpen(false), 200);
+  };
+
+  const modalRef = useModal({
+    isOpen,
+    onRequestClose: requestClose,
+    initialFocusRef: inputRef,
+    restoreFocusRef: bubbleRef,
+  });
+  useEffect(() => {
+  if (!isOpen) return;
+
+  requestAnimationFrame(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop =
+        savedScrollTopRef.current;
+    }
+  });
+  }, [isOpen]);
+
+  const INITIAL_GREETING = `This R.A.G. assistant is my approach to exploring and adapting to modern AI testing practices using production engineering standards to showcase my foundation in Development & QA Automation.
 
 Conversations may be logged, but no personal information is stored.`;
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+useEffect(() => {
+  if (messages.length !== 0) return;
 
-  useEffect(() => {
-  if (!isOpen || hasGreeted) return;
-  setHasGreeted(true);
   setIsTypingGreeting(true);
   setGreetingIndex(0);
-  const assistantMessage: Message = {
-    role: "assistant",
-    content: "",
-  };
 
-  setMessages([assistantMessage]);
-}, [isOpen, hasGreeted]);
+  setMessages([
+    {
+      role: "assistant",
+      content: "",
+    },
+  ]);
+}, []);
 
 useEffect(() => {
   if (!isTypingGreeting) return;
@@ -68,6 +97,26 @@ useEffect(() => {
   return () => clearTimeout(timeout);
 }, [greetingIndex, isTypingGreeting]);
 
+useEffect(() => {
+  if (!lockScrollRef.current) return;
+  if (!isStreaming) {
+    lockScrollRef.current = false;
+    return;
+  }
+
+  const container = scrollContainerRef.current;
+  const anchor = userAnchorRef.current;
+
+  if (!container || !anchor) return;
+
+  const desired =
+    anchor.offsetTop - anchorOffsetRef.current;
+
+  container.scrollTop = desired;
+});
+
+const scrollContainerRef = useRef<HTMLDivElement>(null);
+const userAnchorRef = useRef<HTMLDivElement | null>(null);
 const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
     const question = input;
@@ -75,11 +124,32 @@ const sendMessage = async () => {
         setInput("");
         setIsStreaming(true);  
         
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", content: question },
-          { role: "assistant", content: "" },
-        ]);
+          setMessages((prev) => {
+            const updated = [
+              ...prev,
+              { role: "user" as const, content: question },
+              { role: "assistant" as const, content: "" },
+            ];
+            return updated;
+          });
+
+          
+            requestAnimationFrame(() => {
+            const container = scrollContainerRef.current;
+            const anchor = userAnchorRef.current;
+
+            if (container && anchor) {
+              anchorOffsetRef.current =
+                anchor.offsetTop - container.scrollTop;
+
+              lockScrollRef.current = true;
+
+              anchor.scrollIntoView({
+                block: "start",
+                behavior: "smooth",
+              });
+            }
+          });
           const response = await sendChatQuestion(question);
 
             await streamAssistantResponse(response, (chunk) => {
@@ -96,30 +166,29 @@ const sendMessage = async () => {
               });
             });
 
-    } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "⚠️ Something went wrong. Please try again.",
-          },
-        ]);
-      } finally {
-        setIsStreaming(false);
-      }
-  };
+      } catch (err) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Something went wrong. Please try again.",
+            },
+          ]);
+        } finally {
+          setIsStreaming(false);
+        }
+    };
 
   return (
     <>
       {/* Floating Bubble */}
-      <button id="chatBubbleWidget"
+      <button id="chatBubbleWidget" ref={bubbleRef}
         onClick={() => {
             if (!isOpen) {
                 setIsOpen(true);
                 setTimeout(() => setVisible(true), 10);
             } else {
-                setVisible(false);
-                setTimeout(() => setIsOpen(false), 200);
+                requestClose();
             }
         }}
          /* Chat Bubble Widget */
@@ -127,48 +196,83 @@ const sendMessage = async () => {
       >💬</button>
 
       {/* Chat Window */}
-      {isOpen && (
-        <div id="chat-window-section" className={`chat-widget ${visible ? "open" : "close"}`}
-          style={{
-          }}
-        >
+{isOpen && (
+  <div
+    id="chat-window"
+    className={`chat-backdrop ${visible ? "open" : "close"}`}
+    onPointerDown={requestClose}
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.4)",
+      backdropFilter: "blur(3px) saturate(140%)",
+      WebkitBackdropFilter: "blur(3px) saturate(140%)",
+      zIndex: 999,
+      display: "flex",
+      justifyContent: "flex-end",
+      alignItems: "flex-end",
+      transition: "backdrop-filter 20s cubic-bezier(0.4,0,0.2,1), -webkit-backdrop-filter 20s cubic-bezier(0.4,0,0.2,1)",
+    }}
+  >
+    <div
+      ref={modalRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="chat window section"
+      onPointerDown={(e) => e.stopPropagation()}
+      id="chat-window-section"
+      className={`chat-widget ${visible ? "open" : "close"}`}
+      style={{
+      }}
+    >
           <div id="chat-title">
-            Welcome to Dave's Interactive Portfolio.
+            Welcome to Dave's Interactive Portfolio
           </div>
           <div
+            ref={scrollContainerRef}
+            className="chat-scroll"
             style={{
               flex: 1,
               overflowY: "auto",
               padding: "12px",
               fontSize: "14px",
             }}
-          >
-          {messages.map((msg, index) => 
-            {
-                const isLast = index === messages.length - 1;
-            return (<div
-                    key={index}
-                    className={`chat-message ${
-                        msg.role === "user"
-                        ? "chat-user"
-                        : "chat-assistant"
-                    }`}
-                      style={{
-                      whiteSpace: "pre-wrap",
-                      lineHeight: "1.6",
-                      }}
-                    >
-                    {msg.role === "user" && "> "}
-                    {msg.content}
-                    {msg.role === "assistant" && isStreaming && isLast && <span className="typing-cursor">|</span>}
-                  </div>);
-            })}
-          <div ref={messagesEndRef} />
-          </div>
+            >
+            
+          {messages.map((msg, index) => {
+            const isLastUser =
+              msg.role === "user" &&
+              index === messages.length - 2; // because assistant placeholder is last
 
+            return (
+              <div
+                key={index}
+                ref={isLastUser ? userAnchorRef : null}
+                className={`chat-message ${
+                  msg.role === "user" ? "chat-user" : "chat-assistant"
+                }`}
+                style={{
+                  whiteSpace: "pre-wrap",
+                  lineHeight: "1.6",
+                }}
+              >
+                {msg.role === "user" && "> "}
+                {msg.content}
+                {msg.role === "assistant" &&
+                  isStreaming &&
+                  index === messages.length - 1 && (
+                    <span className="typing-cursor">|</span>
+                  )}
+              </div>
+            );
+          })}
+          
+        </div>
           <div style={{display: "flex",borderTop: "1px solid var(--soft)",}}> 
             <input
               value={input}
+              ref={inputRef}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               style={{
@@ -183,6 +287,7 @@ const sendMessage = async () => {
               placeholder="Ask me anything in any language"
             />
           </div>
+        </div>
         </div>
       )}
     </>
