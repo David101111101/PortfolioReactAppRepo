@@ -79,6 +79,10 @@ async openChat() {
   await this.chatBubble().click();
   await expect(this.chatWindow()).toBeVisible();
 }
+async closeChat() {
+  await this.chatBubble().click();
+  await expect(this.chatWindow()).not.toBeVisible();
+}
 async waitForGreeting() {
   // Wait until assistant message is non-empty
   await expect(this.assistantMessages().first()).not.toHaveText("");

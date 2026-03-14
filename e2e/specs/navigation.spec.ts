@@ -2,6 +2,38 @@
 import { test, expect  } from "../fixtures/test";
 import { assertExternalLinkOpensCorrectly } from "../utils/assertExternalLink";
 
+test('Copy Email Header Button works', async ({ home, page }) => {
+// Copy email button: should copy to clipboard and change text
+await page.addInitScript(() => {
+  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
+  //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
+  const clipboardStore = { value: "" };
+  Object.defineProperty(navigator, "clipboard", {
+    value: {
+      writeText: async (text: string) => {
+        clipboardStore.value = text;
+      },
+      readText: async () => clipboardStore.value,
+    },
+    configurable: true,
+  });
+});
+
+await home.goto();
+const btnHeader = page
+  .locator('section#section .ContainerOfBtn button');
+await expect(btnHeader).toHaveText("Copy email");
+await btnHeader.click();
+// Assert UI change
+await expect(btnHeader).toHaveText("Copied");
+// Assert clipboard value
+const clipboardText = await page.evaluate(() =>
+  navigator.clipboard.readText()
+);
+expect(clipboardText).toBe("davidstevenabril@gmail.com");
+// Assert revert
+await expect(btnHeader).toHaveText("Copy email", { timeout: 4000 });
+})
 const cases = [ //Objects for test cases, each with a nav item and the expected heading it should scroll to
   { nav: "Projects",   slug: "projects" },
   { nav: "Diplomas",   slug: "diplomas" },
@@ -42,38 +74,8 @@ test('Email Button header work', async ({ home, page }) => {
   await expect(emailBtn).toBeEnabled();
   await expect(emailBtn).toHaveAttribute('href', /^mailto:/i);
 });
-test('Copy Email Header Button works', async ({ home, page }) => {
-// Copy email button: should copy to clipboard and change text
-await page.addInitScript(() => {
-  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
-  //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
-  const clipboardStore = { value: "" };
-  Object.defineProperty(navigator, "clipboard", {
-    value: {
-      writeText: async (text: string) => {
-        clipboardStore.value = text;
-      },
-      readText: async () => clipboardStore.value,
-    },
-    configurable: true,
-  });
-});
 
-await home.goto();
-const btnHeader = page
-  .locator('section#section .ContainerOfBtn button');
-await expect(btnHeader).toHaveText("Copy email");
-await btnHeader.click();
-// Assert UI change
-await expect(btnHeader).toHaveText("Copied");
-// Assert clipboard value
-const clipboardText = await page.evaluate(() =>
-  navigator.clipboard.readText()
-);
-expect(clipboardText).toBe("davidstevenabril@gmail.com");
-// Assert revert
-await expect(btnHeader).toHaveText("Copy email", { timeout: 4000 });
-})
+
 test("Home page external buttons work", async ({ home, page }) => {
   await home.goto();
     const btnLinkedInHeader = home.externalLink(/^LinkedIn$/i, 0);
@@ -169,4 +171,6 @@ test("chatbot opens and responds to mocked user message", async ({ home, page })
   await home.waitForAssistantReply();
   await expect(home.assistantMessages().last())
     .toContainText("Mocked assistant response");
+  await home.closeChat();
+
 });
