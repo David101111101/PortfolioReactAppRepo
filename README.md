@@ -1,30 +1,23 @@
-# David Abril — QA Automation Engineer / SDET Interactive RAG AI Portfolio
+# David Abril — QA Automation Engineer / SDET Interactive RAG Portfolio
 
 [![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
 [![PR Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml/badge.svg?branch=FIX-CI-Regression-Suite-environment-variable-fix)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml) 
 [![Deployment Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml)
 
 
-This project focuses on building a production-ready QA automation strategy for AI systems, with emphasis on RAG reliability, prompt-safety validation, and regression monitoring.
+This project focuses on building a production-ready QA automation strategy for RAG chatbot reliability, prompt-safety validation, and regression monitoring.
 
 https://www.daveautomation.dev/
 
-## About me
 
-**David Abril** — (English C2 Certified)  
-QA Automation Engineer with backend development foundations and  
-experience designing scalable test automation frameworks, 
-CI/CD-integrated pipelines, and secure validation systems.
+## Quality assurance built-in
 
-
-
-### Quality assurance built-in
-
-- **Automated E2E tests** — Smoke, navigation, accessibility & performance checks on every PR
-- **Cross-browser validation** — Full matrix runs before deployment (Chromium, Firefox, WebKit)
+- **Automated E2E tests** — Backend validation, Chromium PR checks, and multi-browser release verification
+- **Cross-browser validation** — Chromium on PRs, full matrix before deployment (Chromium, Firefox, WebKit)
 - **Accessibility audits** — axe-core integration ensures WCAG compliance
 - **Performance budgets** — Lighthouse CI prevents regressions
-- **Instant debugging** — Traces, screenshots, videos generated on failure
+- **Quality telemetry** — Bundle size, flaky-test budget, Lighthouse score, and latency trends tracked in CI
+- **Instant debugging** — Traces, screenshots, videos, and workflow summaries generated on failure
 
 ---
 
@@ -108,35 +101,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-   PR[Pull Request] --> PRGate
+   PR[Pull Request] --> PRBackend[Backend tests]
+   PRBackend --> PRE2E[Chromium E2E + bundle metric]
+   PRE2E --> PRLH[Lighthouse gate]
+   PRLH --> PRComment[PR comment + summaries]
+   PRLH -->|pass| Merge[Merge to main]
+   PRLH -->|fail| BlockMerge[Block merge]
 
-   subgraph PRGate[PR Quality Gates]
-      PRBackend[Backend tests]
-      PRE2E[Chromium Smoke tests]
-      PRLH[Lighthouse Accessibility & Performance]
-   end
+   Merge --> DepBackend[Backend verification]
+   DepBackend --> DepE2E[Matrix E2E: chromium, firefox, webkit]
+   DepE2E --> FlakyBudget[Flaky budget enforcement]
+   FlakyBudget --> DepLH[Lighthouse gate + score artifact]
+   DepLH -->|pass| Pages[Deploy to GitHub Pages]
+   DepLH -->|fail| BlockRelease[Block release]
+   Pages --> ReleaseSummary[Deployment summary + trend baseline]
 
-   PRGate -->|pass| MainPush[Push to main]
-   PRGate -->|fail| BlockMerge[Block merge]
-
-   MainPush --> DeployGate
-   subgraph DeployGate[Deployment Quality Gates]
-      DepBackend[Backend tests]
-      DepE2E[Cross Browser e2e, smoke & navigation]
-      DepLH[Lighthouse Accessibility & Performance]
-      Pages[Deploy to GitHub Pages]
-   end
-
-   DeployGate --> 
-   Weekly[Weekly scheduled regression]
-   
-   subgraph Weekly[Weekly Regression Suite]
-
-   
-      Health[Health check endpoint]
-      NightlyFlag[Production Regression tests]
-      JUnit[JUnit reporting]
-   end
+   WeeklyTrigger[Weekly cron or manual run] --> Health[Production health check]
+   Health --> WeeklyTests[NIGHTLY backend regression]
+   WeeklyTests --> WeeklyReport[JUnit + latency trend dashboard]
 ```
 
 ---
@@ -150,9 +132,11 @@ This portfolio itself demonstrates production-grade automation practices. Every 
 | Feature | Benefit |
 |---------|---------|
 | **Fixtures + Page Object Model (POM)** | Maintainable, scalable test architecture that reduces friction as tests grow |
-| **Cross-browser execution** | Full browser matrix before deployment catches engine-specific regressions |
+| **Tiered browser execution** | Fast Chromium feedback on PRs, then full browser matrix before release |
 | **Accessibility checks** | axe-core integration validates WCAG compliance in every PR |
 | **Performance budgets** | Lighthouse CI enforces performance thresholds—no regressions slip through |
+| **Flaky budget enforcement** | Release pipeline fails when flaky behavior crosses an explicit threshold |
+| **CI telemetry artifacts** | Bundle size, E2E pass/fail, duration, Lighthouse, and latency metrics are retained for trend analysis |
 | **Debug artifacts** | Traces, screenshots, and videos auto-retained on failure for instant root-cause analysis |
 | **JUnit in Checks UI** | Test results appear in GitHub's native Checks panel—no downloads needed |
 | **Automated PR comments** | github-actions[bot] posts a summary per run so reviewers get instant signal |
@@ -170,34 +154,6 @@ Tests validate:
 - ✅ Accessibility (axe-core: WCAG compliance)
 - ✅ Resume download functionality
 
-
-
-
-## Repo structure
-
-```
-src/
-├── components/         # UI: Header, ProjectCard, DiplomaGrid, Section, etc.
-├── data/               # Portfolio meta: projects, skills, experiences, diplomas
-├── styles/             # Global theme & CSS
-├── App.tsx             # Root component
-└── main.tsx            # Entry point
-
-e2e/
-├── fixtures/           # Playwright test fixtures & configuration
-├── pages/              # Page Object Models (HomePage, etc.)
-└── specs/              # E2E test suites (smoke, navigation, accessibility, resume)
-
-.github/workflows/
-├── pr-quality-gates.yml        # PR validation: backend + chromium E2E + Lighthouse
-├── deploy.yml                  # Main deploy gate: backend + multi-browser E2E + Lighthouse + Pages deploy
-└── weekly-regression-gates.yml # Weekly scheduled production regression suite
-
-public/
-├── diplomas/           # Certification images
-└── other assets
-```
-
 ## CI/CD Testing Strategy
 
 This repo demonstrates a **production-grade testing pipeline** where quality checks happen at every stage—both before and after merging to main.
@@ -206,14 +162,21 @@ This repo demonstrates a **production-grade testing pipeline** where quality che
 
 ```mermaid
 flowchart TD
-  PR[PR opened] --> PRQG[PR Quality Gates]
-  PRQG -->|pass| Merge[PR review and merge]
-  PRQG -->|fail| StopPR[Block merge]
-  Merge --> Main[Push to main]
-  Main --> DQG[Deployment Quality Gates]
-  DQG -->|pass| Pages[Deploy to GitHub Pages]
-  DQG -->|fail| StopDeploy[Block release]
-  Pages --> Weekly[Weekly Production Regression]
+   PR[PR opened] --> PRBackend[Backend tests]
+   PRBackend --> PRE2E[Chromium E2E]
+   PRE2E --> PRLH[Lighthouse gate]
+   PRLH --> PRComment[PR summary comment]
+   PRLH -->|pass| Merge[PR review and merge]
+   PRLH -->|fail| StopPR[Block merge]
+   Merge --> Main[Push to main]
+   Main --> DepBackend[Backend verification]
+   DepBackend --> DepE2E[3-browser E2E matrix]
+   DepE2E --> FlakyBudget[Flaky budget check]
+   FlakyBudget --> DepLH[Lighthouse gate]
+   DepLH -->|pass| Pages[Deploy to GitHub Pages]
+   DepLH -->|fail| StopDeploy[Block release]
+   Pages --> Weekly[Weekly production regression]
+   Weekly --> Trend[Latency trend dashboard]
 ```
 
 ### CI Behavior: PR Quality Gates
@@ -221,22 +184,15 @@ flowchart TD
 **Trigger:** Every pull request to `main`
 
 **What runs:**
-- ✅ **Backend validation** — Unit/contract-oriented backend tests
-- ✅ **E2E tests** — Chromium project run for fast PR feedback:
+- ✅ **Backend validation** — Root + chatbot dependencies install, Worker boots locally, and backend unit/contract tests run first
+- ✅ **Chromium-only E2E** — Frontend builds and Playwright runs the Chromium project for fast PR feedback:
   - Page loads and critical paths work
   - Navigation between sections
   - Resume download functionality
-  
-- ✅ **Accessibility Audits** — axe-core checks for WCAG compliance
-  
-- ✅ **Performance Budgets** — Lighthouse CI enforces performance thresholds
-  
-- ✅ **Visual Reports** — JUnit test results appear in GitHub Checks UI
-
-- ✅ **Automated Summary** — PR comment posted by github-actions[bot] with:
-  - Test counts (passed, failed, flaky)
-  - Top failures (if any)
-  - Links to artifacts and debugging info
+- ✅ **Metrics capture** — Bundle size, E2E result, accessibility metric, and duration are uploaded as artifacts
+- ✅ **Lighthouse gate** — Runs after Chromium E2E passes, enforcing performance, accessibility, best-practices, and SEO thresholds
+- ✅ **Visual reports** — JUnit results appear in GitHub Checks UI
+- ✅ **Automated PR summary** — The workflow downloads summaries/metrics and refreshes a single bot comment with the gate results and debugging path
 
 **Outcome:**
 - 🚫 **Fails?** PR blocks merge. Reviewer sees instant feedback.
@@ -249,24 +205,41 @@ Workflow: [.github/workflows/pr-quality-gates.yml](.github/workflows/pr-quality-
 **Trigger:** Push to `main` (after PR merge) or manual workflow dispatch
 
 **Quality gates before deployment:**
-1. **Backend tests** — Worker starts and backend suite runs
-2. **E2E Browser Matrix** — Playwright runs on Chromium, Firefox, and WebKit
-3. **Lighthouse Audit** — Performance and accessibility thresholds enforced
-4. **Deploy** — GitHub Pages deployment only after all gates pass
+1. **Backend verification** — Worker starts and backend `test:ci` suite runs
+2. **E2E browser matrix** — Playwright runs on Chromium, Firefox, and WebKit with per-browser summaries
+3. **Flaky budget enforcement** — The release fails if flaky counts exceed the configured threshold
+4. **Lighthouse audit** — Runs after the E2E matrix completes and stores a reusable score artifact
+5. **Deploy** — GitHub Pages deployment only happens after all verification gates pass
+6. **Release summary** — Deployment writes environment details and keeps Lighthouse score data for future trend comparison
 
 **Deployment only happens if:**
 - ✅ Backend tests pass
-- ✅ Multi-browser E2E passes
+- ✅ Multi-browser E2E and flaky budget checks pass
 - ✅ Lighthouse budgets pass
 
 **Workflow:** [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+
+### Weekly Production Regression
+
+**Trigger:** Every Wednesday at `01:00 UTC` or manual workflow dispatch
+
+**What runs:**
+- ✅ **Production endpoint validation** — `API_BASE_URL` must be present and `/health` must respond before tests start
+- ✅ **Nightly regression mode** — Backend `test:ci` runs against the deployed API with `NIGHTLY=true`
+- ✅ **JUnit publishing** — Regression results are surfaced in GitHub Checks
+- ✅ **Latency trend tracking** — The current latency metric is compared against the previous weekly run and added to the dashboard summary
+
+**Outcome:**
+- 🚫 **Fails?** Production drift or regression is visible in the weekly dashboard and artifacts.
+- ✅ **Passes?** The workflow records a fresh confidence signal for retrieval, contracts, rate limiting, and latency.
 
 ### Why Two Test Stages?
 
 | Stage | Scope | Speed | Cost |
 |-------|-------|-------|------|
-| **PR Quality Gates (CI)** | Fast feedback: backend + chromium E2E + Lighthouse | Faster | Protects merge quality |
-| **Deploy Verification (CD)** | Comprehensive: backend + 3-browser matrix + Lighthouse | Slower | Final release confidence |
+| **PR Quality Gates (CI)** | Fast feedback: backend + Chromium E2E + metrics + Lighthouse + PR comment | Faster | Protects merge quality |
+| **Deploy Verification (CD)** | Comprehensive: backend + 3-browser matrix + flaky budget + Lighthouse + Pages deploy | Slower | Final release confidence |
+| **Weekly Regression** | Production endpoint health, NIGHTLY backend regression, JUnit, and latency trending | Slowest | Detects post-release drift |
 
 This balances **thoroughness** (catch issues in PR) with **speed** (fast deployment feedback).
 
@@ -352,9 +325,9 @@ This complements CI checks and helps catch issues early before pushing.
 This repo is designed to be CI/CD friendly with automated PR quality gates and release pipelines.
 
 Workflows:
-- 🔒 **[PR Quality Gates](.github/workflows/pr-quality-gates.yml)** — Validates every PR before merge
-- 🚀 **[Deploy with Verification](.github/workflows/deploy.yml)** — Backend + multi-browser E2E + Lighthouse before going live
-- 🧪 **[Weekly Regression Suite](.github/workflows/weekly-regression-gates.yml)** — Scheduled production-endpoint regression checks
+- 🔒 **[PR Quality Gates](.github/workflows/pr-quality-gates.yml)** — Backend-first PR validation with Chromium E2E, metrics capture, Lighthouse, and auto-updated PR summaries
+- 🚀 **[Deploy with Verification](.github/workflows/deploy.yml)** — Backend verification, 3-browser E2E, flaky-budget enforcement, Lighthouse, and gated GitHub Pages release
+- 🧪 **[Weekly Regression Suite](.github/workflows/weekly-regression-gates.yml)** — Scheduled production health checks, NIGHTLY regression tests, and latency-trend reporting
 
 
 ## Contact

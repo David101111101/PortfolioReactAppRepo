@@ -1,146 +1,266 @@
-# RAG Chatbot – Test Plan (Current Implementation)
+# Portfolio RAG Chatbot — QA Automation Test Plan
 
-## 1) Document Information
+## 1. Objective
 
-| Field | Value |
-|---|---|
-| Project | Portfolio RAG Chatbot |
-| Runtime | Cloudflare Worker + Durable Object |
-| Data/AI | Supabase RPC + OpenAI embeddings/chat |
-| Test Frameworks | Vitest, Playwright, Lighthouse CI |
-| Version | 1.1 (current-state refresh) |
+This document defines the Quality Assurance strategy for the RAG Chatbot.
 
-## 2) Purpose
+The goal is to ensure:
 
-Define what is actually tested today across backend, frontend, CI gates, and weekly production regression.
+- Stable API behavior
+- Secure request handling
+- Reliable retrieval-augmented responses
+- Functional multilingual support
+- Acceptable performance and usability
+- Repeatable automated validation through CI pipelines
 
-Primary objectives:
-- Validate API contract and request handling
-- Validate prompt guard and abuse controls
-- Validate retrieval and context behavior
-- Validate frontend critical paths and accessibility
-- Detect regressions in deployed production endpoint
+This plan reflects a pragmatic automation approach aligned with QA Automation Engineer responsibilities.
 
-## 3) System Under Test
+---
 
-### 3.1 Core Components
-- Worker handler (`portfolio-chatbot/src/index.ts`)
-- Durable Object rate limiter (`portfolio-chatbot/src/rateLimiter.ts`)
-- Prompt guard (`portfolio-chatbot/src/security/promptGuard/promptGuard.ts`)
-- Retrieval guard (`portfolio-chatbot/src/security/retrievalGuard.ts`)
-- Context builder (`portfolio-chatbot/src/rag/contextBuilder.ts`)
-- Frontend + chat widget (`src`, `e2e/specs`)
+## 2. System Overview
 
-### 3.2 Runtime Flow Covered by Tests
-1. Request entry + validation
-2. Per-IP rate limiting
-3. Prompt guard checks
-4. Retrieval quality path / fallback behavior
-5. LLM/stream behavior (direct or mocked path depending on suite)
+### Architecture
 
-## 4) Test Strategy
+- Edge Runtime: Cloudflare Worker
+- State Coordination: Durable Object (rate limiting)
+- Retrieval Layer: Supabase RPC + pgvector similarity search
+- AI Provider: OpenAI embeddings and chat completion
+- Frontend: Static SPA (GitHub Pages deployment)
 
-### 4.1 Test Levels in Use
-| Level | Scope | Tooling |
-|---|---|---|
-| Backend unit/integration-style | Worker behavior + helper modules | Vitest + live local worker |
-| Security | Prompt guard categories + blocking behavior | Vitest |
-| Regression (weekly scheduled, NIGHTLY mode) | Production endpoint validation | Vitest (`NIGHTLY=true`) |
-| Frontend E2E | Navigation, smoke, chat UI, a11y | Playwright + axe |
-| Quality budget | Performance/accessibility scoring | Lighthouse CI |
+### Runtime Flow
 
-### 4.2 Execution Modes
-- **PR / main pipelines:** run fast checks and deployment gates.
-- **Weekly regression:** runs backend regression suite against deployed API URL.
+1. Client sends POST request to Worker endpoint
+2. Worker validates protocol and payload
+3. Rate limiter enforces per-IP throttling
+4. Prompt guard validates input safety
+5. Embedding + retrieval executed
+6. Context constructed and sent to LLM
+7. Response returned or safe fallback triggered
 
-## 5) Current Test Inventory
+---
 
-### 5.1 Backend (`portfolio-chatbot/src/__tests__`)
-- `api.contract.test.ts`
-  - Verifies contract response shape in `x-test-mode`
-  - Ensures status `200` + JSON schema (`answer: string`)
-- `promptGuard.test.ts`
-  - Validates safe input and blocked categories (PII, SQLi, XSS, injection, encoded payload, size, symbol density)
-- `prompt.test.ts`
-  - Uses `x-mock-rag=true` to verify safe non-hallucination fallback text path
-- `contextBuilder.test.ts`
-  - Validates joining, truncation, malformed inputs, empty-doc behavior
-- `retrieval.regression.test.ts` (weekly scheduled)
-  - Validates grounded response concept coverage against production endpoint
-- `rateLimit.test.ts` (weekly scheduled)
-  - Validates repeated requests produce `429`
-- `performance.test.ts` (weekly scheduled)
-  - Validates latency profile and light concurrency behavior
+## 3. Test Scope
 
-### 5.2 Frontend (`e2e/specs`)
-- `smoke.spec.ts` (hero render, theme toggle, chat bubble, chat open/respond with mocked backend)
-- `navigation.spec.ts` (section navigation, external links, email actions, chatbot mock response)
-- `a11y.spec.ts` (axe scan, no critical violations)
+### In Scope
 
-## 6) Functional Cases (Current Behavior)
+- HTTP protocol validation
+- Prompt guard and input validation
+- Rate limiting behavior
+- Retrieval grounding behavior
+- Multilingual query handling
+- Response schema stability
+- Performance baseline validation
+- Critical frontend flows
+- Accessibility baseline
+- CI automation gates
 
-### 6.1 Request / Protocol Validation
-| ID | Scenario | Expected |
-|---|---|---|
-| FUNC-01 | Valid POST JSON payload | `200` (or streamed text path) |
-| FUNC-02 | `HEAD` request | `200` |
-| FUNC-03 | Method other than POST/HEAD/OPTIONS | `405` |
-| FUNC-04 | Missing/invalid JSON | `400` |
-| FUNC-05 | Unsupported content type | `415` |
-| FUNC-06 | Empty question after trim | `400` |
+### Out of Scope
 
-### 6.2 Abuse / Guardrails
-| ID | Scenario | Expected |
-|---|---|---|
-| RL-01 | <= 10 req/min per IP | allowed |
-| RL-02 | > 10 req/min per IP | `429` |
-| SEC-01 | prompt injection pattern | `400` blocked |
-| SEC-02 | PII pattern | `400` blocked |
-| SEC-03 | high symbol density | `400` blocked |
-| SEC-04 | question length > 1000 | `400` blocked |
+- LLM model training or internal weights
+- Supabase infrastructure internals
+- Global CDN network reliability
+- Third-party provider uptime guarantees
 
-### 6.3 Retrieval / Grounding
-| ID | Scenario | Expected |
-|---|---|---|
-| RAG-01 | Retrieval response malformed | guarded fallback behavior |
-| RAG-02 | Low/empty relevant retrieval | fallback or constrained response path |
-| RAG-03 | Context exceeds max size | deterministic truncation at 6000 chars |
-| RAG-04 | Weekly scheduled architecture question | response includes grounded concepts (score gate) |
+---
 
-## 7) Performance and Stability Checks
+## 4. Test Strategy
 
-### 7.1 In-Test Thresholds Currently Enforced
-- Weekly scheduled latency guard in `performance.test.ts`:
-  - `median < 8000ms`
-  - `max < 10000ms` (`1.25 * 8000`)
-- Light concurrency check currently runs with 3 parallel requests.
+### 4.1 Deterministic Validation
 
-### 7.2 Runtime Telemetry (Non-test assertions)
-Worker logs:
-- retrieval latency
-- LLM latency
-- total latency
-- warning event if LLM latency exceeds `3500ms`
+Focus on verifiable system behaviors:
 
-## 8) CI/CD Validation Mapping
+- HTTP status codes
+- response schema validation
+- guard rule outcomes
+- context truncation logic
+- rate-limit enforcement
 
-| Stage | What Runs |
-|---|---|
-| PR Quality Gates | Backend tests, Playwright Chromium, Lighthouse, PR comment summary |
-| Main Deploy Gates | Backend tests, Playwright matrix (chromium/firefox/webkit), Lighthouse, deploy to GitHub Pages |
-| Weekly Regression | Backend regression suite against `API_BASE_URL` production endpoint + JUnit report |
+### 4.2 Semantic / AI Validation
 
-## 9) Out of Scope (Current)
+Focus on expected system behavior rather than exact text:
 
-- LLM internal model correctness beyond black-box assertions
-- Semantic output moderation/post-generation policy enforcement
-- Internet-scale DDoS resilience
-- Deterministic retrieval scoring benchmark harness beyond current weekly scheduled concept checks
+- grounded answer contains expected concepts
+- fallback response triggered when retrieval confidence is low
+- multilingual queries still retrieve relevant context
+- no unsafe or hallucinated claims in known weak-retrieval scenarios
 
-## 10) Current Gaps / Next Improvements
+---
 
-1. Add explicit assertions for dynamic retrieval thresholds (`0.35` default, `0.23` short-question path).
-2. Add dedicated tests for `415` content-type rejection and CORS `403` behavior.
-3. Add stronger output-safety checks (leakage/moderation assertions).
-4. Add request-correlation ID assertions once implemented.
-5. Add trend reporting for weekly scheduled latency and fallback-rate drift.
+## 5. Test Levels
+
+### Unit Tests
+
+Objective: validate isolated logic components.
+
+Coverage targets:
+
+- prompt guard classification
+- context builder truncation
+- fallback decision conditions
+- helper utilities
+
+### API Contract Tests
+
+Objective: ensure client integration stability.
+
+Coverage targets:
+
+- valid request returns 200
+- invalid method returns 405
+- invalid content-type returns 415
+- malformed payload returns 400
+- rate-limit exceeded returns 429
+- dependency failure returns safe 5xx response
+
+### Integration Tests
+
+Objective: validate interaction with retrieval and AI flow.
+
+Coverage targets:
+
+- embedding generation success path
+- retrieval returns relevant chunks
+- retrieval returns empty results → fallback path
+- similarity threshold filtering applied correctly
+
+### End-to-End Tests
+
+Objective: validate user-visible behavior.
+
+Coverage targets:
+
+- chat flow works from UI input to response rendering
+- navigation between sections functions correctly
+- each external link opens the expected target domain and slug
+- light and dark mode correctly changes the theme color
+- UI handles loading and error states
+- accessibility violations baseline check using axe
+
+---
+
+## 6. Multilingual Testing Strategy
+
+The chatbot supports multilingual user queries.  
+Automation must verify behavior consistency across languages.
+
+### Test Coverage
+
+- Spanish factual queries retrieve correct context
+- Mixed English–Spanish queries still produce grounded responses
+- Poor grammar / informal phrasing still yields relevant retrieval
+- Fallback behavior identical regardless of query language
+
+
+### Example Test Data
+
+- Spanish question about portfolio content
+- Long Spanish question with multiple clauses
+- Irrelevant multilingual question to trigger fallback
+
+---
+
+## 7. Performance Validation
+
+Automation checks baseline responsiveness.
+
+Current thresholds:
+
+- Median response latency < 8 seconds
+- Maximum latency < 10 seconds
+- System handles at least 3 concurrent requests without failure
+
+Performance tests run in scheduled CI regression to detect drift.
+
+---
+
+## 8. Accessibility and UX Validation
+
+Automated checks include:
+
+- axe accessibility scan on main chat page
+- keyboard navigation baseline
+- error state rendering verification
+
+---
+
+## 9. Test Environments
+
+| Environment | Purpose |
+|--------|--------|
+| Local | fast unit and integration validation |
+| PR CI | merge protection gate |
+| Production Endpoint | scheduled regression validation |
+
+Environment variables:
+
+- API_BASE_URL used for regression runs
+- test mode headers used for deterministic scenarios where required
+
+---
+
+## 10. Automation Tooling
+
+- Test Runner: Vitest
+- E2E Framework: Playwright
+- Accessibility: axe-core
+- Performance Budget: Lighthouse CI
+- CI Platform: GitHub Actions
+
+---
+
+## 11. CI Quality Gates
+
+### Pull Request Gate
+
+Must pass:
+
+- backend automated tests
+- Chromium E2E tests
+- Lighthouse minimum thresholds
+
+### Deployment Gate
+
+Must pass:
+
+- backend test suite
+- multi-browser E2E matrix
+- accessibility checks
+
+### Scheduled Regression
+
+Weekly automated validation:
+
+- production health check
+- retrieval grounding regression tests
+- latency monitoring tests
+- rate-limit behavior verification
+
+---
+
+## 12. Defect Severity Guidelines
+
+**Severity 1**
+
+- security bypass
+- API unavailable
+- critical contract regression
+
+**Severity 2**
+
+- retrieval produces unsafe or clearly incorrect answer
+- rate-limit not enforced
+- repeated latency threshold breach
+
+**Severity 3**
+
+- minor UX or accessibility issue
+- non-blocking performance degradation
+
+---
+
+## 13. Future Improvements Roadmap
+
+- Expand multilingual dataset coverage
+- Add observability validation tests once telemetry expands
+- Add higher concurrency performance testing
+- Introduce structured test data management strategy

@@ -10,7 +10,7 @@ This document summarizes the major system components and end-to-end data flow fo
 - Embedding generation: OpenAI embeddings for both offline documents and live queries.
 - LLM interaction: OpenAI chat completion streaming grounded by retrieved context.
 
-## Mermaid Diagram
+## Architecture Diagram
 
 ```mermaid
 flowchart LR
