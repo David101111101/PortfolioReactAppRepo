@@ -34,6 +34,7 @@ expect(clipboardText).toBe("davidstevenabril@gmail.com");
 // Assert revert
 await expect(btnHeader).toHaveText("Copy email", { timeout: 4000 });
 })
+
 const cases = [ //Objects for test cases, each with a nav item and the expected heading it should scroll to
   { nav: "Projects",   slug: "projects" },
   { nav: "Diplomas",   slug: "diplomas" },
@@ -74,8 +75,6 @@ test('Email Button header work', async ({ home, page }) => {
   await expect(emailBtn).toBeEnabled();
   await expect(emailBtn).toHaveAttribute('href', /^mailto:/i);
 });
-
-
 test("Home page external buttons work", async ({ home, page }) => {
   await home.goto();
     const btnLinkedInHeader = home.externalLink(/^LinkedIn$/i, 0);

@@ -76,7 +76,22 @@ export const test = base.extend<Fixtures>({
   },
   
 });
-
+test.beforeEach(async ({ page, browserName }) => {
+  if (browserName === "webkit") {
+    await page.addStyleTag({
+      content: `
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+          scroll-behavior: auto !important;
+          caret-color: transparent !important;
+        }
+      `
+    });
+  }
+});
 /**
  * afterEach hook: Console error validation
  * Runs after each test to check for unexpected console errors
