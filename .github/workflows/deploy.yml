@@ -1,8 +1,5 @@
 name: Deployment Quality Gates
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: ["main"]
@@ -24,18 +21,16 @@ jobs:
   # 1️⃣ Backend Verification (Tier 2)
   # =====================================
   backend:
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     name: Backend Tests (unit + contract)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: "npm"
@@ -92,10 +87,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: "npm"
@@ -107,7 +102,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Cache Playwright Browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
@@ -137,7 +132,7 @@ jobs:
           mkdir -p metrics
           node scripts/flaky-summary.mjs >> $GITHUB_STEP_SUMMARY
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: flaky-metric-${{ matrix.browser }}
@@ -191,7 +186,7 @@ jobs:
       # ===============================
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-${{ matrix.browser }}
           path: |
@@ -209,14 +204,13 @@ jobs:
     needs: e2e
     env:
       VITE_BASE: "/"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: "npm"
@@ -251,7 +245,7 @@ jobs:
 
       - name: Upload Lighthouse metric
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lighthouse-score
           path: metrics/lighthouse.json
@@ -263,7 +257,7 @@ jobs:
       
       - name: Upload Lighthouse artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lighthouse-report
           path: .lighthouseci
@@ -283,10 +277,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: "npm"
@@ -303,7 +297,7 @@ jobs:
           VITE_BASE: "/"
 
       - name: Download previous Lighthouse score
-        uses: dawidd6/action-download-artifact@v4
+        uses: dawidd6/action-download-artifact@v5
         continue-on-error: true
         with:
           workflow: deployment-quality-gates.yml
@@ -362,7 +356,7 @@ jobs:
 
       # Upload current Lighthouse scores to calculate trend for next run 
       - name: Persist Lighthouse score
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lighthouse-score
           path: metrics/lighthouse.json

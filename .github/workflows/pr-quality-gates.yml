@@ -1,8 +1,5 @@
 name: PR Quality Gates
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
 on:
   pull_request:
     branches: [main]
@@ -27,8 +24,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: "npm"
@@ -73,9 +70,9 @@ jobs:
       - name: Capture start
         run: echo "START=$(date +%s)" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: "npm"
@@ -87,7 +84,7 @@ jobs:
         run: npm ci
         
       - name: Cache Playwright Browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
@@ -111,7 +108,7 @@ jobs:
           mkdir -p metrics
           echo "{ \"bundleKB\": $SIZE }" > metrics/bundle.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: metrics-bundle
@@ -144,7 +141,7 @@ jobs:
 
       - name: Upload summary snippet (always for PR comment)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pw-summary-chromium
           path: summaries/chromium.md
@@ -152,7 +149,7 @@ jobs:
 
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-chromium
           path: |
@@ -169,13 +166,13 @@ jobs:
             echo '{ "e2e":"fail" }' > metrics/e2e.json
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: metrics-e2e
           path: metrics/e2e.json
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: metrics-duration
@@ -198,11 +195,10 @@ jobs:
     timeout-minutes: 10
     env:
       VITE_BASE: /
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: "npm"
@@ -232,14 +228,14 @@ jobs:
       
       - name: Upload Lighthouse summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lighthouse-summary
           path: summaries/lighthouse.md
 
       - name: Upload Lighthouse artifacts (only on failure)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lighthouse-report
           path: .lighthouseci
@@ -251,14 +247,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download summaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: "*summary*"
           merge-multiple: true
           path: summaries
 
       - name: Download metrics
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: metrics-*
           merge-multiple: true
@@ -284,7 +280,7 @@ jobs:
           body-includes: "PR Quality Gate Results"
 
       - name: Create or update comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-id: ${{ steps.fc.outputs.comment-id }}
