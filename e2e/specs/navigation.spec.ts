@@ -22,9 +22,7 @@ test("Resume PDF is accessible", async ({ page, home }) => {
   await home.goto();
   const href = await home.resumeLink().getAttribute("href");
   expect(href).toBeTruthy();
-  const url = href!.startsWith("http")
-    ? href!
-    : `https://www.daveautomation.dev${href}`;
+  const url = new URL(href!, page.url()).toString();
   const response = await page.request.get(url);
   expect(response.ok()).toBeTruthy();
   expect(response.headers()["content-type"]).toContain("pdf");

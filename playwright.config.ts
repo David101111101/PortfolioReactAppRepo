@@ -8,7 +8,7 @@ function normalizeBasePath(p: string) {
 }
 
 // Origin only (no repo path here)
-const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:4173";
+const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173";
 
 export default defineConfig({
   testDir: "./e2e/specs",
