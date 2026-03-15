@@ -10,6 +10,8 @@ function normalizeBasePath(p: string) {
 // Origin only (no repo path here)
 const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173";
 
+const isCI = !!process.env.CI;
+
 export default defineConfig({
   testDir: "./e2e/specs",
   fullyParallel: true,
@@ -45,17 +47,18 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"],
+        headless: isCI } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"],
+        headless: isCI } },
     {
       name: "webkit",
       use: {
         ...devices["Desktop Safari"],
-        headless: true, // WebKit's headed mode is very flaky; run headless for more reliable results
-        launchOptions: {
-        args: ["--disable-features=IsolateOrigins,site-per-process"]
-      }
+        headless: isCI // WebKit's headed mode is very flaky; run headless for more reliable results
+      
       },
     },
   ],
+  
 });
