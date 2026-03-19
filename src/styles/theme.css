@@ -1,11 +1,11 @@
-/* src/styles/theme.css */
-:root {
+  
+  :root {
   --bg: #0b1020;
-  --panel: rgba(255, 255, 255, 0.06);
-  --panel-strong: rgba(255, 255, 255, 0.10);
-  --text: rgba(255, 255, 255, 0.92);
-  --muted: rgba(255, 255, 255, 0.70);
-  --soft: rgba(255, 255, 255, 0.12);
+  --panel: rgb(255 255 255 / 6%);
+  --panel-strong: rgb(255 255 255 / 10%);
+  --text: rgb(255 255 255 / 92%);
+  --muted: rgb(255 255 255 / 70%);
+  --soft: rgb(255 255 255 / 12%);
   --accent: #101229; 
   --accent2: #06b6d4; /* cyan */
   --ok: #22c55e;
@@ -14,37 +14,47 @@
   --shadow: 5px 5px 5px #00000059,3px 5px 10px #00000059;
   --minishadow: 1px 2px 5px #00000059, 3px 2px 3px #00000059;
   --max: 1080px;
+
   color-scheme: dark;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-size: 18px;
 }
+
 #root {
   position: relative;
   z-index: 1; /* <-- ensures all React content is above .bg layers */
 }
 
 :root[data-theme="light"] {
-  --bg: #ffffff;
-  --panel: rgba(0, 0, 0, 0.02);
-  --panel-strong: rgba(0, 0, 0, 0.08);
-  --text: rgba(0, 0, 0, 0.88);
-  --muted: rgba(0, 0, 0, 0.62);
-  --soft: rgba(0, 0, 0, 0.14);
+  --bg: #fff;
+  --panel: rgb(0 0 0 / 2%);
+  --panel-strong: rgb(0 0 0 / 8%);
+  --text: rgb(0 0 0 / 88%);
+  --muted: rgb(0 0 0 / 62%);
+  --soft: rgb(0 0 0 / 14%);
   --accent: #6d28d9;
   --accent2: #0891b2;
+
   color-scheme: light;
   text-shadow: 0.5px 0.2px 1px #fefefe91;
 }
 
 * { box-sizing: border-box; }
-html { height: 100%;}
+
+html { height: 100%; }
+
 body {
   margin: 0;
   color: var(--text);
 }
 
-a { color: inherit; text-decoration: none; }
-#titleName {     text-shadow: 2px 2px 3px #000; }
+a { text-decoration: none; }
+
+#title-name { 
+  color: #FFF; 
+  text-shadow: 2px 2px 3px #000; 
+}
+
 #section p {
   color: var(--muted);
   max-width: 68ch;
@@ -52,10 +62,12 @@ a { color: inherit; text-decoration: none; }
   font-size: 16px;
   line-height: 1.6;
 }
+
 #content {
   position: relative;
   z-index: 1;
 }
+
 .container {
   max-width: var(--max);
   margin: 0 auto;
@@ -67,10 +79,11 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--soft);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-    display: grid;
-    align-content: space-between;
+  display: grid;
+  align-content: space-between;
 }
-/*Img inside card of diplomas section*/
+
+/* Img inside card of diplomas section */
 #diplomas > div > div.grid.cols-4 > article > img {
     width: 100%;
     height: 140px;
@@ -78,12 +91,14 @@ a { color: inherit; text-decoration: none; }
     border-radius: 12px;    
     border: 1px solid var(--soft);
     margin-bottom: 10px;
-    box-shadow: 0px 0px 3px 1px #00000059, 2px 2px 3px 1px #00000059;
+    box-shadow: 0.1px 0.1px 3px 1px #00000059, 2px 2px 3px 1px #00000059;
 }
+
 #main-section-mini-cards .card {
      box-shadow: var(--minishadow);
      padding: 14px
 }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -91,7 +106,7 @@ a { color: inherit; text-decoration: none; }
   padding: 5px 10px;
   border-radius: 20px;
   border: 0.01px var(--soft);
-  background: rgba(255,255,255,0.02);
+  background: rgb(255 255 255 / 2%);
   color: var(--muted);
   font-size: 12px;
   line-height: 1;
@@ -100,14 +115,22 @@ a { color: inherit; text-decoration: none; }
   max-height: 26px;
 }
 
+nav .badge {   
+  background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
+  background-size: 200% 200%; 
+  transition: background-position 0.6s ease-in-out;
+}
+
 .nda-badge-container{
   display: flex;
 }
+
 .nda-badge-container .badge {
     color: var(--warn);
     max-width: max-content;
     margin-left: 0.3rem;
 }
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -116,7 +139,6 @@ a { color: inherit; text-decoration: none; }
   padding: 10px;
   border-radius: 12px;
   border: 0.01px var(--soft);
-  background: var(--panel-strong);
   color: var(--text);
   cursor: pointer;
   box-shadow: var(--minishadow);
@@ -127,11 +149,7 @@ a { color: inherit; text-decoration: none; }
   background-size: 200% 200%; 
   transition: background-position 0.6s ease-in-out;
 }
-nav .badge {  
-  background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
-  background-size: 200% 200%; 
-  transition: background-position 0.6s ease-in-out;
-}
+
 .btn:hover, nav .badge:hover { 
  transform: translateY(-1px);
     background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
@@ -139,20 +157,24 @@ nav .badge {
      background-size: 200% 200%; 
     transition: background-position 0.7s ease-in-out;
 }
-.ContainerOfBtn {
+
+.container-of-btn {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-content: center;
 }
+
 .section {
       padding: 72px 0;
 }
+
 .section h2 {
   margin: 0 0 14px;
   font-size: 28px;
   letter-spacing: -0.02em;
 }
+
 .section p.lead {
   margin: 0 0 26px;
   color: var(--muted);
@@ -185,8 +207,8 @@ nav .badge {
 .bg-dark {
   opacity: 1;
   background:
-    radial-gradient(1200px 600px at 10% 0%, rgba(124,58,237,0.22), transparent 60%),
-    radial-gradient(1000px 500px at 90% 20%, rgba(6,182,212,0.18), transparent 55%),
+    radial-gradient(1200px 600px at 10% 0%, rgb(124 58 237 / 22%), transparent 60%),
+    radial-gradient(1000px 500px at 90% 20%, rgb(6 182 212 / 18%), transparent 55%),
     var(--bg);
 }
 
@@ -196,12 +218,16 @@ nav .badge {
 
 /* When light theme is active */
 :root[data-theme="light"] .bg-dark { opacity: 0; }
+
 :root[data-theme="light"] .bg-light { opacity: 1; }
+
 :root[data-theme="light"] nav .btn { text-shadow: 0.1px 0.1px 1px #000; }
+
 :root[data-theme="light"] .badge { text-shadow: 0.1px 0.1px 1px #000; }
-:root[data-theme="light"] #titleName { text-shadow: 2px 2px 5px #07070757; }
-:root[data-theme="light"] #chat-window-section, :root[data-theme="light"] #chatBubbleWidget 
-{ background: rgb(0 0 0 / 70%);
+
+:root[data-theme="light"] #chat-window-section, :root[data-theme="light"] #chat-bubble-widget 
+{ 
+  background: rgb(0 0 0 / 70%);
   backdrop-filter: blur(3px);
 }
 
@@ -226,6 +252,7 @@ nav .badge {
   opacity: 1;
   transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
     *,
@@ -236,61 +263,76 @@ nav .badge {
   }
 }
 
-@media (min-width: 700px) {
-  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (width >= 700px) {
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }  
   .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-@media (max-width: 500px) {
+
+@media (width <= 500px) {
   .nda-badge-container {
     flex-direction: column;
   }
+
   .nda-badge-container h2 {
     min-width: fit-content;
   }
+
   .nda-badge-container .badge {
     margin-left: 0;
   }
+
   #main-section-mini-cards .flex-row {
     display: flex;
     flex-direction: row;
   }
+
   #main-section-mini-cards .flex-row :nth-child(1) {
     min-width: 3rem;
   }
+
   #main-section-mini-cards .flex-row :nth-last-child(1) {
     margin-left: 0.3rem;
   }
-    #section .ContainerOfBtn,  #contact .ContainerOfBtn {
+
+    #section .container-of-btn,  #contact .container-of-btn {
     flex-wrap: nowrap;
   }
-  #diplomas .ContainerOfBtn, #diplomas .btn {
+
+  #diplomas .container-of-btn, #diplomas .btn {
     gap: unset;
     margin: 0.1rem;
   font-size: clamp(0.5rem, 1vw, 1rem);
   }
-  #contact .ContainerOfBtn .btn {padding: 7px;}
+
+  #contact .container-of-btn .btn {padding: 7px;}
 
 }
 
-@media (max-width: 630px) {
-  #titleName {    font-size: 1.25rem; }
+@media (width <= 630px) {
+  #title-name {    font-size: 1.25rem; }
+
   nav {
         justify-content: flex-end;
         gap: 0.625rem !important;
   }
+  
+  .btn {font-size: 0.75rem;}
+
   nav .btn, nav a {
     width: 78px;
     justify-content: center;
     max-height: 26px;
   }
+
   nav a:nth-child(3) {
     order: -1;
   }
-  .btn {font-size: 0.75rem;}
+
   #chat-window-section {
     width: -webkit-fill-available;
     right: 0.625rem;
     left: 0.625rem;
+    z-index: 999;
   }
 }

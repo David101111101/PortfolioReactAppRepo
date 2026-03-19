@@ -28,7 +28,7 @@ function MailToButton() {
 }
 
   return (
-    <div  className="ContainerOfBtn">
+    <div  className="container-of-btn">
       <a className="btn primary" href={`mailto:${profile.email}`}>
         Email me
       </a>

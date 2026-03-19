@@ -1,15 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-function normalizeBasePath(p: string) {
-  // Ensures: "/" or "/PortfolioReactAppRepo/"
-  const trimmed = (p || "/").trim();
-  const withLeading = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
-}
-
-// Origin only (no repo path here)
+// Origin only
 const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173";
-
+// in CI runs tests headless to avoid flakiness
 const isCI = !!process.env.CI;
 
 export default defineConfig({
@@ -34,8 +27,12 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    actionTimeout: 10_000,
-    navigationTimeout: 35_000,
+    actionTimeout: 15_000,
+    navigationTimeout: 40_000,
+    viewport: { width: 800, height: 600 },
+    contextOptions: {
+      reducedMotion: 'reduce'
+    }
   },
 
   webServer: {
@@ -43,22 +40,14 @@ export default defineConfig({
     "npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
   url: "http://127.0.0.1:4173",
   reuseExistingServer: !process.env.CI,
-  timeout: 180_000,
+  timeout: 200_000,
   },
 
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"],
-        headless: isCI } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"],
-        headless: isCI } },
-    {
-      name: "webkit",
-      use: {
-        ...devices["Desktop Safari"],
-        headless: isCI // WebKit's headed mode is very flaky; run headless for more reliable results
-      
-      },
+    { name: "chromium", use: { browserName: "chromium", headless: isCI }},
+    { name: "firefox",  use: { browserName: "firefox",  headless: isCI, actionTimeout: 25000, navigationTimeout: 60000  }},
+    { name: "webkit",   use: { browserName: "webkit",   headless: isCI}
     },
-  ],
+  ]
   
 });

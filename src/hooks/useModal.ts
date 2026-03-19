@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+// This hook manages the behavior of a modal dialog, including focus management, scroll locking, and keyboard interactions. It ensures that when the modal is open, focus is trapped within it, and that pressing the Escape key will close the modal. It also handles restoring focus to the previously focused element when the modal is closed.
 type UseModalOptions<T extends HTMLElement> = {
   isOpen: boolean;
   onRequestClose: () => void;
@@ -22,9 +23,6 @@ export function useModal<T extends HTMLElement>({
     const el = modalRef.current;
     if (!el) return;
 
-    // ===== scroll lock
-    previousOverflow.current = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
 
     // ===== reduced motion detection
     const prefersReducedMotion =

@@ -1,6 +1,6 @@
-# David Abril — Pull Request Quality Gate Autoamted testing
 
-**This repo itself demonstrates production-grade practices:** integrated Playwright E2E tests, accessibility checks, performance audits, automated PR quality gates visual reporting with Junit and automatig Summary comment generated & posted.
+**This repo demonstrates production-grade practices:** integrated Playwright E2E tests, accessibility checks, performance audits, automated PR quality gates, visual reporting with JUnit, and an automated summary comment posted on each run.
+
 https://david101111101.github.io/PortfolioReactAppRepo
 
 
@@ -8,8 +8,9 @@ https://david101111101.github.io/PortfolioReactAppRepo
 
 - **Automated E2E tests** — Smoke, navigation, accessibility checks on every PR
 - **Cross-browser validation** — Tests run on Chromium, Firefox, WebKit in parallel
-- **Accessibility audits** — axe-core integration ensures WCAG compliance
+- **Accessibility audits** — axe-core integration ensures WCAG compliance with SEO, Accessibility and Best Practices thresholds.
 - **Performance budgets** — Lighthouse CI prevents regressions
+- **Full-project lint enforcement** — lint container run across the entire codebase; all detected lint errors fixed
 - **Instant debugging** — Traces, screenshots, videos retained on failure
 
 ---
@@ -26,6 +27,8 @@ This portfolio itself demonstrates production-grade automation practices. Every 
 | **Cross-browser execution** | Parallel runs across Chromium, Firefox, and WebKit—catch rendering bugs across engines |
 | **Accessibility checks** | axe-core integration validates WCAG compliance in every PR |
 | **Performance budgets** | Lighthouse CI enforces performance thresholds—no regressions slip through |
+| **Lint container remediation + CI gate** | Entire project linted and cleaned; PRs are blocked when lint errors are detected |
+| **Deterministic test-mode rendering contract** | Eliminates UI flake from modern visual effects in local and CI E2E without runtime style-injection races |
 | **Debug artifacts** | Traces, screenshots, and videos auto-retained on failure for instant root-cause analysis |
 | **JUnit in Checks UI** | Test results appear in GitHub's native Checks panel—no downloads needed |
 | **Automated PR comments** | github-actions[bot] posts a summary per run so reviewers get instant signal |
@@ -33,34 +36,54 @@ This portfolio itself demonstrates production-grade automation practices. Every 
 ### Why it matters
 
 ✅ **PR gates reduce regressions** — main stays deployable  
+✅ **Lint gate enforces merge quality** — no PR is allowed when lint errors are detected  
+✅ **Deterministic test rendering removes visual flake** — stable snapshots and interaction timing across local + CI  
 ✅ **Debug artifacts make failures actionable** — not just "red/green"  
 ✅ **Fast, readable CI feedback** — developers iterate with confidence  
 
 ---
 
-## Local development
+## Deterministic test-mode rendering contract (local + CI)
 
-### Requirements
+To harden E2E reliability, Playwright runs this app under a deterministic rendering contract. This ensures test stability by disabling non-deterministic visual behaviors at the source, not via ad-hoc runtime CSS injection.
 
-- **Node.js** (LTS recommended)
-- **npm** or **yarn**
+### Contract guarantees when Playwright runs
 
-### Install & run
+- **No animations**
+- **No transitions**
+- **No smooth scroll**
+- **No backdrop blur**
+- **No heavy shadows**
+- **No gradient motion**
+- **No transform motion**
+- **Predictable layout behavior**
 
-```bash
-npm install
-npm run dev
-```
+### Why this is robust
 
-Opens local dev server at `http://localhost:5173`
+- **No runtime style-injection races** — test behavior does not depend on late-injected CSS overrides
+- **Parity across environments** — the same deterministic rendering rules are applied in local and CI
+- **Less flake, faster triage** — failures indicate real regressions instead of timing artifacts from visual effects
 
-### Running E2E tests
+---
 
-```bash
-npm run test:e2e        # Run all tests (headless, default: Chromium)
-npm run test:e2e:ui     # Interactive UI mode (great for debugging)
-npm run test:e2e:report # View test results & traces
-```
+## Lint container quality gate (local + CI)
+
+To raise engineering standards, I ran the lint container against the entire project and fixed all reported errors. Lint is now enforced as a CI quality gate so pull requests cannot be merged when lint violations exist.
+
+### What this guarantees
+
+- **Full-project static analysis** on every change set
+- **Zero known lint debt** at the current baseline
+- **Fail-fast PR protection** when any lint error is introduced
+- **Consistent code quality standards** across local development and CI
+
+### CI workflow
+
+Workflow: [.github/workflows/linter.yaml](.github/workflows/linter.yaml)
+
+---
+
+
 
 Tests validate:
 - ✅ Smoke (page loads, critical paths work)
@@ -68,52 +91,7 @@ Tests validate:
 - ✅ Accessibility (axe-core: WCAG compliance)
 - ✅ Resume download functionality
 
-### Build for production
 
-```bash
-npm run build
-npm run preview       # Preview the production build locally
-```
-
-## Scripts reference
-
-| Script | Purpose |
-|--------|---------|
-| `npm run dev` | Local dev server (hot reload) |
-| `npm run build` | Production build + type checking |
-| `npm run preview` | Preview production build |
-| `npm run lint` | ESLint checks |
-| `npm run test:e2e` | Run E2E tests (headless) |
-| `npm run test:e2e:ui` | Interactive test UI mode |
-| `npm run test:e2e:report` | View detailed test report & traces |
-
-## Repo structure
-
-```
-src/
-├── components/         # UI: Header, ProjectCard, DiplomaGrid, Section, etc.
-├── data/               # Portfolio meta: projects, skills, experiences, diplomas
-├── styles/             # Global theme & CSS
-├── App.tsx             # Root component
-└── main.tsx            # Entry point
-
-
-e2e/
-├── fixtures/           # Playwright test fixtures & configuration
-├── pages/              # Page Object Models (HomePage, etc.)
-└── specs/              # E2E test suites (smoke, navigation, accessibility, resume)
-
-
-
-
-.github/workflows/
-├── pr-quality-gates.yml   # PR validation: E2E + Lighthouse
-└── deploy.yml             # Release: build & deploy to Azure
-
-public/
-├── diplomas/           # Certification images
-└── other assets
-```
 
 ## Deployment
 
@@ -123,10 +101,11 @@ This repo is designed to be CI/CD friendly with automated PR quality gates and r
 
 Every PR to `main` is automatically validated:
 
-1. **E2E Tests** — Cross-browser (Chromium, Firefox, WebKit) smoke, navigation, and accessibility checks
-2. **Lighthouse Audits** — Performance budget enforcement (ensuring no regressions)
-3. **Test Results** — JUnit reports visible in GitHub Checks UI
-4. **PR Summary** — Automated comment with test results posted by github-actions[bot]
+1. **Lint Workflow** — Full-project lint run; PR is blocked if lint errors are detected
+2. **E2E Tests** — Cross-browser (Chromium, Firefox, WebKit) smoke, navigation, and accessibility checks
+3. **Lighthouse Audits** — Performance budget enforcement (ensuring no regressions)
+4. **Test Results** — JUnit reports visible in GitHub Checks UI
+5. **PR Summary** — Automated comment with test results posted by github-actions[bot]
 
 → *Only PRs that pass all gates can be merged to main*
 

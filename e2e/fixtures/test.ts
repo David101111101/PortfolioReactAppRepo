@@ -40,7 +40,7 @@ export const test = base.extend<Fixtures>({
    * Captures all console errors and page errors that occur during test execution
    * Filters out known benign errors using the ALLOWLIST
    */
-  consoleErrors: async ({ page }, use) => {
+  consoleErrors: async ({ page }, provideFixture) => {
     const errors: string[] = [];
 
     // Listen for uncaught JavaScript errors on the page
@@ -52,7 +52,7 @@ export const test = base.extend<Fixtures>({
     });
 
     // Provide errors array to test, then clean up listeners
-    await use(errors);
+    await provideFixture(errors);
   },
 
   /**
@@ -60,28 +60,11 @@ export const test = base.extend<Fixtures>({
    * Provides a HomePage POM instance for test to use
    * Attached to page context, reusable across multiple test steps
    */
-  home: async ({ page }, use) => {
-    await use(new HomePage(page));
+  home: async ({ page }, provideFixture) => {
+    await provideFixture(new HomePage(page));
   },
 });
-test.beforeEach(async ({ page, browserName }) => {
-  if (browserName === "webkit") {
-    await page.emulateMedia({ reducedMotion: "reduce" });
 
-    await page.addStyleTag({
-      content: `
-        *,
-        *::before,
-        *::after {
-          animation: none !important;
-          transition: none !important;
-          scroll-behavior: auto !important;
-          caret-color: transparent !important;
-        }
-      `
-    });
-  }
-});
 /**
  * afterEach hook: Console error validation
  * Runs after each test to check for unexpected console errors

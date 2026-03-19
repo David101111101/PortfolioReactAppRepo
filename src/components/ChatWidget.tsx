@@ -9,30 +9,35 @@ type Message = {
   content: string;
 };
 
+const INITIAL_GREETING = `This R.A.G. assistant is my approach to exploring and adapting to modern AI testing practices using production engineering standards to showcase my foundation in Development & QA Automation.
+
+Conversations may be logged, but no personal information is stored.`;
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const lockScrollRef = useRef(false);
-  const anchorOffsetRef = useRef(0);
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const TYPING_SPEED = 10; // milliseconds per character
   const savedScrollTopRef = useRef(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bubbleRef = useRef<HTMLButtonElement | null>(null);
-  
-  const requestClose = () => {
+  const userAnchorsRef = useRef<HTMLDivElement[]>([]);
+  const [navIndex, setNavIndex] = useState(-1);
+  const hasUserAskedRef = useRef(false);
+
+const requestClose = () => {
   if (scrollContainerRef.current) {
     savedScrollTopRef.current =
       scrollContainerRef.current.scrollTop;
   }
-  
+
   setVisible(false);
   setTimeout(() => setIsOpen(false), 200);
-  };
+};
 
   const modalRef = useModal({
     isOpen,
@@ -40,20 +45,22 @@ export default function ChatWidget() {
     initialFocusRef: inputRef,
     restoreFocusRef: bubbleRef,
   });
-  useEffect(() => {
+useEffect(() => {
   if (!isOpen) return;
 
-  requestAnimationFrame(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop =
-        savedScrollTopRef.current;
-    }
+  const id = requestAnimationFrame(() => {
+    const id2 = requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      container.scrollTop = savedScrollTopRef.current;
+    });
+
+    return () => cancelAnimationFrame(id2);
   });
-  }, [isOpen]);
 
-  const INITIAL_GREETING = `This R.A.G. assistant is my approach to exploring and adapting to modern AI testing practices using production engineering standards to showcase my foundation in Development & QA Automation.
-
-Conversations may be logged, but no personal information is stored.`;
+  return () => cancelAnimationFrame(id);
+}, [isOpen]);
 
 useEffect(() => {
   if (messages.length !== 0) return;
@@ -67,13 +74,21 @@ useEffect(() => {
       content: "",
     },
   ]);
-}, []);
+}, [messages.length]);
+
+
+
 
 useEffect(() => {
   if (!isTypingGreeting) return;
-
   if (greetingIndex >= INITIAL_GREETING.length) {
     setIsTypingGreeting(false);
+      // ensure greeting starts at top
+      requestAnimationFrame(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+      });
     return;
   }
 
@@ -96,62 +111,115 @@ useEffect(() => {
 
   return () => clearTimeout(timeout);
 }, [greetingIndex, isTypingGreeting]);
+// keyboard navigation for user messages
+useEffect(() => {
+  if (!isOpen) return;
+
+  const handleKey = (e: KeyboardEvent) => {
+    const input = inputRef.current;
+
+    // ===== CASE 1 — input is focused
+    if (input && document.activeElement === input) {
+      const caret = input.selectionStart ?? 0;
+      const end = input.value.length;
+
+      if (e.key === "ArrowUp" && caret === 0) {
+        e.preventDefault();
+        goPrevQuestion();
+      }
+
+      if (e.key === "ArrowDown" && caret === end) {
+        e.preventDefault();
+        goNextQuestion();
+      }
+
+      return; // do not run global navigation
+    }
+
+    // ===== CASE 2 — global navigation
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      goPrevQuestion();
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      goNextQuestion();
+    }
+  };
+
+  document.addEventListener("keydown", handleKey);
+
+  return () =>
+    document.removeEventListener("keydown", handleKey);
+}, [isOpen, navIndex]);
 
 useEffect(() => {
-  if (!lockScrollRef.current) return;
-  if (!isStreaming) {
-    lockScrollRef.current = false;
-    return;
-  }
+  if (!hasUserAskedRef.current) return;
 
-  const container = scrollContainerRef.current;
-  const anchor = userAnchorRef.current;
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
 
-  if (!container || !anchor) return;
+  const lastIndex = anchors.length - 1;
 
-  const desired =
-    anchor.offsetTop - anchorOffsetRef.current;
+  requestAnimationFrame(() => {
+    scrollToAnchorTop(anchors[lastIndex]);
+    setNavIndex(lastIndex);
+  });
 
-  container.scrollTop = desired;
-});
+}, [messages.length]);
 
 const scrollContainerRef = useRef<HTMLDivElement>(null);
-const userAnchorRef = useRef<HTMLDivElement | null>(null);
+const scrollToAnchorTop = (el: HTMLDivElement) => {
+  const container = scrollContainerRef.current;
+  if (!container) return;
+
+  const delta =
+    el.getBoundingClientRect().top -
+    container.getBoundingClientRect().top;
+
+  container.scrollTop += delta;
+};
+
+const goPrevQuestion = () => {
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+
+  const next =
+    navIndex <= 0 ? anchors.length - 1 : navIndex - 1;
+
+  scrollToAnchorTop(anchors[next]);
+  setNavIndex(next);
+};
+
+const goNextQuestion = () => {
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+
+  const next =
+    navIndex >= anchors.length - 1 ? 0 : navIndex + 1;
+
+  scrollToAnchorTop(anchors[next]);
+  setNavIndex(next);
+};
+
 const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
     const question = input;
     try {
-        setInput("");
-        setIsStreaming(true);  
-        
-          setMessages((prev) => {
-            const updated = [
-              ...prev,
-              { role: "user" as const, content: question },
-              { role: "assistant" as const, content: "" },
-            ];
-            return updated;
-          });
+        setInput(""); 
+        hasUserAskedRef.current = true;
+        setMessages(prev => [
+          ...prev,
+          { role: "user", content: question },
+          { role: "assistant", content: "" }
+        ]);
 
-          
-            requestAnimationFrame(() => {
-            const container = scrollContainerRef.current;
-            const anchor = userAnchorRef.current;
-
-            if (container && anchor) {
-              anchorOffsetRef.current =
-                anchor.offsetTop - container.scrollTop;
-
-              lockScrollRef.current = true;
-
-              anchor.scrollIntoView({
-                block: "start",
-                behavior: "smooth",
-              });
-            }
-          });
+          if (!hasUserAskedRef.current) {
+            hasUserAskedRef.current = true;
+          }
           const response = await sendChatQuestion(question);
-
+            let firstChunk = true;
             await streamAssistantResponse(response, (chunk) => {
             setMessages((prev) => {
               const updated = [...prev];
@@ -164,8 +232,19 @@ const sendMessage = async () => {
                 }
               return updated;
               });
-            });
+              if (firstChunk) {
+                firstChunk = false;
+                setIsStreaming(true);
+                requestAnimationFrame(() => {
+                  const anchors = userAnchorsRef.current;
+                  if (!anchors.length) return;
 
+                  const lastIndex = anchors.length - 1;
+                  scrollToAnchorTop(anchors[lastIndex]);
+                  setNavIndex(lastIndex);
+                });      
+              }          
+            });
       } catch (err) {
           setMessages((prev) => [
             ...prev,
@@ -174,6 +253,7 @@ const sendMessage = async () => {
               content: "Something went wrong. Please try again.",
             },
           ]);
+          console.error("Error in sendMessage:", err);
         } finally {
           setIsStreaming(false);
         }
@@ -182,7 +262,7 @@ const sendMessage = async () => {
   return (
     <>
       {/* Floating Bubble */}
-      <button id="chatBubbleWidget" ref={bubbleRef}
+      <button id="chat-bubble-widget" ref={bubbleRef}
         onClick={() => {
             if (!isOpen) {
                 setIsOpen(true);
@@ -204,7 +284,7 @@ const sendMessage = async () => {
     style={{
       position: "fixed",
       inset: 0,
-      background: "rgba(0,0,0,.4)",
+      background: "rgb(0,0,0,.4)",
       backdropFilter: "blur(3px) saturate(140%)",
       WebkitBackdropFilter: "blur(3px) saturate(140%)",
       zIndex: 999,
@@ -239,25 +319,30 @@ const sendMessage = async () => {
               fontSize: "14px",
             }}
             >
-            
-          {messages.map((msg, index) => {
-            const isLastUser =
-              msg.role === "user" &&
-              index === messages.length - 2; // because assistant placeholder is last
+          {(() => {
+            userAnchorsRef.current = [];
+            return null;
+          })()}
 
+          {messages.map((msg, index) => {
+            const isUser = msg.role === "user";
             return (
               <div
                 key={index}
-                ref={isLastUser ? userAnchorRef : null}
+                ref={(el) => {
+                  if (isUser  && el) {
+                    userAnchorsRef.current.push(el);
+                  }
+                }}
                 className={`chat-message ${
-                  msg.role === "user" ? "chat-user" : "chat-assistant"
+                  isUser ? "chat-user" : "chat-assistant"
                 }`}
                 style={{
                   whiteSpace: "pre-wrap",
                   lineHeight: "1.6",
                 }}
               >
-                {msg.role === "user" && "> "}
+                {isUser && "> "}
                 {msg.content}
                 {msg.role === "assistant" &&
                   isStreaming &&
@@ -269,6 +354,21 @@ const sendMessage = async () => {
           })}
           
         </div>
+          <div className="chat-nav-controls">
+            <button
+              aria-label="Previous question"
+              onClick={goPrevQuestion}
+            >
+              ▲
+            </button>
+
+            <button
+              aria-label="Next question"
+              onClick={goNextQuestion}
+            >
+              ▼
+            </button>
+          </div>
           <div style={{display: "flex",borderTop: "1px solid var(--soft)",}}> 
             <input
               value={input}

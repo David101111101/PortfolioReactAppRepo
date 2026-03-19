@@ -10,7 +10,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { ms } from "zod/v4/locales";
 
 const BASE_URL =
   process.env.API_BASE_URL ?? "http://127.0.0.1:8787";

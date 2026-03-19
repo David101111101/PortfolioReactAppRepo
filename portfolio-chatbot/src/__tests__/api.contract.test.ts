@@ -37,7 +37,7 @@ describe.skipIf(process.env.NIGHTLY === "true")("API Contract", () => {
   it("should return valid response structure", async () => {
     let response
     try {
-     response = await fetch("http://127.0.0.1:8787", {
+     response = await fetch(BASE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

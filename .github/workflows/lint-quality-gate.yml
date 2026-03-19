@@ -1,0 +1,98 @@
+name: Lint Quality Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Static Code Quality (Lint + Types + Markup)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            portfolio-chatbot/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ========================
+      # ESLint
+      # ========================
+      - name: Run ESLint
+        run: |
+          mkdir -p summaries
+          npx eslint . -f stylish | tee summaries/eslint.txt
+
+      # ========================
+      # TypeScript
+      # ========================
+      - name: Run Type Check
+        run: |
+          npx tsc --noEmit | tee summaries/typecheck.txt || true
+
+      # ========================
+      # CSS
+      # ========================
+      - name: Run Stylelint
+        run: |
+          npx stylelint "**/*.css" | tee summaries/stylelint.txt || true
+
+      # ========================
+      # HTML
+      # ========================
+      - name: Run HTMLHint
+        run: |
+          npx htmlhint "**/*.html" | tee summaries/htmlhint.txt || true
+
+      # ========================
+      # Build lint summary
+      # ========================
+      - name: Generate Lint Summary
+        if: always()
+        run: |
+          node scripts/lint-summary.mjs
+
+      # ========================
+      # Upload artifact (for cross-workflow aggregation later)
+      # ========================
+      - name: Upload lint summary artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: lint-summary
+          path: summaries/lint.md
+      
+      - name: Upload lint metrics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: metrics-lint
+          path: metrics/lint.json
+
+      # ========================
+      # Publish GitHub Job Summary (nice UX)
+      # ========================
+      - name: Publish Job Summary
+        if: always()
+        run: |
+          cat summaries/lint.md >> $GITHUB_STEP_SUMMARY
