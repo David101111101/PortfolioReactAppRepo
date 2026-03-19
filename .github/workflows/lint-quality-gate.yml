@@ -96,3 +96,46 @@ jobs:
         if: always()
         run: |
           cat summaries/lint.md >> $GITHUB_STEP_SUMMARY
+      
+  pr-comment:
+        name: PR Comment (Lint Summary)
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        needs: lint
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: Download lint summary
+            uses: actions/download-artifact@v5
+            with:
+              name: lint-summary
+              path: summaries
+
+          - name: Download lint metrics
+            uses: actions/download-artifact@v5
+            with:
+              name: metrics-lint
+              path: metrics
+
+          - name: Build PR comment body
+            run: |
+              echo "## 🧹 Static Quality Gate Results" > comment.md
+              echo "" >> comment.md
+              cat summaries/lint.md >> comment.md
+              echo "" >> comment.md
+              echo "_This signal validates static code health (lint, types, markup)._ " >> comment.md
+
+          - name: Find existing lint comment
+            uses: peter-evans/find-comment@v3
+            id: fc
+            with:
+              issue-number: ${{ github.event.pull_request.number }}
+              comment-author: "github-actions[bot]"
+              body-includes: "Static Quality Gate Results"
+
+          - name: Create or update lint comment
+            uses: peter-evans/create-or-update-comment@v5
+            with:
+              issue-number: ${{ github.event.pull_request.number }}
+              comment-id: ${{ steps.fc.outputs.comment-id }}
+              body-path: comment.md
+              edit-mode: replace
