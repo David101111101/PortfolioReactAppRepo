@@ -196,16 +196,19 @@ html {
 }
 
 .chat-nav-controls button {
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
   border-radius: 6px;
   border: 1px solid var(--soft);
   background: rgb(0 0 0 / 65%);
   color: rgb(232 230 227 / 70%);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.625rem;
   backdrop-filter: blur(6px);
   transition: transform .15s ease, background .2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chat-nav-controls button:hover {

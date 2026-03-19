@@ -285,7 +285,7 @@ jobs:
         env:
           VITE_BASE: "/"
 
-      - name: Download previous Lighthouse score
+      - name: lighthouse-baseline
         uses: dawidd6/action-download-artifact@v5
         continue-on-error: true
         with:
@@ -350,8 +350,8 @@ jobs:
           echo "🔗 Environment URL: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
 
       # Upload current Lighthouse scores to calculate trend for next run 
-      - name: Persist Lighthouse score
+      - name: Persist Lighthouse baseline for next deploy
         uses: actions/upload-artifact@v5
         with:
-          name: lighthouse-score
+          name: lighthouse-baseline
           path: metrics/lighthouse.json
