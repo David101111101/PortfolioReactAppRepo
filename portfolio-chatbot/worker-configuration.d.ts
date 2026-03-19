@@ -8606,7 +8606,7 @@ type AIGatewayHeaders = {
     [key: string]: string | number | boolean | object;
 };
 type AIGatewayUniversalRequest = {
-    provider: AIGatewayProviders | string; // eslint-disable-line
+    provider: AIGatewayProviders | string;  
     endpoint: string;
     headers: Partial<AIGatewayHeaders>;
     query: unknown;
@@ -8622,7 +8622,7 @@ declare abstract class AiGateway {
         gateway?: UniversalGatewayOptions;
         extraHeaders?: object;
     }): Promise<Response>;
-    getUrl(provider?: AIGatewayProviders | string): Promise<string>; // eslint-disable-line
+    getUrl(provider?: AIGatewayProviders | string): Promise<string>;  
 }
 interface AutoRAGInternalError extends Error {
 }
@@ -8754,7 +8754,7 @@ interface BasicImageTransformations {
     gravity?: 'face' | 'left' | 'right' | 'top' | 'bottom' | 'center' | 'auto' | 'entropy' | BasicImageTransformationsGravityCoordinates;
     /**
      * Background color to add underneath the image. Applies only to images with
-     * transparency (such as PNG). Accepts any CSS color (#RRGGBB, rgba(…),
+     * transparency (such as PNG). Accepts any CSS color (#RRGGBB, rgb(…),
      * hsl(…), etc.)
      */
     background?: string;
@@ -8883,7 +8883,7 @@ interface RequestInitCfPropertiesImage extends BasicImageTransformations {
      *   in combination with the properties above
      * - border - this will automatically trim the surroundings of an image based on
      *   it's color. It consists of three properties:
-     *    - color: rgb or hex representation of the color you wish to trim (todo: verify the rgba bit)
+     *    - color: rgb or hex representation of the color you wish to trim (todo: verify the rgb bit)
      *    - tolerance: difference from color to treat as color
      *    - keep: the number of pixels of border to keep
      */
@@ -9771,7 +9771,7 @@ type ImageInputOptions = {
     encoding?: 'base64';
 };
 type ImageOutputOptions = {
-    format: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | 'image/avif' | 'rgb' | 'rgba';
+    format: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | 'image/avif' | 'rgb' | 'rgb';
     quality?: number;
     background?: string;
     anim?: boolean;

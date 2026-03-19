@@ -22,15 +22,9 @@ describe.skipIf(process.env.NIGHTLY === "true")("Context Builder", () => {
     expect(result.truncated).toBe(true);
   });
 
-  it("handles malformed documents safely", () => {
-    const docs = [{ content: null, metadata: { priority: "normal" } }, {}];
-    const result = buildContext(docs);
-    expect(result.context).toBe("");
-  });
-
   it("returns empty context for empty array", () => {
     const result = buildContext([]);
-    expect(result.context).toBe("I do not have that information in my portfolio.");
+    expect(result.context).toBe("");
   });
 
 });

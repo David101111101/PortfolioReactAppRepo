@@ -16,13 +16,11 @@ function getInitialTheme(): "dark" | "light" {
 
 
 export function Header() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() => getInitialTheme());
 
   useEffect(() => {
-    const t = getInitialTheme();
-    setTheme(t);
-    document.documentElement.setAttribute("data-theme", t);
-  }, []);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
 
   function toggleTheme() {
@@ -53,8 +51,8 @@ export function Header() {
         top: 0,
         zIndex: 50,
         backdropFilter: "blur(10px)",
-        background: "rgba(0,0,0,0.02)",
-        boxShadow: "rgba(0, 0, 0, 0.4) 15px 5px 5px 1px",
+        background: "rgb(0,0,0,0.02)",
+        boxShadow: "rgb(0, 0, 0, 0.4) 15px 5px 5px 1px",
       }}
     >
       <div
@@ -66,7 +64,7 @@ export function Header() {
           padding: "14px 20px",
         }}
       >
-        <a id="titleName" href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
+        <a id="title-name" href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
           {profile.name}
         </a>
 

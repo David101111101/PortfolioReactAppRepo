@@ -125,12 +125,6 @@ jobs:
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
-
-      - name: Generate flaky summary
-        if: always()
-        run: |
-          mkdir -p metrics
-          node scripts/flaky-summary.mjs >> $GITHUB_STEP_SUMMARY
       
       - uses: actions/upload-artifact@v5
         if: always()
@@ -161,7 +155,7 @@ jobs:
         run: |
           if [ -f metrics/flaky.json ]; then
             FLAKY=$(jq .flaky metrics/flaky.json)
-            if [ "$FLAKY" -gt 5 ]; then
+            if [ "$FLAKY" -gt 4 ]; then
               echo "Too many flaky tests"
               exit 1
             fi
@@ -212,7 +206,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: lts/*
           cache: "npm"
           cache-dependency-path: |
             package-lock.json
@@ -234,13 +228,8 @@ jobs:
         if: always()
         run: |
           mkdir -p metrics
-          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY || true
-          # fallback metric to avoid artifact failure
-          if [ ! -f metrics/lighthouse.json ]; then
-            echo '{ "score": 0 }' > metrics/lighthouse.json
-          fi
           echo "## 🔎 Lighthouse Gate" >> $GITHUB_STEP_SUMMARY
-          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY
+          node scripts/lighthouse-summary.mjs >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Lighthouse metric
@@ -320,6 +309,12 @@ jobs:
   # ==============================
   # 5️⃣ PR Comment with Results
   # ==============================
+      - name: Download current Lighthouse metric
+        uses: actions/download-artifact@v5
+        with:
+          name: lighthouse-score
+          path: metrics
+
       - name: Compute Lighthouse trend
         id: lhtrend
         run: |

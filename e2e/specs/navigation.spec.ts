@@ -21,7 +21,7 @@ await page.addInitScript(() => {
 
 await home.goto();
 const btnHeader = page
-  .locator('section#section .ContainerOfBtn button');
+  .locator('section#section .container-of-btn button');
 await expect(btnHeader).toHaveText("Copy email");
 await btnHeader.click();
 // Assert UI change
@@ -31,8 +31,39 @@ const clipboardText = await page.evaluate(() =>
   navigator.clipboard.readText()
 );
 expect(clipboardText).toBe("davidstevenabril@gmail.com");
+})
+
+test('Copy Email Footer Button works', async ({ home, page }) => {
+// Copy email button: should copy to clipboard and change text
+await page.addInitScript(() => {
+  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
+  //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
+  const clipboardStore = { value: "" };
+  Object.defineProperty(navigator, "clipboard", {
+    value: {
+      writeText: async (text: string) => {
+        clipboardStore.value = text;
+      },
+      readText: async () => clipboardStore.value,
+    },
+    configurable: true,
+  });
+});
+
+await home.goto();
+const btnFooter = page
+  .locator('section#contact .container-of-btn button');
+await expect(btnFooter).toHaveText("Copy email");
+await btnFooter.click();
+// Assert UI change
+await expect(btnFooter).toHaveText("Copied");
+// Assert clipboard value
+const clipboardText = await page.evaluate(() =>
+  navigator.clipboard.readText()
+);
+expect(clipboardText).toBe("davidstevenabril@gmail.com");
 // Assert revert
-await expect(btnHeader).toHaveText("Copy email", { timeout: 4000 });
+await expect(btnFooter).toHaveText("Copy email", { timeout: 4000 });
 })
 
 const cases = [ //Objects for test cases, each with a nav item and the expected heading it should scroll to
@@ -44,10 +75,13 @@ const cases = [ //Objects for test cases, each with a nav item and the expected 
 
 // Loop through each test case and create a test that checks if clicking the nav item scrolls to the correct heading
 for (const c of cases) {
-  test(`nav "${c.nav}" navigates to "#${c.slug}"`, async ({ home }) => {
+  test(`nav "${c.nav}" navigates to "#${c.slug}"`, async ({ home, page}) => {
     await home.goto();
-    await home.navItem(c.nav).click();
-    await home.expectUrlHasSlug(c.slug);
+    await Promise.all([
+      page.waitForURL(new RegExp(`#${c.slug}$`)),
+      home.navItem(c.nav).click()
+    ]);
+    await expect(page.locator(`#${c.slug}`)).toBeInViewport();
   });
 }
 
@@ -66,7 +100,7 @@ test('Email Button header work', async ({ home, page }) => {
   const heroSection = page.locator('section#section');
   await heroSection.scrollIntoViewIfNeeded();
   await expect(heroSection).toBeVisible();
-  const btnGroup = heroSection.locator('.ContainerOfBtn');
+  const btnGroup = heroSection.locator('.container-of-btn');
   await expect(btnGroup).toBeVisible();
 
   // Email me button: should have correct mailto href
@@ -78,9 +112,10 @@ test('Email Button header work', async ({ home, page }) => {
 test("Home page external buttons work", async ({ home, page }) => {
   await home.goto();
     const btnLinkedInHeader = home.externalLink(/^LinkedIn$/i, 0);
-    const btnGitHubHeader = home.externalLink(/^GitHub$/i, 0);
     const btnLinkedInFooter = home.externalLink(/^LinkedIn$/i, 1);
+    const btnGitHubHeader = home.externalLink(/^GitHub$/i, 0);    
     const btnGitHubFooter = home.externalLink(/^GitHub$/i, 1);
+    
     await assertExternalLinkOpensCorrectly(page, btnLinkedInHeader, {
       expectedHostname: "www.linkedin.com",
       expectedPathname: "",
@@ -110,7 +145,7 @@ test('Footer page contact buttons work', async ({ home, page }) => {
   await expect(contactSection).toBeVisible();
 
   // Find the button group inside the contact section (should be unique)
-  const btnGroup = contactSection.locator('.ContainerOfBtn');
+  const btnGroup = contactSection.locator('.container-of-btn');
   await expect(btnGroup).toBeVisible();
 
   // Email me button: should have correct mailto href
@@ -119,38 +154,6 @@ test('Footer page contact buttons work', async ({ home, page }) => {
   await expect(emailBtn).toBeEnabled();
   await expect(emailBtn).toHaveAttribute('href', /^mailto:/i);
 });
-test('Copy Email Footer Button works', async ({ home, page }) => {
-// Copy email button: should copy to clipboard and change text
-await page.addInitScript(() => {
-  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
-  //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
-  const clipboardStore = { value: "" };
-  Object.defineProperty(navigator, "clipboard", {
-    value: {
-      writeText: async (text: string) => {
-        clipboardStore.value = text;
-      },
-      readText: async () => clipboardStore.value,
-    },
-    configurable: true,
-  });
-});
-
-await home.goto();
-const btnFooter = page
-  .locator('section#contact .ContainerOfBtn button');
-await expect(btnFooter).toHaveText("Copy email");
-await btnFooter.click();
-// Assert UI change
-await expect(btnFooter).toHaveText("Copied");
-// Assert clipboard value
-const clipboardText = await page.evaluate(() =>
-  navigator.clipboard.readText()
-);
-expect(clipboardText).toBe("davidstevenabril@gmail.com");
-// Assert revert
-await expect(btnFooter).toHaveText("Copy email", { timeout: 4000 });
-})
 test("chatbot opens and responds to mocked user message", async ({ home, page }) => {
   await home.goto();
   // Mock backend for deterministic CI behavior

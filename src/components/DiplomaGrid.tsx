@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import type { Diploma } from "../data/portfolio";
 
 const categories: Diploma["category"][] = ["Automation", "Engineering", "QA", "Other"];
@@ -14,11 +14,6 @@ export function DiplomaGrid({ diplomas }: { diplomas: Diploma[] }) {
 
   const canToggle = base.length > 8;
 
-  // Optional UX guard: if there aren't enough items to expand, force "Show fewer" mode
-  useEffect(() => {
-    if (!canToggle && showAll) setShowAll(false);
-  }, [canToggle, showAll]);
-
   // Visible list (after showAll/slice)
   const visible = useMemo(() => {
     return showAll ? base : base.slice(0, 8);
@@ -26,7 +21,7 @@ export function DiplomaGrid({ diplomas }: { diplomas: Diploma[] }) {
 
   return (
     <>
-      <div className="ContainerOfBtn" style={{ marginBottom: 14 }}>
+      <div className="container-of-btn" style={{ marginBottom: 14 }}>
         {categories.map((c) => {
           const active = cat === c;
           return (

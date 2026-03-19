@@ -6,6 +6,12 @@ function escapeRegExp(s: string) {
 type Theme = "dark" | "light";
 export class HomePage {
   constructor(private readonly page: Page) {}
+  // This disables all animations and transitions to have a deterministic testing suite
+  async enableTestMode() {
+  await this.page.evaluate(() => {
+    document.documentElement.setAttribute("data-test-mode", "true");
+    });
+  }
   async toggleTheme() {
     await this.page.locator('#theme-toggle').click();
   }
@@ -22,12 +28,29 @@ export class HomePage {
   async waitForTheme(theme: string) {
   await expect(this.page.locator("html")).toHaveAttribute("data-theme", theme);
   }
+  // ================= NAVIGATION =================
+  // The project now uses advanced animations and dynamic content, so we need to ensure the page is fully loaded and stable before running tests, to make it deterministic we disable animations and wait for a key UI element to be visible. This makes tests more reliable and less flaky.
   async goto() {
   const basePath = (process.env.APP_BASE_PATH || "/").trim();
   const normalized = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  await this.page.goto(normalized);
-  // Guard: wait for React app to actually render
-  await this.page.waitForSelector("#root", { timeout: 10000 });
+  await this.enableTestMode();
+  await this.page.goto(normalized,{ waitUntil: "domcontentloaded" });
+  await this.page.emulateMedia({ reducedMotion: "reduce" });
+  // disable animations AFTER document exists
+    await this.page.addStyleTag({
+      content: `
+        *, *::before, *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+        html, body {
+          scroll-behavior: auto !important;
+        }
+      `
+    });
+    // Wait for actual UI landmarks that proves app mounted
+    await this.page.evaluate(() => document.fonts.ready);
+    await expect(this.heading(/automation engineered for reliability/i)).toBeVisible();
   }
 
   // Works whether nav item is implemented as <a> or <button>
@@ -61,7 +84,7 @@ externalLink(name: RegExp, index = 0) {
   // ================= CHATBOT =================
 
 chatBubble() {
-  return this.page.locator("#chatBubbleWidget");
+  return this.page.locator("#chat-bubble-widget");
 }
 chatWindow() {
   return this.page.locator("#chat-window-section");
@@ -76,11 +99,13 @@ userMessages() {
   return this.page.locator(".chat-user");
 }
 async openChat() {
-  await this.chatBubble().click();
+  const bubble = this.chatBubble();
+  await expect(bubble).toBeVisible();
+  await bubble.click();
   await expect(this.chatWindow()).toBeVisible();
 }
 async closeChat() {
-  await this.chatBubble().click();
+  await this.page.keyboard.press("Escape");
   await expect(this.chatWindow()).not.toBeVisible();
 }
 async waitForGreeting() {

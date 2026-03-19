@@ -6,16 +6,17 @@
 
 export class RateLimiter {
   state: DurableObjectState;
-  env: any;
+  env: Record<string, unknown>;
   requests: number[];
 
-  constructor(state: DurableObjectState, env: any) {
+  constructor(state: DurableObjectState, env: Record<string, unknown>) {
     this.state = state;
     this.env = env;
     this.requests = [];
   }
 
-  async fetch(request: Request): Promise<Response> {
+  async fetch(_request: Request): Promise<Response> {
+    void _request;
     const now = Date.now();
 
     const WINDOW_SIZE = 60 * 1000; // 1 minute window

@@ -13,21 +13,17 @@ test("theme nav bar btn toggle works", async ({ home }) => {
   await home.waitForTheme(expectedAfterFirst);
   
   await home.toggleTheme();
-  type Theme = "dark" | "light";
   await home.waitForTheme(initialTheme);
 });
-
 test("chat bubble renders", async ({ home }) => {
   await home.goto();
   await expect(home.chatBubble()).toBeVisible();
 });
-//
 test("chat opens and greeting appears", async ({ home }) => {
   await home.goto();
   await home.openChat();
   await home.waitForGreeting();
 });
-
 test("chatbot responds to user message", async ({ home, page }) => {
   await home.goto();
   
