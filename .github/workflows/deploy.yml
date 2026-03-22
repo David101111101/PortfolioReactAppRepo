@@ -1,5 +1,8 @@
 name: Deployment Quality Gates
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: ["main"]
@@ -285,13 +288,13 @@ jobs:
         env:
           VITE_BASE: "/"
 
-      - name: lighthouse-baseline
+      - name: Download prev lighthouse-baseline run
         uses: dawidd6/action-download-artifact@v5
         continue-on-error: true
         with:
-          workflow: deployment-quality-gates.yml
+          workflow: deploy.yml
           branch: main
-          name: lighthouse-score
+          name: lighthouse-baseline
           path: prev-metrics  
 
       - name: Setup Pages
