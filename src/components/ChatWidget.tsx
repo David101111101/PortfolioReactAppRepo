@@ -315,7 +315,6 @@ const sendMessage = async () => {
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: "12px",
               fontSize: "14px",
             }}
             >
@@ -359,15 +358,30 @@ const sendMessage = async () => {
               aria-label="Previous question"
               onClick={goPrevQuestion}
             >
-              ▲
+              <svg width="28" height="28" viewBox="0 0 24 24">
+                <path d="M6 14l6-6 6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"/>
+              </svg>
             </button>
 
             <button
               aria-label="Next question"
               onClick={goNextQuestion}
             >
-              ▼
+              <svg width="28" height="28px" viewBox="0 0 24 24">
+                <path d="M6 10l6 6 6-6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"/>
+              </svg>
             </button>
+
           </div>
           <div style={{display: "flex",borderTop: "1px solid var(--soft)",}}> 
             <input

@@ -173,7 +173,7 @@ console.log({
           });
         }
         if (request.method !== "POST") {
-          return new Response("Method Not Allowedssss", {
+          return new Response("Method Not Allowed", {
             status: 405,
             headers: cors,
           });
@@ -231,8 +231,8 @@ console.log({
           ctx.waitUntil(logConversation(
             env,
             question,
-            answer,
             "rate_limited",
+            answer,
             0,
           ).catch((err) =>
           console.error("Too many requests log failed:", err))
@@ -317,7 +317,7 @@ console.log({
         });
       }
       if (question.split(" ").length <= 4) { // For very short questions, we can lower the similarity threshold to allow more documents to be included in the context, which can help provide enough information for the LLM to generate a relevant answer. Short questions often lack specific keywords that match well with document embeddings, so a lower threshold can increase recall and improve answer quality.
-      similarityThreshold = 0.31;
+      similarityThreshold = 0.32;
       MatchCount = 9; // Short questions may require more contextual information for the LLM to understand the user's intent and provide a useful response.
       }
       /**
@@ -621,8 +621,8 @@ const readable = new ReadableStream({
      ctx.waitUntil(logConversation(
         env,
         question,
-        fullAnswer,
         "success",
+        fullAnswer,        
         answerConfidencePct,
       ).catch((err) =>
         console.error("Success Answer log failed:", err) )

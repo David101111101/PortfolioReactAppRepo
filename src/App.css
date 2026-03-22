@@ -58,12 +58,6 @@ html {
   line-height: 1.7;
 }
 
-.chat-assistant:empty::before {
-  content: " ";
-  display: block;
-  height: 1.4em;
-}
-
 .chat-widget {
   user-select: text;
   position: fixed;
@@ -136,7 +130,6 @@ html {
 .chat-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 22%) transparent;
-  padding-right: 6px;
   background: linear-gradient(
     180deg,
     rgb(255 255 255 / 2%),
@@ -147,7 +140,7 @@ html {
   overscroll-behavior: contain;
   overflow-anchor: auto;
   scroll-behavior: auto;
-
+  padding: 0 31px 5px 10px;
   /* mobile momentum */
   -webkit-overflow-scrolling: touch;
 }
@@ -188,34 +181,45 @@ html {
 .chat-nav-controls {
   position: absolute;
   right: 10px;
-  bottom: 58px;
+  bottom: 50px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   z-index: 5;
 }
 
 .chat-nav-controls button {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  border: 1px solid var(--soft);
-  background: rgb(0 0 0 / 65%);
-  color: rgb(232 230 227 / 70%);
-  cursor: pointer;
-  font-size: 0.625rem;
-  backdrop-filter: blur(6px);
-  transition: transform .15s ease, background .2s ease;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: rgba(255,255,255,0.85);
+  transition:
+    transform .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
+}
+
+.chat-nav-controls.hidden {
+  opacity: 0;
+  transform: scale(.8);
+  pointer-events: none;
 }
 
 .chat-nav-controls button:hover {
-  transform: translateY(-1px);
-  background: rgb(255 255 255 / 10%);
+    transform: translateY(-2px) scale(1.04);
+  background: rgba(255,255,255,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
-
+/* mobile touch */
+.chat-nav-controls button:active {
+  transform: scale(.92);
+}
 /* =========================================
    E2E deterministic rendering mode
    ========================================= */

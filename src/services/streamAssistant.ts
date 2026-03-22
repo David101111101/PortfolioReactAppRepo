@@ -17,7 +17,7 @@ export async function streamAssistantResponse(
     buffer = words.pop() || "";
       if (words.length > 0) {
       onChunk(words.join(" ") + " ");
-      await new Promise(r => setTimeout(r, 15));
+      await new Promise(r => setTimeout(r, 10));
       }
   }
   if (buffer) onChunk(buffer);
