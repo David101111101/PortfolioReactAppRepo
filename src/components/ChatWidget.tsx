@@ -197,11 +197,12 @@ const scrollToAnchorTop = (el: HTMLDivElement) => {
   const container = scrollContainerRef.current;
   if (!container) return;
 
-  const delta =
-    el.getBoundingClientRect().top -
-    container.getBoundingClientRect().top;
+  const top = el.offsetTop - container.offsetTop;
 
-  container.scrollTop += delta;
+  container.scrollTo({
+    top,
+    behavior: "auto"
+  });
 };
 
 const goPrevQuestion = () => {

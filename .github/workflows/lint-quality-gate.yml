@@ -1,7 +1,7 @@
 name: Lint Quality Gate
 
 env:
-  MAX_ALLOWED_LINT_ERRORS: 3
+  MAX_ALLOWED_LINT_ERRORS: 0
 
 on:
   pull_request:
