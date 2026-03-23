@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { sendChatQuestion } from "../api/chatApi";
 import { streamAssistantResponse } from "../services/streamAssistant";
 import { useModal } from "../hooks/useModal";
@@ -28,6 +28,7 @@ export default function ChatWidget() {
   const userAnchorsRef = useRef<HTMLDivElement[]>([]);
   const [navIndex, setNavIndex] = useState(-1);
   const hasUserAskedRef = useRef(false);
+  const streamStartedRef = useRef(false);
 
 const requestClose = () => {
   if (scrollContainerRef.current) {
@@ -45,29 +46,24 @@ const requestClose = () => {
     initialFocusRef: inputRef,
     restoreFocusRef: bubbleRef,
   });
+
 useEffect(() => {
   if (!isOpen) return;
-
   const id = requestAnimationFrame(() => {
     const id2 = requestAnimationFrame(() => {
       const container = scrollContainerRef.current;
       if (!container) return;
-
       container.scrollTop = savedScrollTopRef.current;
     });
-
     return () => cancelAnimationFrame(id2);
   });
-
   return () => cancelAnimationFrame(id);
 }, [isOpen]);
 
 useEffect(() => {
   if (messages.length !== 0) return;
-
   setIsTypingGreeting(true);
   setGreetingIndex(0);
-
   setMessages([
     {
       role: "assistant",
@@ -76,7 +72,13 @@ useEffect(() => {
   ]);
 }, [messages.length]);
 
-
+useLayoutEffect(() => {
+  const container = scrollContainerRef.current;
+  if (!container) return;
+  const nodes =
+    container.querySelectorAll<HTMLDivElement>(".chat-user");
+  userAnchorsRef.current = Array.from(nodes);
+}, [messages, isStreaming]);
 
 
 useEffect(() => {
@@ -111,6 +113,27 @@ useEffect(() => {
 
   return () => clearTimeout(timeout);
 }, [greetingIndex, isTypingGreeting]);
+
+useEffect(() => {
+  if (!isStreaming) return;
+  if (!streamStartedRef.current) return;
+
+  streamStartedRef.current = false;
+
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+
+  const lastIndex = anchors.length - 1;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollToAnchorTop(anchors[lastIndex]);
+      setNavIndex(lastIndex);
+    });
+  });
+
+}, [isStreaming]);
+
 // keyboard navigation for user messages
 useEffect(() => {
   if (!isOpen) return;
@@ -195,12 +218,12 @@ const goPrevQuestion = () => {
 const goNextQuestion = () => {
   const anchors = userAnchorsRef.current;
   if (!anchors.length) return;
-
   const next =
     navIndex >= anchors.length - 1 ? 0 : navIndex + 1;
-
-  scrollToAnchorTop(anchors[next]);
-  setNavIndex(next);
+    requestAnimationFrame(() => {
+    scrollToAnchorTop(anchors[next]);
+    setNavIndex(next);
+  });
 };
 
 const sendMessage = async () => {
@@ -214,10 +237,7 @@ const sendMessage = async () => {
           { role: "user", content: question },
           { role: "assistant", content: "" }
         ]);
-
-          if (!hasUserAskedRef.current) {
-            hasUserAskedRef.current = true;
-          }
+        await Promise.resolve();
           const response = await sendChatQuestion(question);
             let firstChunk = true;
             await streamAssistantResponse(response, (chunk) => {
@@ -234,15 +254,8 @@ const sendMessage = async () => {
               });
               if (firstChunk) {
                 firstChunk = false;
-                setIsStreaming(true);
-                requestAnimationFrame(() => {
-                  const anchors = userAnchorsRef.current;
-                  if (!anchors.length) return;
-
-                  const lastIndex = anchors.length - 1;
-                  scrollToAnchorTop(anchors[lastIndex]);
-                  setNavIndex(lastIndex);
-                });      
+                streamStartedRef.current = true;
+                setIsStreaming(true);    
               }          
             });
       } catch (err) {
@@ -257,8 +270,7 @@ const sendMessage = async () => {
         } finally {
           setIsStreaming(false);
         }
-    };
-
+    };    
   return (
     <>
       {/* Floating Bubble */}
@@ -311,20 +323,9 @@ const sendMessage = async () => {
           </div>
           <div
             ref={scrollContainerRef}
-            className="chat-scroll"
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              fontSize: "14px",
-            }}
-            >
-          {(() => {
-            userAnchorsRef.current = [];
-            return null;
-          })()}
-
+            className="chat-scroll">
           {messages.map((msg, index) => {
-            const isUser = msg.role === "user";
+            const isUser = msg.role === "user";            
             return (
               <div
                 key={index}

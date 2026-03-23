@@ -43,19 +43,21 @@ html {
   animation: msg-fade 0.25s ease;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  scroll-margin-top: 8px;
 }
 
 .chat-user {
   color: rgb(232 230 227 / 70%);
   text-shadow: 0.2px 0.5px 1px #fefefe;
   letter-spacing: 0.2px;
+  scroll-margin-top: 12px;
 }
 
 .chat-assistant {
   color: rgb(232 230 227 / 70%);
   text-shadow: 0.5px 0.2px 1px #fefefe91;
   margin-bottom: 16px;
-  line-height: 1.7;
+  min-height: 20px;
 }
 
 .chat-widget {
@@ -87,6 +89,7 @@ html {
     transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1),
     opacity 0.2s ease,
     box-shadow 0.32s ease;
+   height: min(420px, 70vh);
 }
 
 .chat-widget.open {
@@ -115,7 +118,7 @@ html {
 #chat-title {
   padding: 12px;
   border-bottom: 1px solid var(--soft);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: bold;
   text-shadow: 0.5px 0.2px 1px #fefefe91;
   color: rgb(232 230 227 / 70%);
@@ -138,11 +141,14 @@ html {
     rgb(255 255 255 / 2%)
   );
   overscroll-behavior: contain;
-  overflow-anchor: auto;
+  overflow-anchor: none;
   scroll-behavior: auto;
   padding: 0 31px 5px 10px;
-  /* mobile momentum */
   -webkit-overflow-scrolling: touch;
+  height: 100%;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.6875rem;
 }
 
 /* Chrome / Edge / Safari */
@@ -193,12 +199,12 @@ html {
   height: 24px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 12%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.85);
+  color: rgb(255 255 255 / 85%);
   transition:
     transform .18s ease,
     background .18s ease,
@@ -213,13 +219,15 @@ html {
 
 .chat-nav-controls button:hover {
     transform: translateY(-2px) scale(1.04);
-  background: rgba(255,255,255,0.12);
-  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  background: rgb(255 255 255 / 12%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
 }
+
 /* mobile touch */
 .chat-nav-controls button:active {
   transform: scale(.92);
 }
+
 /* =========================================
    E2E deterministic rendering mode
    ========================================= */

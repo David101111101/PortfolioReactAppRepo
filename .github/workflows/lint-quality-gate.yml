@@ -1,5 +1,8 @@
 name: Lint Quality Gate
 
+env:
+  MAX_ALLOWED_LINT_ERRORS: 3
+
 on:
   pull_request:
     branches: [ main ]
@@ -40,6 +43,7 @@ jobs:
       # ESLint
       # ========================
       - name: Run ESLint
+        continue-on-error: true
         run: |
           mkdir -p summaries
           npx eslint . -f stylish | tee summaries/eslint.txt
@@ -48,22 +52,25 @@ jobs:
       # TypeScript
       # ========================
       - name: Run Type Check
+        continue-on-error: true
         run: |
-          npx tsc --noEmit | tee summaries/typecheck.txt || true
+          npx tsc --noEmit | tee summaries/typecheck.txt
 
       # ========================
       # CSS
       # ========================
       - name: Run Stylelint
+        continue-on-error: true
         run: |
-          npx stylelint "**/*.css" | tee summaries/stylelint.txt || true
+          npx stylelint "**/*.css" | tee summaries/stylelint.txt
 
       # ========================
       # HTML
       # ========================
       - name: Run HTMLHint
+        continue-on-error: true
         run: |
-          npx htmlhint "**/*.html" | tee summaries/htmlhint.txt || true
+          npx htmlhint "**/*.html" | tee summaries/htmlhint.txt
 
       # ========================
       # Build lint summary
@@ -97,6 +104,11 @@ jobs:
         if: always()
         run: |
           cat summaries/lint.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Enforce error threshold
+        if: always()
+        run: |
+          node -e "const fs=require('fs'); const metrics=JSON.parse(fs.readFileSync('metrics/lint.json','utf8')); if (!metrics.thresholdPassed) { console.error('Lint quality gate failed: ' + metrics.totalErrors + ' total errors exceed allowed maximum of ' + metrics.maxAllowedErrors + '.'); process.exit(1); } console.log('Lint quality gate passed: ' + metrics.totalErrors + ' total errors within allowed maximum of ' + metrics.maxAllowedErrors + '.');"
       
   pr-comment:
         name: PR Comment (Lint Summary)
@@ -121,7 +133,6 @@ jobs:
 
           - name: Build PR comment body
             run: |
-              echo "## 🧹 Static Quality Gate Results" > comment.md
               echo "" >> comment.md
               cat summaries/lint.md >> comment.md
               echo "" >> comment.md
