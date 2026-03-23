@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { sendChatQuestion } from "../api/chatApi";
 import { streamAssistantResponse } from "../services/streamAssistant";
 import { useModal } from "../hooks/useModal";
@@ -26,9 +26,24 @@ export default function ChatWidget() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bubbleRef = useRef<HTMLButtonElement | null>(null);
   const userAnchorsRef = useRef<HTMLDivElement[]>([]);
-  const [navIndex, setNavIndex] = useState(-1);
   const hasUserAskedRef = useRef(false);
   const streamStartedRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const navIndexRef = useRef(-1);
+  const setNav = (i: number) => {
+    navIndexRef.current = i;
+  };
+  const scrollToAnchorTop = useCallback((el: HTMLDivElement) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const top = el.offsetTop - container.offsetTop;
+
+    container.scrollTo({
+      top,
+      behavior: "auto"
+    });
+  }, []);
 
 const requestClose = () => {
   if (scrollContainerRef.current) {
@@ -128,11 +143,47 @@ useEffect(() => {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       scrollToAnchorTop(anchors[lastIndex]);
-      setNavIndex(lastIndex);
+      setNav(lastIndex);
     });
   });
 
-}, [isStreaming]);
+}, [isStreaming, scrollToAnchorTop]);
+
+useEffect(() => {
+  if (!hasUserAskedRef.current) return;
+
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+
+  const lastIndex = anchors.length - 1;
+
+  requestAnimationFrame(() => {
+    scrollToAnchorTop(anchors[lastIndex]);
+    setNav(lastIndex);
+  });
+
+}, [messages.length, scrollToAnchorTop]);
+
+const goPrevQuestion = useCallback(() => {
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+  const current = navIndexRef.current;
+  const next =
+    current <= 0 ? anchors.length - 1 : current - 1;
+
+  scrollToAnchorTop(anchors[next]);
+  setNav(next);
+}, [scrollToAnchorTop]);
+
+const goNextQuestion = useCallback(() => {
+  const anchors = userAnchorsRef.current;
+  if (!anchors.length) return;
+  const current = navIndexRef.current;
+  const next =
+    current >= anchors.length - 1 ? 0 : current + 1;
+    scrollToAnchorTop(anchors[next]);
+    setNav(next);
+}, [scrollToAnchorTop]);
 
 // keyboard navigation for user messages
 useEffect(() => {
@@ -175,57 +226,7 @@ useEffect(() => {
 
   return () =>
     document.removeEventListener("keydown", handleKey);
-}, [isOpen, navIndex]);
-
-useEffect(() => {
-  if (!hasUserAskedRef.current) return;
-
-  const anchors = userAnchorsRef.current;
-  if (!anchors.length) return;
-
-  const lastIndex = anchors.length - 1;
-
-  requestAnimationFrame(() => {
-    scrollToAnchorTop(anchors[lastIndex]);
-    setNavIndex(lastIndex);
-  });
-
-}, [messages.length]);
-
-const scrollContainerRef = useRef<HTMLDivElement>(null);
-const scrollToAnchorTop = (el: HTMLDivElement) => {
-  const container = scrollContainerRef.current;
-  if (!container) return;
-
-  const top = el.offsetTop - container.offsetTop;
-
-  container.scrollTo({
-    top,
-    behavior: "auto"
-  });
-};
-
-const goPrevQuestion = () => {
-  const anchors = userAnchorsRef.current;
-  if (!anchors.length) return;
-
-  const next =
-    navIndex <= 0 ? anchors.length - 1 : navIndex - 1;
-
-  scrollToAnchorTop(anchors[next]);
-  setNavIndex(next);
-};
-
-const goNextQuestion = () => {
-  const anchors = userAnchorsRef.current;
-  if (!anchors.length) return;
-  const next =
-    navIndex >= anchors.length - 1 ? 0 : navIndex + 1;
-    requestAnimationFrame(() => {
-    scrollToAnchorTop(anchors[next]);
-    setNavIndex(next);
-  });
-};
+}, [goNextQuestion, goPrevQuestion, isOpen]);
 
 const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
@@ -330,11 +331,6 @@ const sendMessage = async () => {
             return (
               <div
                 key={index}
-                ref={(el) => {
-                  if (isUser  && el) {
-                    userAnchorsRef.current.push(el);
-                  }
-                }}
                 className={`chat-message ${
                   isUser ? "chat-user" : "chat-assistant"
                 }`}
