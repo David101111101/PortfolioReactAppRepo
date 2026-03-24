@@ -120,7 +120,7 @@ export default function ChatWidget() {
   if (!el) return;
 
   scrollUserToTop(el);
-}, [messages]);
+}, [messages, isStreaming, scrollUserToTop]);
 
 const handleStreamingFinishedScroll = useCallback(() => {
   const id = lastCompletedUserIdRef.current;
