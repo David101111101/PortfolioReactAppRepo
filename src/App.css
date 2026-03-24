@@ -66,7 +66,6 @@ html {
   bottom: 85px;
   right: 20px;
   width: 340px;
-  max-height: 290px;
   background:
     radial-gradient(
       120% 140% at 100% 100%,
@@ -89,7 +88,7 @@ html {
     transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1),
     opacity 0.2s ease,
     box-shadow 0.32s ease;
-   height: min(420px, 70vh);
+  height: 290px;
 }
 
 .chat-widget.open {
@@ -209,6 +208,8 @@ html {
     transform .18s ease,
     background .18s ease,
     box-shadow .18s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-nav-controls.hidden {
