@@ -122,9 +122,7 @@ export default function ChatWidget() {
   scrollUserToTop(el);
 }, [messages]);
 
-  useEffect(() => {
-  if (isStreaming) return;
-
+const handleStreamingFinishedScroll = useCallback(() => {
   const id = lastCompletedUserIdRef.current;
   if (!id) return;
 
@@ -136,7 +134,13 @@ export default function ChatWidget() {
   });
 
   lastCompletedUserIdRef.current = null;
-}, [isStreaming, scrollUserToTop]);
+}, [scrollUserToTop]);
+
+useEffect(() => {
+  if (!isStreaming) {
+    handleStreamingFinishedScroll();
+  }
+}, [isStreaming, handleStreamingFinishedScroll]);
 
   useEffect(() => {
     if (!isTypingGreeting) return;
