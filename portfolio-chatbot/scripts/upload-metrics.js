@@ -96,6 +96,7 @@ async function uploadRetrieval(metrics) {
 
 async function uploadRateLimit(metrics) {
   for (const m of metrics) {
+    const { test_id, ...payload } = m;
     await insert("rate_limit_metrics", m);
   }
 }

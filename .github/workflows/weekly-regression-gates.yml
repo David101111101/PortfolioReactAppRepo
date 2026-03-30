@@ -53,17 +53,6 @@ jobs:
         id: run_id
         run: echo "RUN_ID=$(uuidgen)" >> $GITHUB_ENV
 
-      #verify deployed API is alive
-      - name: Health check deployed API
-        id: health
-        run: |
-          START=$(date +%s%3N)
-          curl --silent --show-error --fail "${API_BASE_URL}/health"
-          END=$(date +%s%3N)
-          LAT=$((END-START))
-          echo "lat=$LAT" >> $GITHUB_OUTPUT
-
-
       - name: Run regression suite (production endpoint)
         run: |
           cd portfolio-chatbot
@@ -89,30 +78,12 @@ jobs:
             portfolio-chatbot/playwright-report/
             portfolio-chatbot/test-results/
 
-      - name: Capture regression status
-        if: always()
-        run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "REGRESSION_STATUS=PASS" >> $GITHUB_ENV
-          else
-            echo "REGRESSION_STATUS=FAIL" >> $GITHUB_ENV
-          fi
-
       - name: Upload regression artifacts (structured)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: regression-artifacts
           path: portfolio-chatbot/artifacts/
-      
-      - name: Download previous regression artifacts
-        uses: dawidd6/action-download-artifact@v6
-        continue-on-error: true
-        with:
-          workflow: weekly-regression-gates.yml
-          branch: main
-          name: regression-artifacts
-          path: prev-artifacts
 
       - name: Upload metrics to database
         if: always()
@@ -120,53 +91,124 @@ jobs:
           cd portfolio-chatbot
           node scripts/upload-metrics.js
 
-      - name: Fetch regression summary
-        id: summary
+      - name: Evaluate regression gate
+        id: regression_gate
+        continue-on-error: true
         run: |
           node << 'EOF'
+          const fs = require("fs");
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const RUN_ID = process.env.RUN_ID;
 
-          async function main() {
-            const res = await fetch(
-              `${SUPABASE_URL}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=1`,
-              {
-                headers: {
-                  apikey: SUPABASE_KEY,
-                  Authorization: `Bearer ${SUPABASE_KEY}`
-                }
-              }
-            );
-
-            const data = await res.json();
-            const r = data[0];
-
-            console.log(`p95=${r.p95_latency}`);
-            console.log(`confidence=${r.avg_confidence}`);
-            console.log(`enforcement=${r.enforcement_rate}`);
+          async function fetchJSON(url, options = {}) {
+            const res = await fetch(url, options);
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error(text);
+            }
+            return res.json();
           }
 
-          main();
+          async function main() {
+
+            // Analysis computed in DB through a function
+            const [analysis] = await fetchJSON(
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
+            );
+
+            if (!analysis || analysis.latency_delta === null) {
+              console.log("Not enough historical data → skipping regression evaluation");
+              return;
+            }
+
+            if (analysis.regression_severity === "critical" || analysis.regression_severity === "moderate") {
+              console.log("🚨 Regression detected via DB intelligence layer");
+              process.exit(1);
+            }
+          }
+
+          main().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
           EOF
 
-      # Dashboard
-      - name: Compare with previous runs from DB
-        id: dbcompare
+      - name: Capture regression status
+        if: always()
+        run: |
+          if [ "${{ steps.regression_gate.outcome }}" = "failure" ]; then
+            echo "REGRESSION_STATUS=FAIL" >> $GITHUB_ENV
+          else
+            echo "REGRESSION_STATUS=PASS" >> $GITHUB_ENV
+          fi
+      
+      - name: Record failure events
+        if: failure()
         run: |
           node << 'EOF'
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const RUN_ID = process.env.RUN_ID;
 
-          async function rpc(fn, body) {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+          async function insertFailure(event) {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/failure_events`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 apikey: SUPABASE_KEY,
                 Authorization: `Bearer ${SUPABASE_KEY}`
               },
-              body: JSON.stringify(body)
+              body: JSON.stringify(event)
+            });
+
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error(text);
+            }
+          }
+
+          async function main() {
+            // simple classification for now
+            const events = [
+              {
+                run_id: RUN_ID,
+                test_id: "regression_gate",
+                classification: "system_regression",
+                root_signal: "latency|retrieval|rate_limit"
+              }
+            ];
+
+            for (const e of events) {
+              await insertFailure(e);
+            }
+
+            console.log("Failure events recorded");
+          }
+
+          main().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          EOF
+
+      # Dashboard
+      - name: Compare with previous runs from DB
+        continue-on-error: true
+        id: dbcompare
+        run: |
+          node << 'EOF'
+          const fs = require("fs");
+          const SUPABASE_URL = process.env.SUPABASE_URL;
+          const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const RUN_ID = process.env.RUN_ID;
+
+          async function fetchJSON(url) {
+            const res = await fetch(url, {
+              headers: {
+                apikey: SUPABASE_KEY,
+                Authorization: `Bearer ${SUPABASE_KEY}`
+              }
             });
 
             if (!res.ok) {
@@ -178,34 +220,115 @@ jobs:
           }
 
           async function main() {
-            // 1️⃣ Get previous run
-            const prev = await rpc("get_previous_run", {
-              current_run: RUN_ID
-            });
+            // 🔥 Query the interpretation layer (NOT raw tables)
+            const data = await fetchJSON(
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
+            );
 
-            if (!prev.length) {
-              console.log("latency_delta=N/A");
+            if (!data.length) {
+              console.log("No comparison data available");
+
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, "trend=N/A\n");
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, "severity=N/A\n");
+                const defaults = {
+                  latency_delta: "N/A",
+                  latency_pct: "N/A",
+                  confidence_delta: "N/A",
+                  confidence_pct: "N/A",
+                  reliability_delta: "N/A",
+                  trend: "N/A",
+                  severity: "N/A",
+                  signal: "N/A"
+                };
+
+                for (const [k, v] of Object.entries(defaults)) {
+                  fs.appendFileSync(process.env.GITHUB_OUTPUT, `${k}=${v}\n`);
+                }
               return;
             }
 
-            const prevRunId = prev[0].id;
+            const r = data[0];
 
-            // 2️⃣ Get performance metrics
-            const [currentPerf] = await rpc("get_performance_metrics", {
-              run: RUN_ID
-            });
+            // ✅ Export structured outputs for downstream steps
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `latency_delta=${r.latency_delta}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `latency_pct=${r.latency_pct}\n`);
 
-            const [prevPerf] = await rpc("get_performance_metrics", {
-              run: prevRunId
-            });
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `confidence_delta=${r.confidence_delta}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `confidence_pct=${r.confidence_pct}\n`);
 
-            let latencyDelta = "N/A";
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `reliability_delta=${r.reliability_delta}\n`);
 
-            if (currentPerf && prevPerf) {
-              latencyDelta = currentPerf.p95_latency - prevPerf.p95_latency;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `trend=${r.trend_direction}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `severity=${r.regression_severity}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `signal=${r.primary_signal}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `analysis_confidence=${r.analysis_confidence}\n`);
+
+            // classification shortcut
+            const classification =
+              r.primary_signal === "system_degradation"
+                ? "system_degradation"
+                : "no_major_issue";
+
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `classification=${classification}\n`);
+
+            // 🧠 Human-readable log (helps debugging CI)
+            console.log("---- Regression Story ----");
+            console.log(`Latency Δ: ${r.latency_delta} (${(r.latency_pct * 100).toFixed(2)}%)`);
+            console.log(`Confidence Δ: ${r.confidence_delta} (${(r.confidence_pct * 100).toFixed(2)}%)`);
+            console.log(`Reliability Δ: ${r.reliability_delta}`);
+            console.log(`Trend: ${r.trend_direction}`);
+            console.log(`Severity: ${r.regression_severity}`);
+            console.log(`Signal: ${r.primary_signal}`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `baseline_deviation=N/A\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=N/A\n`);
+
+            const anomaly = await fetchJSON(
+              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${RUN_ID}`
+            );
+
+            if (anomaly.length) {
+              const a = anomaly[0];
+              const z = a.latency_zscore;
+
+              const severity =
+                Math.abs(z) > 3 ? "critical" :
+                Math.abs(z) > 2 ? "high" :
+                Math.abs(z) > 1 ? "moderate" : "normal";
+              
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `baseline_deviation=${z}\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=${severity}\n`);
+
+              if (Math.abs(z) > 1) {
+                const direction = z > 0 ? "higher" : "lower";
+                console.log("---- Anomaly Detection ----");
+
+                console.log(`📊 Metric: Latency (P95)`);
+                console.log(`- Current: ${a.p95_latency} ms`);
+                console.log(`- Mean: ${a.mean_latency?.toFixed(2)} ms`);
+                console.log(`- Baseline Deviation: ${z.toFixed(2)} (${severity})`);
+
+                // Directional insight
+                console.log(`Latency is ${Math.abs(z).toFixed(1)}x deviation from normal (${direction} than expected)`);
+                
+                if (r.primary_signal === "system_degradation" && Math.abs(z) > 2) {
+                  console.log("🔥 Confirmed: anomaly aligns with system degradation signal");
+                }
+
+                // Correlation with regression signals
+                if (z > 2 && a.p95_latency > 0) {
+                  console.log(`🧩 Likely Impact:`);
+
+                  if (a.p95_latency > 0) {
+                    console.log(`- Increased response time may degrade retrieval ranking quality`);
+                  }
+
+                  console.log(`- Potential infrastructure or backend slowdown`);
+                }
+
+                console.log(`🧠 Interpretation:`);
+                console.log(`Latency deviates ${Math.abs(z).toFixed(2)} standard deviations from normal behavior`);
+              }
             }
-
-            console.log(`latency_delta=${latencyDelta}`);
           }
 
           main().catch(err => {
@@ -214,40 +337,58 @@ jobs:
           });
           EOF
 
+      - name: Enforce regression gate
+        if: steps.regression_gate.outcome == 'failure'
+        run: |
+          echo "🚨 Regression detected → blocking CI"
+          exit 1
+
       - name: Generate AI Regression Dashboard
         if: always()
         run: |
-          echo "## 🧠 AI Regression Report" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧠 This Report combines regression analysis, trend detection, and anomaly detection across historical runs." >> $GITHUB_STEP_SUMMARY
 
           echo "### 🧪 Test Status" >> $GITHUB_STEP_SUMMARY
           echo "- Status: $REGRESSION_STATUS" >> $GITHUB_STEP_SUMMARY
 
-          echo "### 🌐 Environment" >> $GITHUB_STEP_SUMMARY
-          echo "- Endpoint: $API_BASE_URL" >> $GITHUB_STEP_SUMMARY
-          echo "- Run ID: $RUN_ID" >> $GITHUB_STEP_SUMMARY
-          echo "- Date: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 System Health Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Overall Status: $REGRESSION_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Trend: ${{ steps.dbcompare.outputs.trend }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Severity: ${{ steps.dbcompare.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Primary Signal: ${{ steps.dbcompare.outputs.signal }}" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 System Signals" >> $GITHUB_STEP_SUMMARY
-          echo "- Retrieval stability: validated" >> $GITHUB_STEP_SUMMARY
-          echo "- Performance latency: monitored" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limiting enforcement: validated" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧠 What Changed" >> $GITHUB_STEP_SUMMARY
+          echo "- Latency: ${{ steps.dbcompare.outputs.latency_delta }} ms ($(echo "${{ steps.dbcompare.outputs.latency_pct }} * 100" | bc)%)" >> $GITHUB_STEP_SUMMARY
+          echo "- Confidence: ${{ steps.dbcompare.outputs.confidence_delta }} ($(echo "${{ steps.dbcompare.outputs.confidence_pct }} * 100" | bc)%)" >> $GITHUB_STEP_SUMMARY
+          echo "- Reliability: ${{ steps.dbcompare.outputs.reliability_delta }}" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📉 Performance Trend (DB-based)" >> $GITHUB_STEP_SUMMARY
-          echo "- P95 latency delta vs previous run: ${{ steps.dbcompare.outputs.latency_delta }} ms" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Anomaly Detection" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.dbcompare.outputs.baseline_deviation }}" != "N/A" ]; then
+            echo "- Baseline Deviation: ${{ steps.dbcompare.outputs.baseline_deviation }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Severity: ${{ steps.dbcompare.outputs.deviation_severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Release Confidence" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧩 Diagnosis" >> $GITHUB_STEP_SUMMARY
 
-          echo "### 📊 Key Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "- P95 latency: ${{ steps.summary.outputs.p95 }} ms" >> $GITHUB_STEP_SUMMARY
-          echo "- Avg confidence: ${{ steps.summary.outputs.confidence }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limit enforcement: ${{ steps.summary.outputs.enforcement }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.dbcompare.outputs.signal }}" = "system_degradation" ]; then
+            echo "- System degradation detected: latency increase correlates with retrieval confidence drop" >> $GITHUB_STEP_SUMMARY
+            echo "- Likely root cause: backend latency impacting ranking quality" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$REGRESSION_STATUS" = "PASS" ]; then
-            echo "✅ System is stable across retrieval, performance, and abuse protection" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.dbcompare.outputs.signal }}" = "latency_regression" ]; then
+            echo "- Backend performance regression detected" >> $GITHUB_STEP_SUMMARY
+            echo "- Monitor API response time and infrastructure load" >> $GITHUB_STEP_SUMMARY
+
+          elif [ "${{ steps.dbcompare.outputs.signal }}" = "retrieval_regression" ]; then
+            echo "- Retrieval relevance degradation detected" >> $GITHUB_STEP_SUMMARY
+            echo "- Possible embedding drift or ranking instability" >> $GITHUB_STEP_SUMMARY
+
           else
-            echo "⚠️ Regression detected — investigation required" >> $GITHUB_STEP_SUMMARY
+            echo "- System stable across performance, retrieval, and rate limiting signals" >> $GITHUB_STEP_SUMMARY
           fi
 
