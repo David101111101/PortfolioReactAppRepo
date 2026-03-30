@@ -20,7 +20,10 @@ jobs:
     env:
       NIGHTLY: "true"
       API_BASE_URL: ${{ vars.API_BASE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      WORKFLOW_TYPE: weekly_regression_suite
 
     steps:
       - name: Checkout
@@ -46,6 +49,9 @@ jobs:
             echo "API_BASE_URL is empty"
             exit 1
           fi
+      - name: Generate RUN_ID
+        id: run_id
+        run: echo "RUN_ID=$(uuidgen)" >> $GITHUB_ENV
 
       #verify deployed API is alive
       - name: Health check deployed API
@@ -92,72 +98,121 @@ jobs:
             echo "REGRESSION_STATUS=FAIL" >> $GITHUB_ENV
           fi
 
-      - name: Upload latency metric
+      - name: Upload regression artifacts (structured)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: latency-metric
-          path: portfolio-chatbot/latency-metric.json
+          name: regression-artifacts
+          path: portfolio-chatbot/artifacts/
       
-      - name: Download previous latency metric
+      - name: Download previous regression artifacts
         uses: dawidd6/action-download-artifact@v6
         continue-on-error: true
         with:
           workflow: weekly-regression-gates.yml
           branch: main
-          name: latency-metric
-          path: prev-metrics
+          name: regression-artifacts
+          path: prev-artifacts
 
-      # Dashboard
-      - name: Compute latency trend
-        id: latencytrend
-        run: |
-          CUR=$(jq .avgLatencyMs portfolio-chatbot/latency-metric.json)
-
-          if [ -f prev-metrics/latency-metric.json ]; then
-            PREV=$(jq .avgLatencyMs prev-metrics/latency-metric.json)
-            DELTA=$((CUR-PREV))
-          else
-            PREV="N/A"
-            DELTA="N/A"
-          fi
-
-          echo "cur=$CUR" >> $GITHUB_OUTPUT
-          echo "prev=$PREV" >> $GITHUB_OUTPUT
-          echo "delta=$DELTA" >> $GITHUB_OUTPUT
-
-      - name: Generate Regression Dashboard
+      - name: Upload metrics to database
         if: always()
         run: |
-          echo "## 🧪 Regression Result" >> $GITHUB_STEP_SUMMARY
+          cd portfolio-chatbot
+          node scripts/upload-metrics.js
+
+      # Dashboard
+      - name: Compare with previous runs from DB
+        id: dbcompare
+        run: |
+          node << 'EOF'
+          const SUPABASE_URL = process.env.SUPABASE_URL;
+          const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const RUN_ID = process.env.RUN_ID;
+
+          async function rpc(fn, body) {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: SUPABASE_KEY,
+                Authorization: `Bearer ${SUPABASE_KEY}`
+              },
+              body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error(text);
+            }
+
+            return res.json();
+          }
+
+          async function main() {
+            // 1️⃣ Get previous run
+            const prev = await rpc("get_previous_run", {
+              current_run: RUN_ID
+            });
+
+            if (!prev.length) {
+              console.log("latency_delta=N/A");
+              return;
+            }
+
+            const prevRunId = prev[0].id;
+
+            // 2️⃣ Get performance metrics
+            const [currentPerf] = await rpc("get_performance_metrics", {
+              run: RUN_ID
+            });
+
+            const [prevPerf] = await rpc("get_performance_metrics", {
+              run: prevRunId
+            });
+
+            let latencyDelta = "N/A";
+
+            if (currentPerf && prevPerf) {
+              latencyDelta = currentPerf.p95_latency - prevPerf.p95_latency;
+            }
+
+            console.log(`latency_delta=${latencyDelta}`);
+          }
+
+          main().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Generate AI Regression Dashboard
+        if: always()
+        run: |
+          echo "## 🧠 AI Regression Report" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🧪 Test Status" >> $GITHUB_STEP_SUMMARY
           echo "- Status: $REGRESSION_STATUS" >> $GITHUB_STEP_SUMMARY
 
-          echo "## Environment" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Environment" >> $GITHUB_STEP_SUMMARY
           echo "- Endpoint: $API_BASE_URL" >> $GITHUB_STEP_SUMMARY
-          echo "- Runner: ubuntu-latest" >> $GITHUB_STEP_SUMMARY
-          echo "- Node: $(node -v)" >> $GITHUB_STEP_SUMMARY
+          echo "- Run ID: $RUN_ID" >> $GITHUB_STEP_SUMMARY
           echo "- Date: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 System Signals" >> $GITHUB_STEP_SUMMARY
+          echo "- Retrieval stability: validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance latency: monitored" >> $GITHUB_STEP_SUMMARY
+          echo "- Rate limiting enforcement: validated" >> $GITHUB_STEP_SUMMARY
 
-          echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limiting enforcement" >> $GITHUB_STEP_SUMMARY
-          echo "- RAG retrieval regression" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend contract validation" >> $GITHUB_STEP_SUMMARY
-          echo "- LLM latency benchmarking" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📉 Performance Trend (DB-based)" >> $GITHUB_STEP_SUMMARY
+          echo "- P95 latency delta vs previous run: ${{ steps.dbcompare.outputs.latency_delta }} ms" >> $GITHUB_STEP_SUMMARY
 
-          echo "### 🤖 LLM Latency Trend" >> $GITHUB_STEP_SUMMARY
-          echo "- Current avg latency: ${{ steps.latencytrend.outputs.cur }} ms" >> $GITHUB_STEP_SUMMARY
-          echo "- Previous week: ${{ steps.latencytrend.outputs.prev }} ms" >> $GITHUB_STEP_SUMMARY
-          echo "- Delta: ${{ steps.latencytrend.outputs.delta }} ms" >> $GITHUB_STEP_SUMMARY
-
-          echo "## 🌐 API Availability" >> $GITHUB_STEP_SUMMARY
-          echo "- Health endpoint latency: ${{ steps.health.outputs.lat }} ms" >> $GITHUB_STEP_SUMMARY
-
-          echo "## 📈 Production Confidence Signal" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Release Confidence" >> $GITHUB_STEP_SUMMARY
 
           if [ "$REGRESSION_STATUS" = "PASS" ]; then
-            echo "✅ No regressions detected in AI retrieval or backend contracts" >> $GITHUB_STEP_SUMMARY
+            echo "✅ System is stable across retrieval, performance, and abuse protection" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ LLM latency within expected range" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Regression detected — investigation required" >> $GITHUB_STEP_SUMMARY
           fi

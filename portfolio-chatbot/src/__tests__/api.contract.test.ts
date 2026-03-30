@@ -13,17 +13,6 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-
-/**
- * Define strict schema for API response.
- *
- * If the backend changes response structure,
- * this test will fail immediately.
- */
-const ApiResponseSchema = z.object({
-  answer: z.string().min(1), // must be non-empty string
-});
-
 /**
  * Base URL for local worker.
  *
@@ -64,6 +53,15 @@ describe.skipIf(process.env.NIGHTLY === "true")("API Contract", () => {
 
     // 3️⃣ Parse JSON safely
     const data = await response.json();
+    /**
+   * Define strict schema for API response.
+   *
+   * If the backend changes response structure,
+   * this test will fail immediately.
+   */
+    const ApiResponseSchema = z.object({
+      answer: z.string().min(1), // must be non-empty string
+    });
 
     // 4️⃣ Validate runtime schema
     const parsed = ApiResponseSchema.parse(data);

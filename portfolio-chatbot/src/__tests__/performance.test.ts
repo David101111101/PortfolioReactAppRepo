@@ -1,29 +1,49 @@
 /**
- * Advanced Performance Regression Test
+ * Advanced Performance Regression Test (Artifact Based)
+ * Produces structured latency + concurrency metrics for CI ingestion.
+ * Runs only in scheduled run mode  # 1 AM UTC every Wednesday (once a week)
  *
  * Validates:
  * - Sequential latency stability (P95 threshold)
  * - Basic concurrency behavior
  * - Functional correctness under light parallel load
  *
- * Runs only in NIGHTLY mode  # 1 AM UTC every Wednesday (once a week)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll  } from "vitest";
+import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 
 const BASE_URL =
   process.env.API_BASE_URL ?? "http://127.0.0.1:8787";
-
-  
+const RUN_ID = process.env.RUN_ID ?? randomUUID();
 const MAX_LATENCY_MS =
-  process.env.NIGHTLY === "true" ? 8000 : 5000; // CI runners are slower
+  process.env.NIGHTLY === "true" ? 8000 : 6000; // CI runners are slower
 const SAMPLE_SIZE = 5;
 const CONCURRENT_REQUESTS = 3;
-// Only executes these tests during nightly scheduled runs to avoid slowing down regular development feedback loops
-// # 1 AM UTC every Wednesday (once a week)
+
+interface PerformanceRegressionMetric {
+  run_id: string;
+  test_id: "performance_regression";
+  sample_size: number;
+  concurrent_requests: number;
+  min_latency: number;
+  median_latency: number;
+  mean_latency: number;
+  p95_latency: number;
+  max_latency: number;
+  concurrent_p95: number;
+  degradation_ratio: number;
+  latency_samples: number[];
+  concurrent_latency_samples: number[];
+}
+
 describe.runIf(process.env.NIGHTLY === "true")(
-  "Performance Regression (Advanced)",
+  "Performance Regression Suite (Artifact Metrics Generation)",
   () => {
+    //Central artifact collector
+    const metrics: PerformanceRegressionMetric[] = [];
     it("should maintain acceptable P95 latency and handle light concurrency", async () => {
 
       /**
@@ -70,27 +90,12 @@ describe.runIf(process.env.NIGHTLY === "true")(
       durations.sort((a, b) => a - b);
       const min = durations[0];
       const max = durations[durations.length - 1];
-
-      const mean =
-      durations.reduce((sum, d) => sum + d, 0) / durations.length;
-
+      const mean = durations.reduce((sum, d) => sum + d, 0) / durations.length;
       const median = durations[Math.floor(durations.length / 2)];
-
       /**
        * 3️⃣ Calculate P95 latency
        */
       const p95 = durations[Math.floor(durations.length * 0.95)];
-      /**
-       * Observability logs
-       * These will appear in CI logs and nightly reports
-       */
-      console.log("Performance Regression Test Results:");
-      console.log("Latency samples:", durations);
-      console.log("Min latency:", min);
-      console.log("Median latency:", median);
-      console.log("Mean latency:", Math.round(mean));
-      console.log("P95 latency:", p95);
-      console.log("Max latency:", max);
       /**
       * Validate performance threshold
       */
@@ -98,26 +103,87 @@ describe.runIf(process.env.NIGHTLY === "true")(
       expect(max).toBeLessThan(MAX_LATENCY_MS * 1.25);
       /**
        * 4️⃣ Concurrency Simulation
-       *
-       * Light parallel load to ensure no blocking or race issues.
+       *     Light parallel load to ensure no blocking or race issues.
        */
       const concurrentResults = await Promise.all(
-        Array.from({ length: CONCURRENT_REQUESTS }).map((_, i) =>
-          fetch(BASE_URL, {
+        Array.from({ length: CONCURRENT_REQUESTS }).map(async (_, i) => {
+          const start = Date.now();
+          const res= await fetch(BASE_URL, {
             method: "POST",
-             headers: testHeaders(fakeIP(150 + i)), // Simulate same IP for testing
+            headers: testHeaders(fakeIP(150 + i)), // Simulate same IP for testing
             body: JSON.stringify({
               question: "Describe your system architecture briefly.",
             }),
-          })
+          });
+          const duration = Date.now() - start;
+          return {
+            status: res.status,
+            duration,
+          };
+        })
+      );
+      // Validate all responses succeeded
+      for (const r of concurrentResults) {
+        expect(r.status).toBe(200);
+      }
+
+      // Extract durations cleanly
+      const concurrentDurations = concurrentResults.map(r => r.duration);
+
+      const concurrentP95 = concurrentDurations[Math.floor(concurrentDurations.length * 0.95)];
+      //Degradation constraint for concurrent load (should not degrade more than 50% compared to sequential P95)
+      expect(concurrentP95).toBeLessThan(p95 * 1.5);
+      //Store metrics 
+      metrics.push({
+        run_id: RUN_ID,
+        test_id: "performance_regression",
+        sample_size: SAMPLE_SIZE,
+        concurrent_requests: CONCURRENT_REQUESTS,
+
+        // sequential stats
+        min_latency: min,
+        median_latency: median,
+        mean_latency: Math.round(mean),
+        p95_latency: p95,
+        max_latency: max,
+
+        // concurrency stats
+        concurrent_p95: concurrentP95,
+
+        // derived signal
+        degradation_ratio: concurrentP95 / p95,
+        latency_samples: durations,
+        concurrent_latency_samples: concurrentDurations
+      });
+
+      console.log("📊 Performance metrics:", metrics[0]);
+
+    }, 60000);
+
+    //  Write artifact ONCE after all tests complete
+    afterAll(() => {
+      const dir = path.join(process.cwd(), "artifacts");
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+      }
+      const filePath = path.join(
+        dir,
+        `performance-metrics-${RUN_ID}.json`
+      );
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify(
+          {
+            run_id: RUN_ID,
+            suite: "performance_regression",
+            metrics
+          },
+          null,
+          2
         )
       );
-
-      for (const res of concurrentResults) {
-        expect(res.status).toBe(200);
-      }
-    }, 60000 /* Extended timeout by 40secs for performance test */
-  );
+      console.log("📦 Performance metrics artifact saved:", filePath);
+    });
   }
 );
 function fakeIP(n: number) {

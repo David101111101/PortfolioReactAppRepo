@@ -3,14 +3,6 @@
 	"name": "portfolio-chatbot",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-02-19",
-	"migrations": [
-		{
-			"new_sqlite_classes": [
-				"RateLimiter"
-			],
-			"tag": "v1"
-		}
-	],
 	"durable_objects": {
 		"bindings": [
 			{
@@ -19,11 +11,14 @@
 			}
 		]
 	},
-	"vars": {
-		"OPENAI_API_KEY": "",
-		"SUPABASE_URL": "",
-		"SUPABASE_SERVICE_ROLE_KEY": ""
-	},
+	"migrations": [
+		{
+			"new_sqlite_classes": [
+				"RateLimiter"
+			],
+			"tag": "v1"
+		}
+	],
 	"observability": {
 		"enabled": true
 	},
