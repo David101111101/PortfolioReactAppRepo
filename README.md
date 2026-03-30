@@ -3,6 +3,7 @@
 [![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
 [![PR Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml/badge.svg?branch=FIX-CI-Regression-Suite-environment-variable-fix)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml) 
 [![Deployment Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml)
+[![Lint Quality Gate](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/lint-quality-gate.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/lint-quality-gate.yml)
 
 
 This project focuses on building a production-ready QA automation strategy for RAG chatbot reliability, prompt-safety validation, and regression monitoring.
