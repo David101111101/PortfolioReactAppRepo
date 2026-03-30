@@ -120,6 +120,35 @@ jobs:
           cd portfolio-chatbot
           node scripts/upload-metrics.js
 
+      - name: Fetch regression summary
+        id: summary
+        run: |
+          node << 'EOF'
+          const SUPABASE_URL = process.env.SUPABASE_URL;
+          const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+          async function main() {
+            const res = await fetch(
+              `${SUPABASE_URL}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=1`,
+              {
+                headers: {
+                  apikey: SUPABASE_KEY,
+                  Authorization: `Bearer ${SUPABASE_KEY}`
+                }
+              }
+            );
+
+            const data = await res.json();
+            const r = data[0];
+
+            console.log(`p95=${r.p95_latency}`);
+            console.log(`confidence=${r.avg_confidence}`);
+            console.log(`enforcement=${r.enforcement_rate}`);
+          }
+
+          main();
+          EOF
+
       # Dashboard
       - name: Compare with previous runs from DB
         id: dbcompare
@@ -211,8 +240,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚀 Release Confidence" >> $GITHUB_STEP_SUMMARY
 
+          echo "### 📊 Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- P95 latency: ${{ steps.summary.outputs.p95 }} ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Avg confidence: ${{ steps.summary.outputs.confidence }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rate limit enforcement: ${{ steps.summary.outputs.enforcement }}" >> $GITHUB_STEP_SUMMARY
+
           if [ "$REGRESSION_STATUS" = "PASS" ]; then
             echo "✅ System is stable across retrieval, performance, and abuse protection" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Regression detected — investigation required" >> $GITHUB_STEP_SUMMARY
           fi
+

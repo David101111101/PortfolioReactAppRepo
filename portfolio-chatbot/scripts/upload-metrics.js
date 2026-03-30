@@ -94,6 +94,11 @@ async function uploadRetrieval(metrics) {
   }
 }
 
+async function uploadRateLimit(metrics) {
+  for (const m of metrics) {
+    await insert("rate_limit_metrics", m);
+  }
+}
 /**
  * Upload test_results summary
  */
@@ -144,8 +149,10 @@ function computeReliability(artifacts) {
 
     if (a.suite === "rate_limit_regression") {
       const m = a.metrics[0];
-      if (m.threshold_drift > 3) rateLimitScore -= 20;
-      if (m.enforcement_rate < 0.1) rateLimitScore -= 20;
+      if (m.enforcement_rate < 0.3) rateLimitScore -= 10;
+      if (m.enforcement_rate < 0.1) rateLimitScore -= 10;
+      if (m.threshold_drift > 1) rateLimitScore -= 10;
+      if (m.threshold_drift > 3) rateLimitScore -= 10;
     }
   }
   
@@ -162,7 +169,8 @@ function computeReliability(artifacts) {
 
 async function uploadPerformance(metrics) {
   for (const m of metrics) {
-    await insert("performance_metrics", m);
+    const { test_id, ...payload } = m;
+    await insert("performance_metrics", payload);
   }
 }
 
@@ -223,6 +231,9 @@ async function main() {
     }
     if (artifact.suite === "performance_regression") {
     await uploadPerformance(artifact.metrics);
+    }
+    if (artifact.suite === "rate_limit_regression") {
+      await uploadRateLimit(artifact.metrics);
     }
     await uploadTestResult(artifact.suite, artifact.metrics);
   }
