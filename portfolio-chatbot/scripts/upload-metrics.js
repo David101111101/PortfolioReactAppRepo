@@ -90,14 +90,29 @@ async function createTestRun() {
  */
 async function uploadRetrieval(metrics) {
   for (const m of metrics) {
-    await insert("retrieval_metrics", m);
+    const payload = {
+      run_id: RUN_ID,
+      query: m.query,
+      overlap_ratio: m.overlap_ratio,
+      rank_shift: m.rank_shift,
+      confidence: m.confidence
+    };
+
+    await insert("retrieval_metrics", payload);
   }
 }
 
 async function uploadRateLimit(metrics) {
   for (const m of metrics) {
-    const { test_id, ...payload } = m;
-    await insert("rate_limit_metrics", m);
+    const payload = {
+      run_id: RUN_ID,
+      total_requests: m.total_requests,
+      total_429: m.total_429,
+      enforcement_rate: m.enforcement_rate,
+      first_429_index: m.first_429_index,
+      threshold_drift: m.threshold_drift
+    };
+    await insert("rate_limit_metrics", payload);
   }
 }
 /**
@@ -106,7 +121,7 @@ async function uploadRateLimit(metrics) {
 async function uploadTestResult(suite, metrics) {
   const status = "passed"; // since test already passed
   const duration = metrics.reduce(
-  (acc, m) => acc + (m.mean_latency * m.sample_size),
+  (acc, m) => acc + ((m.mean_latency || 0) * (m.sample_size || 0)),
   0
   );
 
@@ -170,7 +185,13 @@ function computeReliability(artifacts) {
 
 async function uploadPerformance(metrics) {
   for (const m of metrics) {
-    const { test_id, ...payload } = m;
+    const payload = {
+      run_id: RUN_ID,
+      p95_latency: m.p95_latency,
+      degradation_ratio: m.degradation_ratio,
+      concurrent_p95: m.concurrent_p95
+    };
+
     await insert("performance_metrics", payload);
   }
 }
