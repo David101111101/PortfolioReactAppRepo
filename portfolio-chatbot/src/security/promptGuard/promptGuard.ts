@@ -36,13 +36,16 @@ export function inspectPrompt(input: string): GuardResult {
   }
 
   // High symbol density detection
-  const highSymbolDensity = /[^a-z0-9\s]{10,}/;
+  // Allow Latin letters, digits, CJK (Chinese, Japanese, Korean), and Indic (Devanagari) characters
+  const highSymbolDensity = /[^\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u0900-\u097Fa-z0-9\s]{7,}/i;
+
   if (highSymbolDensity.test(normalized)) {
     return {
       allowed: false,
       category: "HIGH_SYMBOL_DENSITY",
     };
   }
+
   // PII detection
     for (const pattern of piiPatterns) {
       if (pattern.test(input)) {
