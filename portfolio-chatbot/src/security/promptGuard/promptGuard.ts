@@ -36,10 +36,19 @@ export function inspectPrompt(input: string): GuardResult {
   }
 
   // High symbol density detection
-  // Allow Latin letters, digits, and CJK (Chinese, Japanese, Korean) characters
-  const highSymbolDensity = /[^\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AFa-z0-9\s]{7,}/i;
+  /**
+ * Detects abnormal symbol density while allowing all human languages
+ */
+  function hasHighSymbolDensity(input: string): boolean {
+    if (!input) return false;
 
-  if (highSymbolDensity.test(normalized)) {
+    const nonAlphaNumericCount = input.replace(/[\p{L}\p{N}\s]/gu, "").length;
+    const ratio = nonAlphaNumericCount / input.length;
+
+    return ratio > 0.4;
+  }
+
+  if (hasHighSymbolDensity(normalized)) {
     return {
       allowed: false,
       category: "HIGH_SYMBOL_DENSITY",
