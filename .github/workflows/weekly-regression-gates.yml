@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   checks: write
   issues: write
 
@@ -265,6 +265,28 @@ jobs:
               `risky_languages=${riskyLangs.join(",") || "none"}\n`
             );
 
+            const weakest = langs.reduce((min, l) =>
+              l.min_confidence < min.min_confidence ? l : min
+            );
+
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              `weakest_language=${weakest.language} (${weakest.min_confidence})\n`
+            );
+            
+            const history = await fetchJSON(
+              `${SUPABASE_URL}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=5`
+            );
+
+            const trendLines = history.map(r => {
+              const date = new Date(r.run_timestamp).toISOString().slice(5, 10); // MM-DD
+              return `${date} | Latency:${r.p95_latency}ms | Confidence:${Math.round(r.avg_confidence)} | Reliability:${r.reliability_score}`;
+            }).join(" || ");
+
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              `trend_snapshot=${trendLines}\n`
+            );
 
             const data = await fetchJSON(
               `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
@@ -408,17 +430,54 @@ jobs:
           echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
           echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY
           echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
+          # Core interpretation
+          if [ "$STATUS" = "FAIL" ]; then
+            echo "- ❌ System instability detected during scheduled regression run" >> $GITHUB_STEP_SUMMARY
+
+          elif [[ "$MIN_CONF" != "N/A" ]] && (( $(echo "$MIN_CONF < 70" | bc -l) )); then
+            echo "- ⚠️ Retrieval quality degradation detected (affecting worst-case users)" >> $GITHUB_STEP_SUMMARY
+
+          elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
+            echo "- ⚠️ Performance or behavior drift detected vs historical baseline" >> $GITHUB_STEP_SUMMARY
+
+          else
+            echo "- ✅ System stable: no significant drift in performance or retrieval quality" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Signal: ${SIGNAL:-none} | Worst-case confidence: ${MIN_CONF} | P95 latency: ${LATENCY} ms" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🧠 What Changed" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.dbcompare.outputs.latency_pct }}" != "N/A" ]; then
-            LAT_PCT=$(printf "%.2f" $(echo "${{ steps.dbcompare.outputs.latency_pct }} * 100" | bc -l))
+          LATENCY_PCT="${{ steps.dbcompare.outputs.latency_pct }}"
+
+          if [[ -n "$LATENCY_PCT" && "$LATENCY_PCT" != "N/A" ]]; then
+            LAT_PCT=$(printf "%.2f" $(echo "$LATENCY_PCT * 100" | bc -l))
           else
             LAT_PCT="N/A"
           fi
           echo "- Latency: ${{ steps.dbcompare.outputs.p95_latency }} ms" >> $GITHUB_STEP_SUMMARY
           echo "- Change: ${LAT_PCT}% vs baseline (${{ steps.dbcompare.outputs.prev_latency }} ms)" >> $GITHUB_STEP_SUMMARY
-          echo "- Reliability: ${{ steps.dbcompare.outputs.reliability_delta }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Reliability Δ: ${{ steps.dbcompare.outputs.reliability_delta }}" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📉 Last 5 Runs Trend" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.dbcompare.outputs.trend_snapshot }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📈 Trend Insight" >> $GITHUB_STEP_SUMMARY
+
+          TREND="${{ steps.dbcompare.outputs.trend }}"
+          SEVERITY="${{ steps.dbcompare.outputs.severity }}"
+
+          if [ "$TREND" = "improving" ]; then
+            echo "- 📈 System improving over recent runs" >> $GITHUB_STEP_SUMMARY
+
+          elif [ "$TREND" = "degrading" ]; then
+            echo "- 📉 System showing degradation trend across recent runs" >> $GITHUB_STEP_SUMMARY
+
+          elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
+            echo "- ⚠️ Instability detected in recent runs" >> $GITHUB_STEP_SUMMARY
+
+          else
+            echo "- ➖ System stable with no significant trend shift" >> $GITHUB_STEP_SUMMARY
+          fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ⚠️ Anomaly Detection" >> $GITHUB_STEP_SUMMARY
@@ -431,15 +490,28 @@ jobs:
           echo "### 🧠 LLM Retrieval Quality" >> $GITHUB_STEP_SUMMARY
           echo "- Avg Confidence: ${{ steps.dbcompare.outputs.avg_confidence }}" >> $GITHUB_STEP_SUMMARY
           echo "- Min Confidence (worst case): ${{ steps.dbcompare.outputs.min_confidence }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Δ Confidence: ${{ steps.dbcompare.outputs.confidence_delta }} ($(echo "${{ steps.dbcompare.outputs.confidence_pct }} * 100" | bc)%)" >> $GITHUB_STEP_SUMMARY
+          CONF_PCT="${{ steps.dbcompare.outputs.confidence_pct }}"
+
+          if [[ -n "$CONF_PCT" && "$CONF_PCT" != "N/A" ]]; then
+            CONF_DELTA=$(printf "%.2f" $(echo "$CONF_PCT * 100" | bc -l))
+          else
+            CONF_DELTA="N/A"
+          fi
+
+          echo "- Δ Confidence: ${{ steps.dbcompare.outputs.confidence_delta }} (${CONF_DELTA}%)" >> $GITHUB_STEP_SUMMARY
 
           echo "### 🌍 Multilingual Retrieval stats" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.dbcompare.outputs.languages }}" >> $GITHUB_STEP_SUMMARY
 
-          if (( $(echo "${{ steps.dbcompare.outputs.min_confidence }} < 40" | bc -l) )); then
+          MIN_CONF="${{ steps.dbcompare.outputs.min_confidence }}"
+
+          if [[ "$MIN_CONF" != "N/A" ]] && (( $(echo "$MIN_CONF < 40" | bc -l) )); then
             echo "### 🚨 Risk Indicator" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚠️ Low-confidence retrieval detected → potential incorrect answers in some queries" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ Low-confidence retrieval detected → potential incorrect answers in some languages" >> $GITHUB_STEP_SUMMARY
             echo "- Risky Languages: ${{ steps.dbcompare.outputs.risky_languages }}" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ Weakest language: ${{ steps.dbcompare.outputs.weakest_language }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ Consistent answer quality across supported languages" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ job.status }}" != "success" ]; then
@@ -472,18 +544,6 @@ jobs:
           echo "REPORT<<EOF" >> $GITHUB_ENV
           echo "$REPORT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
-      - name: Post regression report to commit
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = `## 🧠 Weekly AI Regression Report\n\n${process.env.REPORT}`;
-            await github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body
-            });
 
       - name: Create weekly regression report issue
         uses: actions/github-script@v7
