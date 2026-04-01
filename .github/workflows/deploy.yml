@@ -152,13 +152,13 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
       
-      # Enforce flaky budget (e.g. no more than 5 flaky tests allowed)
+      # Enforce flaky budget (No more than 3 flaky tests allowed)
       - name: Enforce flaky budget
         if: always()
         run: |
           if [ -f metrics/flaky.json ]; then
             FLAKY=$(jq .flaky metrics/flaky.json)
-            if [ "$FLAKY" -gt 4 ]; then
+            if [ "$FLAKY" -gt 3 ]; then
               echo "Too many flaky tests"
               exit 1
             fi

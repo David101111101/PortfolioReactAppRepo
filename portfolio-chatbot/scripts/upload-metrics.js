@@ -147,11 +147,15 @@ function computeReliability(artifacts) {
   for (const a of artifacts) {
 
     if (a.suite === "retrieval_regression") {
+      let minConfidence = 100;
       for (const m of a.metrics) {
+        minConfidence = Math.min(minConfidence, m.confidence);
         if (m.overlap_ratio < 0.5) retrievalScore -= 15;
         if (m.rank_shift > 3) retrievalScore -= 15;
-        if (m.confidence < 30) retrievalScore -= 10;
+        if (m.confidence < 40) retrievalScore -= 15; // stronger penalty
+        if (m.confidence < 25) retrievalScore -= 10; // critical failure
       }
+      if (minConfidence < 40) retrievalScore -= 20;
     }
 
     if (a.suite === "performance_regression") {
@@ -165,6 +169,10 @@ function computeReliability(artifacts) {
 
     if (a.suite === "rate_limit_regression") {
       const m = a.metrics[0];
+      const first = m.first_429_index;
+       // 🔥 correctness evaluation
+      if (first < 6) rateLimitScore -= 15; // too aggressive
+      else if (first > 12) rateLimitScore -= 15; // too lenient
       if (m.enforcement_rate < 0.3) rateLimitScore -= 10;
       if (m.enforcement_rate < 0.1) rateLimitScore -= 10;
       if (m.threshold_drift > 1) rateLimitScore -= 10;

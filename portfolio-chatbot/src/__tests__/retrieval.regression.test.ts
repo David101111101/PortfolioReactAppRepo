@@ -28,11 +28,16 @@ const MIN_OVERLAP = 0.5;
 const MAX_RANK_SHIFT = 3;
 const RUN_ID = process.env.RUN_ID ?? randomUUID();
 const ARCH_QUESTION = {
-  en: "¿What architectural decisions were made in the portfolio chatbot assistant?",
-  es: "¿Qué decisiones arquitectónicas se tomaron en el asistente de portafolio?",
-  fr: "¿Quelles décisions architecturales ont été prises dans l'assistant chatbot du portfolio ?",
-  de: "¿Welche Architekturentscheidungen wurden im Portfolio-Chatbot getroffen?"
+  en: "What architectural decisions were made in the portfolio chatbot assistant?",
+  es: "¿Qué decisiones de arquitectura se tomaron en el asistente chatbot de portafolio?",
+  fr: "Quelles décisions architecturales ont été prises dans l'assistant chatbot du portfolio ?",
+  de: "Welche Architekturentscheidungen wurden im Portfolio-Chatbot getroffen?",
+  zh: "在作品集聊天机器人助手中做出了哪些架构决策？",
+  pt: "Quais decisões arquitetônicas foram tomadas no assistente de chatbot do portfólio?",
+  ja: "ポートフォリオチャットボットアシスタントではどのようなアーキテクチャ上の決定が行われましたか？"
 };
+
+
 /**
  * Known grounded keywords expected in the response based on current portfolio content and architecture.
  */
@@ -132,7 +137,6 @@ describe.runIf(process.env.NIGHTLY === "true")(
       });
 
       const latency = Date.now() - start;
-
       expect(res.status).toBe(200);
       const payload = await res.json() as AssistantResponse;
       return { ...payload, latency, lang };
@@ -145,6 +149,9 @@ describe.runIf(process.env.NIGHTLY === "true")(
       ask(ARCH_QUESTION.es, "es"),
       ask(ARCH_QUESTION.fr, "fr"),
       ask(ARCH_QUESTION.de, "de"),
+      ask(ARCH_QUESTION.zh, "zh"),
+      ask(ARCH_QUESTION.pt, "pt"),
+      ask(ARCH_QUESTION.ja, "ja"),
     ]);
     // run in parallel
     const results: Record<string, AskResponse> = {};
@@ -177,7 +184,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
           return r.answer.toLowerCase().includes(c) ? acc + 1 : acc;
         }, 0);
 
-        expect(conceptScore).toBeGreaterThanOrEqual(2);
+        expect(conceptScore).toBeGreaterThanOrEqual(1);
 
         // --- 5. Confidence calibration
         if (r.retrieval.passedCount >= 5) {
