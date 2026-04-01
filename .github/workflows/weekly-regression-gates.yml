@@ -442,23 +442,28 @@ jobs:
             echo "- Risky Languages: ${{ steps.dbcompare.outputs.risky_languages }}" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🧩 Root Cause Analysis" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" != "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🧩 Root Cause Analysis" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.dbcompare.outputs.signal }}" = "system_degradation" ]; then
-            echo "- System degradation detected: latency increase correlates with retrieval confidence degradation" >> $GITHUB_STEP_SUMMARY
-            echo "- Likely root cause: backend latency impacting ranking quality" >> $GITHUB_STEP_SUMMARY
+            SIGNAL="${{ steps.dbcompare.outputs.signal }}"
 
-          elif [ "${{ steps.dbcompare.outputs.signal }}" = "latency_regression" ]; then
-            echo "- Backend performance regression detected" >> $GITHUB_STEP_SUMMARY
-            echo "- Monitor API response time and infrastructure load" >> $GITHUB_STEP_SUMMARY
+            if [ -z "$SIGNAL" ]; then
+              echo "- ❌ Pipeline failure (API/infra), not a regression signal" >> $GITHUB_STEP_SUMMARY
+              echo "- Check failed step logs for root cause" >> $GITHUB_STEP_SUMMARY
 
-          elif [ "${{ steps.dbcompare.outputs.signal }}" = "retrieval_regression" ]; then
-            echo "- LLM Retrieval quality degraded independently of latency" >> $GITHUB_STEP_SUMMARY
-            echo "- Possible embedding drift or ranking logic issue" >> $GITHUB_STEP_SUMMARY
+            elif [ "$SIGNAL" = "system_degradation" ]; then
+              echo "- System degradation detected: latency increase correlates with retrieval confidence degradation" >> $GITHUB_STEP_SUMMARY
 
-          else
-            echo "- System stable across performance, retrieval, and rate limiting signals" >> $GITHUB_STEP_SUMMARY
+            elif [ "$SIGNAL" = "latency_regression" ]; then
+              echo "- Backend performance regression detected" >> $GITHUB_STEP_SUMMARY
+
+            elif [ "$SIGNAL" = "retrieval_regression" ]; then
+              echo "- Retrieval quality regression detected (independent of latency)" >> $GITHUB_STEP_SUMMARY
+
+            else
+              echo "- Regression signal detected: $SIGNAL" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
       
       - name: Capture report

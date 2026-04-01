@@ -137,7 +137,10 @@ describe.runIf(process.env.NIGHTLY === "true")(
       });
 
       const latency = Date.now() - start;
-      expect(res.status).toBe(200);
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`API failed: ${res.status} - ${body}`);
+      }
       const payload = await res.json() as AssistantResponse;
       return { ...payload, latency, lang };
     }
@@ -225,7 +228,8 @@ it("should not hallucinate when knowledge is absent", async () => {
     const answerLower = probe.answer.toLowerCase();
 
       // --- Must explicitly deny unsupported knowledge
-      expect(answerLower).toMatch(/(not|no|does not|did not).*kubernetes/);
+      expect(answerLower).toMatch(/(not|no|does not|did not|doesn't|didn't).*kubernetes/);
+
 
       // --- Must not hallucinate usage
       expect(answerLower).not.toContain("kubernetes cluster was used");
