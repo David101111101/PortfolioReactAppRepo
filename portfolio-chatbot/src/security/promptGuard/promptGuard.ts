@@ -40,10 +40,10 @@ export function inspectPrompt(input: string): GuardResult {
  * Detects abnormal symbol density while allowing all human languages
  */
   function hasHighSymbolDensity(input: string): boolean {
-    if (!input) return false;
+    if (!input || input.length < 20) return false;
 
-    const nonAlphaNumericCount = input.replace(/[\p{L}\p{N}\s]/gu, "").length;
-    const ratio = nonAlphaNumericCount / input.length;
+    const nonTextCount = input.replace(/[\p{L}\p{N}\p{P}\s]/gu, "").length;
+    const ratio = nonTextCount / input.length;
 
     return ratio > 0.4;
   }
