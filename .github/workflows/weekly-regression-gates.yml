@@ -259,7 +259,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `flakiness_pct=${f?.flakiness_pct ?? 0}\n`);
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `flaky_tests=${flakyList}\n`
+              `flaky_tests=${z}\n`
             );
 
             const langs = await safeFetch(
@@ -303,9 +303,9 @@ jobs:
             );
 
             const trendLines = history.map(r => {
-              const date = new Date(r.run_timestamp).toISOString().slice(5, 10); // MM-DD
-              return `${date} | Latency:${r.p95_latency}ms | Confidence:${Math.round(r.avg_confidence)} | Reliability:${r.reliability_score}`;
-            }).join(" || ");
+              const date = new Date(r.run_timestamp).toISOString().slice(5, 10);
+              return `- ${date} | Latency:${r.p95_latency}ms | Confidence:${Math.round(r.avg_confidence)} | Reliability:${r.reliability_score}`;
+            }).join("\n");
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
@@ -470,7 +470,7 @@ jobs:
             echo "- ❌ System instability detected during scheduled regression run" >> $GITHUB_STEP_SUMMARY
 
           elif [[ -n "$MIN_CONF" && "$MIN_CONF" != "N/A" ]] && awk "BEGIN {exit !($MIN_CONF < 70)}"; then
-            echo "- ⚠️ Retrieval quality degradation detected (affecting worst-case users)" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ Retrieval degradation detected → lowest ranking language: ${{ steps.dbcompare.outputs.weakest_language }} /100" >> $GITHUB_STEP_SUMMARY
 
           elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
             echo "- ⚠️ Performance or behavior drift detected vs historical baseline" >> $GITHUB_STEP_SUMMARY
@@ -478,7 +478,7 @@ jobs:
           else
             echo "- ✅ System stable: no significant drift in performance or retrieval quality" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "- Signal: ${SIGNAL:-none} | Worst-case confidence: ${MIN_CONF} | P95 latency: ${LATENCY} ms" >> $GITHUB_STEP_SUMMARY
+          $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🧠 What Changed" >> $GITHUB_STEP_SUMMARY
@@ -491,7 +491,13 @@ jobs:
           fi
           echo "- Latency: ${{ steps.dbcompare.outputs.p95_latency }} ms" >> $GITHUB_STEP_SUMMARY
           echo "- Change: ${LAT_PCT}% vs baseline (${{ steps.dbcompare.outputs.prev_latency }} ms)" >> $GITHUB_STEP_SUMMARY
-          echo "- Reliability Δ: ${{ steps.dbcompare.outputs.reliability_delta }}" >> $GITHUB_STEP_SUMMARY
+          REL_DELTA="${{ steps.dbcompare.outputs.reliability_delta }}"
+
+          if [ "$REL_DELTA" = "0" ]; then
+            echo "- Reliability: stable vs previous run 👌" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Reliability increased: $REL_DELTA" >> $GITHUB_STEP_SUMMARY
+          fi
           
           echo "### 📉 Last 5 Runs Trend" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.dbcompare.outputs.trend_snapshot }}" >> $GITHUB_STEP_SUMMARY
@@ -570,10 +576,15 @@ jobs:
       
       - name: Capture report
         run: |
-          REPORT="$(cat $GITHUB_STEP_SUMMARY)"
-          echo "REPORT<<EOF" >> $GITHUB_ENV
-          echo "$REPORT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          {
+            echo "REPORT<<EOF"
+            cat "$GITHUB_STEP_SUMMARY"
+            echo "EOF"
+          } >> $GITHUB_ENV
+
+      - name: Debug REPORT
+        run: |
+          echo "$REPORT"
 
       - name: Create weekly regression report issue
         uses: actions/github-script@v7

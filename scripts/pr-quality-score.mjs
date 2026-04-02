@@ -43,7 +43,7 @@ else if (score < 85) verdict = "👍 Good";
 
 const breakdown = `
 - E2E: ${e2e.e2e === "pass" ? "✅" : "❌"}
-- Accessibility: ${a11y.axeCritical === 0 ? "✅" : "⚠️"}
+- Accessibility: ${a11y.axeCritical === 0 ? "✅" : "⚠️ (" + a11y.axeCritical + ")"}
 - Lighthouse: ${lh.score}
 - Bundle: ${bundle.bundleKB} KB
 - Duration: ${dur.durationSec}s

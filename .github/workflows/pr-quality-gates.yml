@@ -107,7 +107,7 @@ jobs:
       
       - name: Measure bundle size
         run: |
-          SIZE=$(du -sk dist | cut -f1)
+          SIZE=$(find dist/assets -name "*.js" -exec du -k {} + | awk '{sum+=$1} END {print sum}')  
           mkdir -p metrics
           echo "{ \"bundleKB\": $SIZE }" > metrics/bundle.json
 
@@ -118,6 +118,7 @@ jobs:
           path: metrics/bundle.json    
 
       - name: Run Playwright tests
+        id: playwright
         run: npx playwright test --project=chromium
 
       - name: Write accessibility metrics
@@ -126,6 +127,12 @@ jobs:
           mkdir -p metrics
           echo "{ \"axeCritical\": ${AXE_CRITICAL_COUNT:-0} }" > metrics/a11y.json
 
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: metrics-a11y
+          path: metrics/a11y.json
+
       - name: Publish test results (JUnit → GitHub UI)
         if: always()
         uses: dorny/test-reporter@v1
@@ -133,17 +140,6 @@ jobs:
           name: Junit Report
           path: playwright-report/junit.xml
           reporter: java-junit
-
-      - name: Compute PR Quality Score
-        run: |
-          mkdir -p summaries
-          node scripts/pr-quality-score.mjs
-
-      - name: Upload quality score
-        uses: actions/upload-artifact@v5
-        with:
-          name: summary-quality-score
-          path: summaries/quality-score.md
 
       - name: Write summary snippet
         if: always()
@@ -157,6 +153,13 @@ jobs:
           name: pw-summary-chromium
           path: summaries/chromium.md
 
+      - name: Capture duration
+        if: always()
+        run: |
+          END=$(date +%s)
+          DURATION=$((END-START))
+          mkdir -p metrics
+          echo "{ \"durationSec\": $DURATION }" > metrics/duration.json
 
       - name: Upload Playwright artifacts
         if: failure()
@@ -171,7 +174,7 @@ jobs:
         if: always()
         run: |
           mkdir -p metrics
-          if [ "${{ job.status }}" = "success" ]; then
+          if [ "${{ steps.playwright.outcome }}" = "success" ]; then
             echo '{ "e2e":"pass" }' > metrics/e2e.json
           else
             echo '{ "e2e":"fail" }' > metrics/e2e.json
@@ -189,13 +192,6 @@ jobs:
           name: metrics-duration
           path: metrics/duration.json
       
-      - name: Capture duration
-        if: always()
-        run: |
-          END=$(date +%s)
-          DURATION=$((END-START))
-          mkdir -p metrics
-          echo "{ \"durationSec\": $DURATION }" > metrics/duration.json
   # ==============================
   # 3️⃣ Lighthouse - Performance & Accessibility Gate
   # ==============================
@@ -250,11 +246,45 @@ jobs:
         with:
           name: lighthouse-report
           path: .lighthouseci
+        
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: metrics-lighthouse
+          path: metrics/lighthouse.json
+  
+  quality-score:
+    name: Compute PR Quality Score
+    runs-on: ubuntu-latest
+    needs: [e2e, lighthouse]
+
+    steps:
+      - name: Download metrics
+        uses: actions/download-artifact@v5
+        with:
+          pattern: "*"
+          merge-multiple: true
+          path: metrics
+      
+      - name: Flatten metrics
+        run: |
+          find metrics -type f -name "*.json" -exec cp {} metrics/ \;
+
+      - name: Compute score
+        run: |
+          mkdir -p summaries
+          node scripts/pr-quality-score.mjs
+
+      - name: Upload quality score
+        uses: actions/upload-artifact@v5
+        with:
+          name: summary-quality-score
+          path: summaries/quality-score.md
     
 
   pr-comment:
     if: ${{ always() && github.event_name == 'pull_request' }} #Only run for PRs
-    needs: [e2e, lighthouse]
+    needs: [quality-score]
     runs-on: ubuntu-latest
     steps:
       - name: Download summaries
@@ -267,7 +297,7 @@ jobs:
       - name: Download metrics
         uses: actions/download-artifact@v5
         with:
-          pattern: metrics-*
+          pattern: "*"
           merge-multiple: true
           path: metrics
 

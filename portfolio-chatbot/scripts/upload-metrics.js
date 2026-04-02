@@ -92,10 +92,16 @@ async function uploadRetrieval(metrics) {
   for (const m of metrics) {
     const payload = {
       run_id: RUN_ID,
-      query: m.query,
+      test_id: m.test_id,
+      language: m.language,
+      avg_similarity: m.avg_similarity,
+      max_similarity: m.max_similarity,
+      passed_count : m.passed_count,
       overlap_ratio: m.overlap_ratio,
       rank_shift: m.rank_shift,
-      confidence: m.confidence
+      concept_score: m.concept_score,
+      latency_ms: m.latency_ms,
+      confidence: m.confidence,
     };
 
     await insert("retrieval_metrics", payload);
@@ -124,14 +130,25 @@ async function uploadTestResult(suite, metrics) {
   (acc, m) => acc + ((m.mean_latency || 0) * (m.sample_size || 0)),
   0
   );
+  let failureType = null;
 
+  if (suite === "retrieval_regression") {
+    const minConfidence = Math.min(...metrics.map(m => m.confidence));
+    if (minConfidence < 40) failureType = "low_confidence";
+  }
+
+  if (suite === "performance_regression") {
+    const m = metrics[0];
+    if (m.degradation_ratio > 1.5) failureType = "latency_degradation";
+  }
+  
   await insert("test_results", {
     run_id: RUN_ID,
     test_id: suite,
     suite,
     status,
     duration,
-    failure_type: null,
+    failure_type: failureType,
     is_flaky: false
   });
 }
@@ -195,9 +212,17 @@ async function uploadPerformance(metrics) {
   for (const m of metrics) {
     const payload = {
       run_id: RUN_ID,
+      sample_size: m.sample_size,
+      concurrent_requests: m.concurrent_requests,
+      min_latency: m.min_latency,
+      median_latency: m.median_latency,
+      mean_latency: m.mean_latency,
       p95_latency: m.p95_latency,
+      max_latency: m.max_latency,
+      concurrent_p95: m.concurrent_p95,
       degradation_ratio: m.degradation_ratio,
-      concurrent_p95: m.concurrent_p95
+      latency_samples: m.latency_samples,
+      concurrent_latency_samples: m.concurrent_latency_samples
     };
 
     await insert("performance_metrics", payload);
