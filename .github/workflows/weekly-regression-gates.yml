@@ -407,14 +407,11 @@ jobs:
               }
             }
           };
+          main().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
           EOF
-
-      - name: Enforce regression gate
-        if: steps.regression_gate.outcome == 'failure'
-        continue-on-error: true
-        run: |
-          echo "🚨 Regression detected → blocking CI"
-          exit 1
 
       - name: Generating AI Regression Dashboard
         if: always()
@@ -431,10 +428,13 @@ jobs:
           echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY
           echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
           # Core interpretation
-          if [ "$STATUS" = "FAIL" ]; then
+          MIN_CONF="${{ steps.dbcompare.outputs.min_confidence }}"
+          LATENCY="${{ steps.dbcompare.outputs.p95_latency }}"
+          SIGNAL="${{ steps.dbcompare.outputs.signal }}"
+          if [ "$REGRESSION_STATUS" = "FAIL" ]; then
             echo "- ❌ System instability detected during scheduled regression run" >> $GITHUB_STEP_SUMMARY
 
-          elif [[ "$MIN_CONF" != "N/A" ]] && (( $(echo "$MIN_CONF < 70" | bc -l) )); then
+          elif [[ -n "$MIN_CONF" && "$MIN_CONF" != "N/A" ]] && awk "BEGIN {exit !($MIN_CONF < 70)}"; then
             echo "- ⚠️ Retrieval quality degradation detected (affecting worst-case users)" >> $GITHUB_STEP_SUMMARY
 
           elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
@@ -503,8 +503,6 @@ jobs:
           echo "### 🌍 Multilingual Retrieval stats" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.dbcompare.outputs.languages }}" >> $GITHUB_STEP_SUMMARY
 
-          MIN_CONF="${{ steps.dbcompare.outputs.min_confidence }}"
-
           if [[ "$MIN_CONF" != "N/A" ]] && (( $(echo "$MIN_CONF < 40" | bc -l) )); then
             echo "### 🚨 Risk Indicator" >> $GITHUB_STEP_SUMMARY
             echo "- ⚠️ Low-confidence retrieval detected → potential incorrect answers in some languages" >> $GITHUB_STEP_SUMMARY
@@ -552,7 +550,7 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "🧠 Weekly AI Regression Report",
+              title: `🧠 Weekly AI Quality Regression Report - ${process.env.REGRESSION_STATUS}`,
               body: process.env.REPORT
             });
 
