@@ -133,9 +133,17 @@ jobs:
           name: Junit Report
           path: playwright-report/junit.xml
           reporter: java-junit
-      
+
       - name: Compute PR Quality Score
-        run: node scripts/pr-quality-score.mjs >> comment.md
+        run: |
+          mkdir -p summaries
+          node scripts/pr-quality-score.mjs
+
+      - name: Upload quality score
+        uses: actions/upload-artifact@v5
+        with:
+          name: summary-quality-score
+          path: summaries/quality-score.md
 
       - name: Write summary snippet
         if: always()
@@ -267,7 +275,9 @@ jobs:
         run: |
           echo "## ✅ PR Quality Gate Results" > comment.md
           echo "" >> comment.md
-          cat summaries/*.md >> comment.md
+          cat summaries/quality-score.md >> comment.md
+          cat summaries/chromium.md >> comment.md
+          cat summaries/lighthouse.md >> comment.md
           echo "" >> comment.md
           echo "### 🔎 Lighthouse" >> comment.md
           echo "- See Lighthouse artifact in this workflow run (Scores + failing assertions are visible in the action UI)." >> comment.md

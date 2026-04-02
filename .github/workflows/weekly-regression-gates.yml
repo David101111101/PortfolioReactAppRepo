@@ -225,18 +225,36 @@ jobs:
 
             return res.json();
           }
+          async function safeFetch(url, fallback = []) {
+            try {
+              return await fetchJSON(url);
+            } catch (e) {
+              console.log(`⚠️ Warning: failed to fetch ${url}`);
+              console.log(e.message);
+              return fallback;
+            }
+          }
 
           async function main() {
             // 🔥 Query the interpretation posgress view layer (NOT raw tables)
-            const flakiness = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${RUN_ID}`
-            );
-
-            const flakyTests = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/test_flakiness?order=flakiness_pct.desc&limit=3`
+            const flakiness = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${RUN_ID}`,
+              []
             );
             const f = flakiness[0];
-            const flakyList = flakyTests.map(t => `${t.test_id} (${t.flakiness_pct}%)`).join(",");
+            const trend = await safeFetch(
+            `${SUPABASE_URL}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=3`,
+            []
+          );
+
+          const flakyList = trend
+          .map(t => {
+            const delta = t.flakiness_delta ?? 0;
+            const direction = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+            const date = t.run_timestamp ? t.run_timestamp.slice(5,10) : "N/A";
+            return `${date} (${t.flakiness_pct}% ${direction})`;
+          })
+          .join(", ");
 
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `flakiness_pct=${f?.flakiness_pct ?? 0}\n`);
             fs.appendFileSync(
@@ -244,8 +262,9 @@ jobs:
               `flaky_tests=${flakyList}\n`
             );
 
-            const langs = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${RUN_ID}`
+            const langs = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${RUN_ID}`,
+              []
             );
             const langSummary = langs
               .map(l => `${l.language}: avg=${l.avg_confidence}, min=${l.min_confidence}`)
@@ -265,17 +284,22 @@ jobs:
               `risky_languages=${riskyLangs.join(",") || "none"}\n`
             );
 
-            const weakest = langs.reduce((min, l) =>
-              l.min_confidence < min.min_confidence ? l : min
-            );
+            let weakest = { language: "N/A", min_confidence: "N/A" };
+
+            if (langs.length) {
+              weakest = langs.reduce((min, l) =>
+                l.min_confidence < min.min_confidence ? l : min
+              );
+            }
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
               `weakest_language=${weakest.language} (${weakest.min_confidence})\n`
             );
             
-            const history = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=5`
+            const history = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=5`,
+              []
             );
 
             const trendLines = history.map(r => {
@@ -288,8 +312,9 @@ jobs:
               `trend_snapshot=${trendLines}\n`
             );
 
-            const data = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
+            const data = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`,
+              []
             );
 
             if (!data.length) {
@@ -299,14 +324,18 @@ jobs:
               fs.appendFileSync(process.env.GITHUB_OUTPUT, "severity=N/A\n");
 
                 const defaults = {
-                  latency_delta: "N/A",
-                  latency_pct: "N/A",
-                  confidence_delta: "N/A",
-                  confidence_pct: "N/A",
-                  reliability_delta: "N/A",
-                  trend: "N/A",
-                  severity: "N/A",
-                  signal: "N/A"
+                    latency_delta: "N/A",
+                    latency_pct: "N/A",
+                    confidence_delta: "N/A",
+                    confidence_pct: "N/A",
+                    reliability_delta: "N/A",
+                    trend: "N/A",
+                    severity: "N/A",
+                    signal: "N/A",
+                    reliability_score: "N/A",
+                    avg_confidence: "N/A",
+                    min_confidence: "N/A",
+                    p95_latency: "N/A"
                 };
 
                 for (const [k, v] of Object.entries(defaults)) {
@@ -359,8 +388,9 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `baseline_deviation=N/A\n`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=N/A\n`);
 
-            const anomaly = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${RUN_ID}`
+            const anomaly = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${RUN_ID}`,
+              []
             );
 
             if (anomaly.length) {
@@ -427,10 +457,15 @@ jobs:
           echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
           echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY
           echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
+          if (( $(echo "${{ steps.dbcompare.outputs.flakiness_pct }} > 3" | bc -l) )); then
+            echo "- ⚠️ Elevated flakiness detected → investigate test stability or system intermittency" >> $GITHUB_STEP_SUMMARY
+          fi
           # Core interpretation
           MIN_CONF="${{ steps.dbcompare.outputs.min_confidence }}"
           LATENCY="${{ steps.dbcompare.outputs.p95_latency }}"
           SIGNAL="${{ steps.dbcompare.outputs.signal }}"
+          SEVERITY="${{ steps.dbcompare.outputs.severity }}"
+          TREND="${{ steps.dbcompare.outputs.trend }}"
           if [ "$REGRESSION_STATUS" = "FAIL" ]; then
             echo "- ❌ System instability detected during scheduled regression run" >> $GITHUB_STEP_SUMMARY
 
@@ -462,9 +497,6 @@ jobs:
           echo "${{ steps.dbcompare.outputs.trend_snapshot }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📈 Trend Insight" >> $GITHUB_STEP_SUMMARY
-
-          TREND="${{ steps.dbcompare.outputs.trend }}"
-          SEVERITY="${{ steps.dbcompare.outputs.severity }}"
 
           if [ "$TREND" = "improving" ]; then
             echo "- 📈 System improving over recent runs" >> $GITHUB_STEP_SUMMARY

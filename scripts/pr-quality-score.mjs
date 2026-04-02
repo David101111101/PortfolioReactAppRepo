@@ -36,4 +36,25 @@ else if (dur.durationSec < 420) score += 5;
 
 score = Math.max(0, Math.min(100, Math.round(score)));
 
-console.log(`### 🎯 PR Quality Score: ${score} / 100`);
+let verdict = "✅ Excellent";
+if (score < 50) verdict = "❌ Poor";
+else if (score < 70) verdict = "⚠️ Needs improvement";
+else if (score < 85) verdict = "👍 Good";
+
+const breakdown = `
+- E2E: ${e2e.e2e === "pass" ? "✅" : "❌"}
+- Accessibility: ${a11y.axeCritical === 0 ? "✅" : "⚠️"}
+- Lighthouse: ${lh.score}
+- Bundle: ${bundle.bundleKB} KB
+- Duration: ${dur.durationSec}s
+`;
+
+const output = `
+### 🎯 PR Quality Score: ${score} / 100
+**Verdict:** ${verdict}
+
+${breakdown}
+`;
+
+fs.writeFileSync("summaries/quality-score.md", output);
+console.log(output);
