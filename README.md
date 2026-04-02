@@ -12,14 +12,25 @@
 https://www.daveautomation.dev/
 
 
-This project is not only a QA automation suite. It is a production-grade quality intelligence system for non-deterministic AI RAG applications, where traditional pass/fail testing is not enough.
+This project is not only a QA Automation suite. It is a production-grade quality intelligence system for non-deterministic AI RAG applications, where traditional pass/fail testing is not enough.
 
 AI systems often fail in ways that are:
 - probabilistic: confidence drops instead of hard failures
 - silent: bad answers instead of crashes
 - gradual: performance and quality drift over time
 
-## Problem
+## How to Navigate This Project
+
+If you're a recruiter:
+→ Start with "Real-World Impact"
+
+If you're an engineer:
+→ Jump to "Architecture" and "CI/CD Testing Strategy"
+
+If you're interested in AI testing:
+→ Focus on "Signal-Based Quality Assessment" and "Weekly Regression"
+
+### Problem
 
 AI systems require custom validation and verification which evolves with each deploy
 
@@ -44,7 +55,7 @@ All of those signals are aggregated into a single decision layer:
 
 ### What Makes This Different
 
-Unlike traditional QA pipelines, this system moves from pass/fail to signal-based analysis.
+This system transforms QA Automation from verification and validation into a decision making analysis layer and enables teams to make release decisions based on measurable AI reliability instead of intuition.
 
 #### 1. Signal-Based Quality Assessment
 - confidence scores instead of binary-only assertions
@@ -95,7 +106,7 @@ This transforms QA from validation into decision-making.
 ### Real-World Impact
 
 This system helps teams:
-- detect silent AI regressions before users do
+- detect and log silent AI regressions before users do
 - understand why a regression happened
 - identify who is affected by the regression
 - track system health over time
