@@ -259,6 +259,7 @@ jobs:
     needs: [e2e, lighthouse]
 
     steps:
+      - uses: actions/checkout@v5 
       - name: Download metrics
         uses: actions/download-artifact@v5
         with:
