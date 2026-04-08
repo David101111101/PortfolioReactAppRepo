@@ -29,7 +29,7 @@ async function insert(table, payload) {
       "Content-Type": "application/json",
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
-      Prefer: "return=minimal",
+      Prefer: "return=representation",
     },
     body: JSON.stringify(payload),
   });
@@ -37,6 +37,7 @@ async function insert(table, payload) {
     const text = await res.text();
     throw new Error(`Insert failed (${table}): ${res.status} ${text}`);
   }
+  return res.json(); 
 }
 
 function loadArtifacts() {
@@ -76,8 +77,7 @@ async function main() {
   const reliability = computeReliability(all);
 
   // 1. Create test_runs parent entry
-  await insert("test_runs", {
-    id: RUN_ID,
+  const runInsert = await insert("test_runs", {
     workflow_name: `e2e_${BROWSER}`,
     environment: process.env.CI ? "ci" : "local",
     commit_sha: process.env.GITHUB_SHA ?? "local",
@@ -92,12 +92,14 @@ async function main() {
     release_confidence: reliability,
     workflow_type: WORKFLOW_TYPE,
   });
-  console.log("✅ test_run inserted:", RUN_ID);
+  const dbRunId = runInsert[0].id;
+
+  console.log("✅ test_run inserted:", dbRunId);
 
   // 2. Insert one test_results row per test
   for (const m of all) {
     await insert("test_results", {
-      run_id: RUN_ID,
+      run_id: dbRunId,
       test_id: m.test_id,
       suite: m.suite_name,
       status: m.status,

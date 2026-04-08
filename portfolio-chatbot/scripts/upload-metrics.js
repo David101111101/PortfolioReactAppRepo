@@ -16,6 +16,7 @@ dotenv.config();
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RUN_ID = process.env.RUN_ID;
+let dbRunId = null;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !RUN_ID) {
   console.error("❌ Missing required env variables");
@@ -30,7 +31,7 @@ async function insert(table, payload) {
       "Content-Type": "application/json",
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
-      Prefer: "return=minimal",
+      Prefer: "return=representation",
     },
     body: JSON.stringify(payload),
   });
@@ -39,6 +40,7 @@ async function insert(table, payload) {
     const text = await res.text();
     throw new Error(`Insert failed (${table}): ${res.status} ${text}`);
   }
+  return res.json();
 }
 
 /**
@@ -65,7 +67,6 @@ function loadArtifacts() {
  */
 async function createTestRun() {
   const payload = {
-    id: RUN_ID,
     workflow_name: "regression_quality_gate",
     environment: process.env.CI ? "ci" : "local",
     commit_sha: process.env.GITHUB_SHA ?? "local",
@@ -81,8 +82,9 @@ async function createTestRun() {
     workflow_type: process.env.WORKFLOW_TYPE ?? "unknown",
   };
 
-  await insert("test_runs", payload);
-  console.log("✅ test_run inserted:", RUN_ID);
+  const result = await insert("test_runs", payload);
+  dbRunId = result [0].id;
+  console.log("✅ test_run inserted:", dbRunId);
 }
 
 /**
@@ -91,7 +93,7 @@ async function createTestRun() {
 async function uploadRetrieval(metrics) {
   for (const m of metrics) {
     const payload = {
-      run_id: RUN_ID,
+      run_id: dbRunId,
       test_id: m.test_id,
       language: m.language,
       avg_similarity: m.avg_similarity,
@@ -111,7 +113,7 @@ async function uploadRetrieval(metrics) {
 async function uploadRateLimit(metrics) {
   for (const m of metrics) {
     const payload = {
-      run_id: RUN_ID,
+      run_id: dbRunId,
       total_requests: m.total_requests,
       total_429: m.total_429,
       enforcement_rate: m.enforcement_rate,
@@ -143,7 +145,7 @@ async function uploadTestResult(suite, metrics) {
   }
   
   await insert("test_results", {
-    run_id: RUN_ID,
+    run_id: dbRunId,
     test_id: suite,
     suite,
     status,
@@ -211,7 +213,7 @@ function computeReliability(artifacts) {
 async function uploadPerformance(metrics) {
   for (const m of metrics) {
     const payload = {
-      run_id: RUN_ID,
+      run_id: dbRunId,
       sample_size: m.sample_size,
       concurrent_requests: m.concurrent_requests,
       min_latency: m.min_latency,
@@ -250,7 +252,7 @@ async function finalizeRun(artifacts) {
   };
 
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/test_runs?id=eq.${RUN_ID}`,
+    `${SUPABASE_URL}/rest/v1/test_runs?id=eq.${dbRunId}`,
     {
       method: "PATCH",
       headers: {
