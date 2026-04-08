@@ -5,7 +5,7 @@ import { assertExternalLinkOpensCorrectly } from "../utils/assertExternalLink";
 test('Copy Email Header Button works', async ({ home, page }) => {
 // Copy email button: should copy to clipboard and change text
 await page.addInitScript(() => {
-  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
+  // Mock clipboard API for testing since Playwright doesn't have native clipboard support.
   //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
   const clipboardStore = { value: "" };
   Object.defineProperty(navigator, "clipboard", {
@@ -36,7 +36,7 @@ expect(clipboardText).toBe("davidstevenabril@gmail.com");
 test('Copy Email Footer Button works', async ({ home, page }) => {
 // Copy email button: should copy to clipboard and change text
 await page.addInitScript(() => {
-  // Mock clipboard API for testing since Playwright doesn't have native clipboard support. 
+  // Mock clipboard API for testing since Playwright doesn't have native clipboard support.
   //  This mock allows us to verify that the correct text is being "copied" when the button is clicked.
   const clipboardStore = { value: "" };
   Object.defineProperty(navigator, "clipboard", {
@@ -75,12 +75,17 @@ const cases = [ //Objects for test cases, each with a nav item and the expected 
 
 // Loop through each test case and create a test that checks if clicking the nav item scrolls to the correct heading
 for (const c of cases) {
-  test(`nav "${c.nav}" navigates to "#${c.slug}"`, async ({ home, page}) => {
+  test(`nav "${c.nav}" navigates to "#${c.slug}"`, async ({ home, page}, testInfo) => {
     await home.goto();
+    const start = Date.now();
     await Promise.all([
       page.waitForURL(new RegExp(`#${c.slug}$`)),
       home.navItem(c.nav).click()
     ]);
+    await testInfo.attach("interaction-metrics", {
+      body: JSON.stringify({ interaction_ms: Date.now() - start }),
+      contentType: "application/json",
+    });
     await expect(page.locator(`#${c.slug}`)).toBeInViewport();
   });
 }
@@ -113,13 +118,13 @@ test("Home page external buttons work", async ({ home, page }) => {
   await home.goto();
     const btnLinkedInHeader = home.externalLink(/^LinkedIn$/i, 0);
     const btnLinkedInFooter = home.externalLink(/^LinkedIn$/i, 1);
-    const btnGitHubHeader = home.externalLink(/^GitHub$/i, 0);    
+    const btnGitHubHeader = home.externalLink(/^GitHub$/i, 0);
     const btnGitHubFooter = home.externalLink(/^GitHub$/i, 1);
-    
+
     await assertExternalLinkOpensCorrectly(page, btnLinkedInHeader, {
       expectedHostname: "www.linkedin.com",
       expectedPathname: "",
-    }); 
+    });
 
     await assertExternalLinkOpensCorrectly(page, btnGitHubHeader, {
       expectedHostname: "github.com",
