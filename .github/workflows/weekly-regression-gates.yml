@@ -116,7 +116,7 @@ jobs:
 
             // Analysis computed in DB through a function
             const [analysis] = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${DB_RUN_ID}`
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
             );
 
             if (!analysis || analysis.latency_delta === null) {
@@ -238,7 +238,7 @@ jobs:
           async function main() {
             // 🔥 Query the interpretation posgress view layer (NOT raw tables)
             const flakiness = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${DB_RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${RUN_ID}`,
               []
             );
             const f = flakiness[0];
@@ -301,7 +301,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `e2e_flakiness_delta=${e2eDelta}\n`);
 
             const langs = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${DB_RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${RUN_ID}`,
               []
             );
             const langSummary = langs
@@ -351,7 +351,7 @@ jobs:
             );
 
             const data = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${DB_RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`,
               []
             );
             console.log("Regression story:", data);
@@ -429,7 +429,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=N/A\n`);
 
             const anomaly = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${DB_RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${RUN_ID}`,
               []
             );
             console.log("Anomaly result:", anomaly);
