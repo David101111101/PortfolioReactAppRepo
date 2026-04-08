@@ -173,10 +173,13 @@ jobs:
           }
 
           async function main() {
-            // simple classification for now
+          if (!RUN_ID) {
+            console.log("⚠️ No DB_RUN_ID available, skipping failure event insert");
+            return;
+          }
             const events = [
               {
-                run_id: DB_RUN_ID,
+                run_id: RUN_ID,
                 test_id: "regression_gate",
                 classification: "system_regression",
                 root_signal: "latency|retrieval|rate_limit"
