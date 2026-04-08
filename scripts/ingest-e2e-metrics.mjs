@@ -106,7 +106,6 @@ async function main() {
       duration: m.duration_ms,
       failure_type: m.failure_type,
       is_flaky: m.is_flaky,
-      workflow_type: WORKFLOW_TYPE,
       test_name: m.test_name,
     });
   }
