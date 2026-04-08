@@ -84,7 +84,9 @@ async function createTestRun() {
 
   const result = await insert("test_runs", payload);
   dbRunId = result [0].id;
+  fs.appendFileSync(process.env.GITHUB_ENV, `DB_RUN_ID=${dbRunId}\n`);
   console.log("✅ test_run inserted:", dbRunId);
+  
 }
 
 /**
