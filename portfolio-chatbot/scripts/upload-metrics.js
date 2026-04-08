@@ -15,10 +15,9 @@ dotenv.config();
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const RUN_ID = process.env.RUN_ID;
 let dbRunId = null;
 
-if (!SUPABASE_URL || !SUPABASE_KEY || !RUN_ID) {
+if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ Missing required env variables");
   process.exit(1);
 }
