@@ -49,9 +49,6 @@ jobs:
             echo "API_BASE_URL is empty"
             exit 1
           fi
-      - name: Generate RUN_ID
-        id: run_id
-        run: echo "RUN_ID=$(uuidgen)" >> $GITHUB_ENV
 
       - name: Run regression suite (production endpoint)
         run: |
@@ -99,7 +96,7 @@ jobs:
           const fs = require("fs");
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-          const RUN_ID = process.env.RUN_ID;
+          const RUN_ID = process.env.DB_RUN_ID;
 
           async function fetchJSON(url, options = {}) {
             const res = await fetch(url, {
@@ -119,7 +116,7 @@ jobs:
 
             // Analysis computed in DB through a function
             const [analysis] = await fetchJSON(
-              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${DB_RUN_ID}`
             );
 
             if (!analysis || analysis.latency_delta === null) {
@@ -156,7 +153,7 @@ jobs:
           node << 'EOF'
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-          const RUN_ID = process.env.RUN_ID;
+          const RUN_ID = process.env.DB_RUN_ID;
 
           async function insertFailure(event) {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/failure_events`, {
@@ -179,7 +176,7 @@ jobs:
             // simple classification for now
             const events = [
               {
-                run_id: RUN_ID,
+                run_id: DB_RUN_ID,
                 test_id: "regression_gate",
                 classification: "system_regression",
                 root_signal: "latency|retrieval|rate_limit"
@@ -208,7 +205,7 @@ jobs:
           const fs = require("fs");
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-          const RUN_ID = process.env.RUN_ID;
+          const RUN_ID = process.env.DB_RUN_ID;
 
           async function fetchJSON(url) {
             const res = await fetch(url, {
@@ -238,7 +235,7 @@ jobs:
           async function main() {
             // 🔥 Query the interpretation posgress view layer (NOT raw tables)
             const flakiness = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/flakiness_run_summary?run_id=eq.${DB_RUN_ID}`,
               []
             );
             const f = flakiness[0];
@@ -265,11 +262,11 @@ jobs:
 
             const flakyList = flakyTests
               .map(t => `${t.test_id} (${t.flakiness_pct}%, ${t.severity}, ${t.recency})`)
-              .join(", ") || "none";
+              .join("||") || "none";
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `flaky_tests=${flakyList}\n`
+              `flaky_tests<<EOF\n${flakyList}\nEOF\n`
             );
 
             const workflowStability = await safeFetch(
@@ -283,7 +280,10 @@ jobs:
               const flag = w.avg_flakiness_pct > 3 ? " ⚠️" : "";
               return `${label} trend: ${w.trend_direction} ${trendIcon} (current: ${w.avg_flakiness_pct}%, prev: ${w.prev_flakiness_pct ?? "N/A"}%, ${w.run_count} runs)${flag}`;
             }).join("\n") || "no e2e data yet";
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `workflow_stability=${stabilityLines}\n`);
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              `workflow_stability<<EOF\n${stabilityLines}\nEOF\n`
+            );
 
             const e2eTrend = await safeFetch(
               `${SUPABASE_URL}/rest/v1/flakiness_trend?workflow_type=in.(pr_e2e,deploy_e2e)&order=run_timestamp.desc&limit=5`,
@@ -298,7 +298,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `e2e_flakiness_delta=${e2eDelta}\n`);
 
             const langs = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${DB_RUN_ID}`,
               []
             );
             const langSummary = langs
@@ -307,7 +307,7 @@ jobs:
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `languages=${langSummary}\n`
+              `languages<<EOF\n${langSummary}\nEOF\n`
             );
 
             const riskyLangs = langs
@@ -316,7 +316,7 @@ jobs:
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `risky_languages=${riskyLangs.join(",") || "none"}\n`
+              `risky_languages<<EOF\n${riskyLangs.join(",") || "none"}\nEOF\n`
             );
 
             let weakest = { language: "N/A", min_confidence: "N/A" };
@@ -329,7 +329,7 @@ jobs:
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `weakest_language=${weakest.language} (${weakest.min_confidence})\n`
+              `weakest_language<<EOF\n${weakest.language} (${weakest.min_confidence})\nEOF\n`
             );
             
             const history = await safeFetch(
@@ -344,19 +344,21 @@ jobs:
 
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `trend_snapshot=${trendLines}\n`
+              `trend_snapshot<<EOF\n${trendLines}\nEOF\n`
             );
 
             const data = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/regression_story?run_id=eq.${DB_RUN_ID}`,
               []
             );
-
+            console.log("Regression story:", data);
             if (!data.length) {
               console.log("No comparison data available");
 
               fs.appendFileSync(process.env.GITHUB_OUTPUT, "trend=N/A\n");
               fs.appendFileSync(process.env.GITHUB_OUTPUT, "severity=N/A\n");
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `reliability_score=N/A\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `p95_latency=N/A\n`);
 
                 const defaults = {
                     latency_delta: "N/A",
@@ -424,10 +426,10 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=N/A\n`);
 
             const anomaly = await safeFetch(
-              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${RUN_ID}`,
+              `${SUPABASE_URL}/rest/v1/regression_anomalies?run_id=eq.${DB_RUN_ID}`,
               []
             );
-
+            console.log("Anomaly result:", anomaly);
             if (anomaly.length) {
               const a = anomaly[0];
               const z = a.latency_z;
@@ -470,6 +472,10 @@ jobs:
                 console.log(`Latency deviates ${Math.abs(z).toFixed(2)} standard deviations from normal behavior`);
               }
             }
+            if (!anomaly.length) {
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `baseline_deviation=N/A\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `deviation_severity=normal\n`);
+            }
           };
           main().catch(err => {
             console.error(err);
@@ -489,8 +495,11 @@ jobs:
           echo "- Trend: ${{ steps.dbcompare.outputs.trend }}" >> $GITHUB_STEP_SUMMARY
           echo "- Severity: ${{ steps.dbcompare.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
           echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY
-          echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY          
+          if (( $(echo "${{ steps.dbcompare.outputs.flakiness_pct }} > 2" | bc -l) )); then
+            echo "- ⚠️ Elevated flakiness detected → investigate test stability or system intermittency" >> $GITHUB_STEP_SUMMARY
+            echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
+          fi
           if (( $(echo "${{ steps.dbcompare.outputs.flakiness_pct }} > 3" | bc -l) )); then
             echo "- ⚠️ Elevated flakiness detected → investigate test stability or system intermittency" >> $GITHUB_STEP_SUMMARY
           fi
@@ -551,9 +560,10 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ Anomaly Detection" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.dbcompare.outputs.baseline_deviation }}" != "N/A" ]; then
-            echo "- Baseline Deviation: ${{ steps.dbcompare.outputs.baseline_deviation }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.dbcompare.outputs.baseline_deviation }}" = "N/A" ]; then
+            echo "- ℹ️ No anomaly detected (within normal variance)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Baseline Deviation: ..." >> ...
           fi
           echo "- Severity: ${{ steps.dbcompare.outputs.deviation_severity }}" >> $GITHUB_STEP_SUMMARY
           echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
@@ -585,13 +595,23 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🧪 Top Flaky Tests" >> $GITHUB_STEP_SUMMARY
+
           FLAKY_TESTS="${{ steps.dbcompare.outputs.flaky_tests }}"
+
           if [ -z "$FLAKY_TESTS" ] || [ "$FLAKY_TESTS" = "none" ]; then
-            echo "- ✅ No flaky tests detected in recent history" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎉 Excellent: No flaky tests detected. Test suite is stable and reliable." >> $GITHUB_STEP_SUMMARY
+
           else
-            echo "$FLAKY_TESTS" | tr ',' '\n' | sed 's/^ //' | while read -r line; do
-              echo "- $line" >> $GITHUB_STEP_SUMMARY
-            done
+            COUNT=$(echo "$FLAKY_TESTS" | grep -o '||' | wc -l)
+            COUNT=$((COUNT + 1))
+
+            if [ "$COUNT" -eq 0 ]; then
+              echo "- 🎉 Excellent: No flaky tests detected. Test suite is stable and reliable." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "$FLAKY_TESTS" | tr '|' '\n' | sed '/^$/d' | sed 's/^ //' | while read -r line; do
+                echo "- $line" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -651,11 +671,9 @@ jobs:
       
       - name: Capture report
         run: |
-          {
-            echo "REPORT<<EOF"
-            cat "$GITHUB_STEP_SUMMARY"
-            echo "EOF"
-          } >> $GITHUB_ENV
+          echo "REPORT<<EOF" >> $GITHUB_ENV
+          cat $GITHUB_STEP_SUMMARY >> $GITHUB_ENV || echo "No summary content" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Debug REPORT
         run: |

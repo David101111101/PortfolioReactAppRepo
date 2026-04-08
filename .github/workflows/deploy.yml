@@ -63,14 +63,6 @@ jobs:
           cd portfolio-chatbot
           npm run test:ci
 
-      - name: Write backend summary
-        if: always()
-        run: |
-          echo "## 🧠 Backend Verification" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit + contract tests executed" >> $GITHUB_STEP_SUMMARY
-          echo "- Worker boot validation completed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
   # =====================================
   # 2️⃣ Frontend E2E Multi-Browser
   # =====================================
@@ -109,12 +101,16 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Cache Playwright Browsers
+        id: playwright-cache
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-v1
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
 
       - name: Install browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
           for i in 1 2 3; do
             npx playwright install ${{ matrix.browser }} --with-deps && break
@@ -135,14 +131,6 @@ jobs:
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
-      
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: flaky-metric-${{ matrix.browser }}
-          path: metrics/flaky.json
-          if-no-files-found: warn
-
 
       - name: Generate E2E summary
         if: always()
