@@ -87,6 +87,10 @@ jobs:
 
     env:
       VITE_BASE: /
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WORKFLOW_TYPE: deploy_e2e
+      PLAYWRIGHT_BROWSER: ${{ matrix.browser }}
 
     steps:
       - name: Checkout
@@ -125,6 +129,9 @@ jobs:
 
       - name: Prepare report folder
         run: mkdir -p playwright-report
+
+      - name: Set RUN_ID
+        run: echo "RUN_ID=${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.browser }}" >> $GITHUB_ENV
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
@@ -165,6 +172,10 @@ jobs:
           else
             echo "Flaky metric unavailable"
           fi
+
+      - name: Ingest E2E metrics to Supabase
+        if: always()
+        run: node scripts/ingest-e2e-metrics.mjs
 
       # ===============================
       # Publish JUnit to GitHub Checks

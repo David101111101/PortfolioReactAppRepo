@@ -243,11 +243,11 @@ jobs:
             );
             const f = flakiness[0];
             const trend = await safeFetch(
-            `${SUPABASE_URL}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=3`,
+            `${SUPABASE_URL}/rest/v1/flakiness_trend?workflow_type=eq.weekly_regression_suite&order=run_timestamp.desc&limit=5`,
             []
           );
 
-          const flakyList = trend
+          const flakinessTrend = trend
           .map(t => {
             const delta = t.flakiness_delta ?? 0;
             const direction = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
@@ -257,10 +257,45 @@ jobs:
           .join(", ");
 
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `flakiness_pct=${f?.flakiness_pct ?? 0}\n`);
+
+            const flakyTests = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=5`,
+              []
+            );
+
+            const flakyList = flakyTests
+              .map(t => `${t.test_id} (${t.flakiness_pct}%, ${t.severity}, ${t.recency})`)
+              .join(", ") || "none";
+
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `flaky_tests=${z}\n`
+              `flaky_tests=${flakyList}\n`
             );
+
+            const workflowStability = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/e2e_workflow_stability`,
+              []
+            );
+            const stabilityLines = workflowStability.map(w => {
+              const label = w.workflow_type === "pr_e2e" ? "PR" : "Deploy";
+              const trendIcon = w.trend_direction === "improving" ? "✅"
+                : w.trend_direction === "degrading" ? "🚨" : "➡️";
+              const flag = w.avg_flakiness_pct > 3 ? " ⚠️" : "";
+              return `${label} trend: ${w.trend_direction} ${trendIcon} (current: ${w.avg_flakiness_pct}%, prev: ${w.prev_flakiness_pct ?? "N/A"}%, ${w.run_count} runs)${flag}`;
+            }).join("\n") || "no e2e data yet";
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `workflow_stability=${stabilityLines}\n`);
+
+            const e2eTrend = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/flakiness_trend?workflow_type=in.(pr_e2e,deploy_e2e)&order=run_timestamp.desc&limit=5`,
+              []
+            );
+            const [latestE2E, prevE2E] = [e2eTrend[0], e2eTrend[1]];
+            const e2eDelta = latestE2E && prevE2E && prevE2E.flakiness_pct != null
+              ? (latestE2E.flakiness_pct - prevE2E.flakiness_pct).toFixed(1)
+              : "N/A";
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `e2e_flakiness_current=${latestE2E?.flakiness_pct ?? "N/A"}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `e2e_flakiness_prev=${prevE2E?.flakiness_pct ?? "N/A"}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `e2e_flakiness_delta=${e2eDelta}\n`);
 
             const langs = await safeFetch(
               `${SUPABASE_URL}/rest/v1/retrieval_language_summary?run_id=eq.${RUN_ID}`,
@@ -411,7 +446,6 @@ jobs:
 
                 console.log(`📊 Metric: Latency (P95)`);
                 console.log(`- Current: ${a.p95_latency} ms`);
-                console.log(`- Mean: ${a.mean_latency?.toFixed(2)} ms`);
                 console.log(`- Baseline Deviation: ${z.toFixed(2)} (${severity})`);
 
                 // Directional insight
@@ -547,6 +581,48 @@ jobs:
             echo "- ⚠️ Weakest language: ${{ steps.dbcompare.outputs.weakest_language }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ✅ Consistent answer quality across supported languages" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧪 Top Flaky Tests" >> $GITHUB_STEP_SUMMARY
+          FLAKY_TESTS="${{ steps.dbcompare.outputs.flaky_tests }}"
+          if [ -z "$FLAKY_TESTS" ] || [ "$FLAKY_TESTS" = "none" ]; then
+            echo "- ✅ No flaky tests detected in recent history" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "$FLAKY_TESTS" | tr ',' '\n' | sed 's/^ //' | while read -r line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔀 E2E Workflow Stability" >> $GITHUB_STEP_SUMMARY
+          STABILITY="${{ steps.dbcompare.outputs.workflow_stability }}"
+          if [ -z "$STABILITY" ] || [ "$STABILITY" = "no e2e data yet" ]; then
+            echo "- ℹ️ E2E metrics not yet available (requires at least 1 PR or deploy run)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "$STABILITY" | while read -r line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📉 E2E Flakiness Trend" >> $GITHUB_STEP_SUMMARY
+          E2E_CURR="${{ steps.dbcompare.outputs.e2e_flakiness_current }}"
+          E2E_PREV="${{ steps.dbcompare.outputs.e2e_flakiness_prev }}"
+          E2E_DELTA="${{ steps.dbcompare.outputs.e2e_flakiness_delta }}"
+          if [ "$E2E_CURR" != "N/A" ] && [ -n "$E2E_CURR" ]; then
+            echo "- Current: ${E2E_CURR}%" >> $GITHUB_STEP_SUMMARY
+            echo "- Previous: ${E2E_PREV}%" >> $GITHUB_STEP_SUMMARY
+            DELTA_NUM="${E2E_DELTA//+/}"
+            if [[ "$E2E_DELTA" != "N/A" ]] && awk "BEGIN {exit !($DELTA_NUM > 0.5)}"; then
+              echo "- Δ +${E2E_DELTA}% 🚨 (flakiness increasing)" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$E2E_DELTA" != "N/A" ]] && awk "BEGIN {exit !($DELTA_NUM < -0.5)}"; then
+              echo "- Δ ${E2E_DELTA}% ✅ (flakiness decreasing)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- Δ stable ➡️" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- ℹ️ No E2E trend data yet" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ job.status }}" != "success" ]; then

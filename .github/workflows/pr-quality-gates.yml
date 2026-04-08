@@ -68,12 +68,19 @@ jobs:
     needs: backend # Ensure backend tests pass before running E2E
     env:
       VITE_BASE: /
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WORKFLOW_TYPE: pr_e2e
+      PLAYWRIGHT_BROWSER: chromium
 
     steps:
       - name: Capture start
         run: echo "START=$(date +%s)" >> $GITHUB_ENV
 
       - uses: actions/checkout@v5
+
+      - name: Set RUN_ID
+        run: echo "RUN_ID=${{ github.run_id }}-${{ github.run_attempt }}" >> $GITHUB_ENV
 
       - uses: actions/setup-node@v5
         with:
@@ -179,6 +186,10 @@ jobs:
           else
             echo '{ "e2e":"fail" }' > metrics/e2e.json
           fi
+
+      - name: Ingest E2E metrics to Supabase
+        if: always()
+        run: node scripts/ingest-e2e-metrics.mjs
 
       - uses: actions/upload-artifact@v5
         if: always()

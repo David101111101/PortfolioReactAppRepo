@@ -12,6 +12,8 @@ playwright-report/
 blob-report/
 coverage/
 *.log
+.CLAUDE.md
+portfolio-chatbot\src\DB-schema.md
 
 # Environment variables
 .env
