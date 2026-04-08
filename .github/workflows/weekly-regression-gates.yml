@@ -9,6 +9,8 @@ permissions:
   contents: write
   checks: write
   issues: write
+  pages: write
+  id-token: write
 
 jobs:
   backend-weekly-regression:
@@ -281,8 +283,8 @@ jobs:
               const trendIcon = w.trend_direction === "improving" ? "✅"
                 : w.trend_direction === "degrading" ? "🚨" : "➡️";
               const flag = w.avg_flakiness_pct > 3 ? " ⚠️" : "";
-              return `${label} trend: ${w.trend_direction} ${trendIcon} (current: ${w.avg_flakiness_pct}%, prev: ${w.prev_flakiness_pct ?? "N/A"}%, ${w.run_count} runs)${flag}`;
-            }).join("\n") || "no e2e data yet";
+              return `${label} workflow trend: ${w.trend_direction} ${trendIcon} (current: ${w.avg_flakiness_pct}%, prev: ${w.prev_flakiness_pct ?? "N/A"}%, ${w.run_count} runs)${flag}`;
+            }).join("\n") || "No e2e data yet";
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
               `workflow_stability<<EOF\n${stabilityLines}\nEOF\n`
@@ -333,6 +335,30 @@ jobs:
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
               `weakest_language<<EOF\n${weakest.language} (${weakest.min_confidence})\nEOF\n`
+            );
+
+            const langTrend = await safeFetch(
+              `${SUPABASE_URL}/rest/v1/retrieval_language_trend?order=run_id.desc&limit=20`,
+              []
+            );
+
+            // group last 5 per language
+            const grouped = {};
+            for (const l of langTrend) {
+              if (!grouped[l.language]) grouped[l.language] = [];
+              if (grouped[l.language].length < 5) {
+                const arrow = l.delta > 0 ? "↑" : l.delta < 0 ? "↓" : "→";
+                grouped[l.language].push(`${l.avg_confidence}${arrow}`);
+              }
+            }
+
+            const trendSummary = Object.entries(grouped)
+              .map(([lang, vals]) => `${lang}: ${vals.join(" → ")}`)
+              .join(" | ");
+
+            fs.appendFileSync(
+              process.env.GITHUB_OUTPUT,
+              `language_trend<<EOF\n${trendSummary}\nEOF\n`
             );
             
             const history = await safeFetch(
@@ -486,210 +512,344 @@ jobs:
           });
           EOF
 
-      - name: Generating AI Regression Dashboard
+      - name: Generate AI Regression Dashboard (HTML)
         if: always()
         run: |
-          echo "## 🧠 AI RAG System Weekly Health Report" >> $GITHUB_STEP_SUMMARY
-          echo "Multisignal regression analysis across performance, retrieval quality, and anomaly detection." >> $GITHUB_STEP_SUMMARY
+            mkdir -p site
+            REPORT_FILE=site/index.html
 
-          echo "### 📊 System Health" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: $REGRESSION_STATUS" >> $GITHUB_STEP_SUMMARY
-          echo "- Reliability Score: ${{ steps.dbcompare.outputs.reliability_score }}/100" >> $GITHUB_STEP_SUMMARY
-          echo "- Trend: ${{ steps.dbcompare.outputs.trend }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Severity: ${{ steps.dbcompare.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Flakiness: ${{ steps.dbcompare.outputs.flakiness_pct }}%" >> $GITHUB_STEP_SUMMARY          
-          if (( $(echo "${{ steps.dbcompare.outputs.flakiness_pct }} > 2" | bc -l) )); then
-            echo "- ⚠️ Elevated flakiness detected → investigate test stability or system intermittency" >> $GITHUB_STEP_SUMMARY
-            echo "- Most flaky tests: ${{ steps.dbcompare.outputs.flaky_tests }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          if (( $(echo "${{ steps.dbcompare.outputs.flakiness_pct }} > 3" | bc -l) )); then
-            echo "- ⚠️ Elevated flakiness detected → investigate test stability or system intermittency" >> $GITHUB_STEP_SUMMARY
-          fi
-          # Core interpretation
-          MIN_CONF="${{ steps.dbcompare.outputs.min_confidence }}"
-          LATENCY="${{ steps.dbcompare.outputs.p95_latency }}"
-          SIGNAL="${{ steps.dbcompare.outputs.signal }}"
-          SEVERITY="${{ steps.dbcompare.outputs.severity }}"
-          TREND="${{ steps.dbcompare.outputs.trend }}"
-          if [ "$REGRESSION_STATUS" = "FAIL" ]; then
-            echo "- ❌ System instability detected during scheduled regression run" >> $GITHUB_STEP_SUMMARY
+            STATUS="${REGRESSION_STATUS}"
+            REL="${{ steps.dbcompare.outputs.reliability_score }}"
+            TREND="${{ steps.dbcompare.outputs.trend }}"
+            SEVERITY="${{ steps.dbcompare.outputs.severity }}"
+            FLAKE="${{ steps.dbcompare.outputs.flakiness_pct }}"
+            LANGS="${{ steps.dbcompare.outputs.languages }}"
+            LANG_TREND="${{ steps.dbcompare.outputs.language_trend }}"
+            TREND_SNAPSHOT="${{ steps.dbcompare.outputs.trend_snapshot }}"
+            LATENCY="${{ steps.dbcompare.outputs.p95_latency }}"
+            LATENCY_DELTA="${{ steps.dbcompare.outputs.latency_pct }}"
+            REL_DELTA="${{ steps.dbcompare.outputs.reliability_delta }}"
+            # Extract reliability values (basic parsing)
+            TREND_DATA=$(echo "$TREND_SNAPSHOT" | grep -o 'Reliability:[0-9]*' | grep -o '[0-9]*' | tr '\n' ',' | sed 's/,$//')
 
-          elif [[ -n "$MIN_CONF" && "$MIN_CONF" != "N/A" ]] && awk "BEGIN {exit !($MIN_CONF < 70)}"; then
-            echo "- ⚠️ Retrieval degradation detected → lowest ranking language: ${{ steps.dbcompare.outputs.weakest_language }} /100" >> $GITHUB_STEP_SUMMARY
+            # Color logic
+            if [ "$STATUS" = "PASS" ]; then STATUS_CLASS="ok"; else STATUS_CLASS="warn"; fi
 
-          elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
-            echo "- ⚠️ Performance or behavior drift detected vs historical baseline" >> $GITHUB_STEP_SUMMARY
+            cat <<EOF > $REPORT_FILE
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>AI Regression Dashboard</title>
 
-          else
-            echo "- ✅ System stable: no significant drift in performance or retrieval quality" >> $GITHUB_STEP_SUMMARY
-          fi
+            <style>
+            :root {
+              --bg: #0b1020;
+              --panel: rgb(255 255 255 / 6%);
+              --soft: rgb(255 255 255 / 12%);
+              --text: rgb(255 255 255 / 92%);
+              --muted: rgb(255 255 255 / 70%);
+              --accent2: #06b6d4;
+              --ok: #22c55e;
+              --warn: #f59e0b;
+              --radius: 16px;
+              --shadow: 5px 5px 5px #00000059, 3px 5px 10px #00000059;
+              --max: 1100px;
+            }
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🧠 What Changed" >> $GITHUB_STEP_SUMMARY
-          LATENCY_PCT="${{ steps.dbcompare.outputs.latency_pct }}"
+            body {
+              margin: 0;
+              background:
+                radial-gradient(1200px 600px at 10% 0%, rgb(124 58 237 / 22%), transparent 60%),
+                radial-gradient(1000px 500px at 90% 20%, rgb(6 182 212 / 18%), transparent 55%),
+                var(--bg);
+              color: var(--text);
+              font-family: system-ui;
+            }
 
-          if [[ -n "$LATENCY_PCT" && "$LATENCY_PCT" != "N/A" ]]; then
-            LAT_PCT=$(printf "%.2f" $(echo "$LATENCY_PCT * 100" | bc -l))
-          else
-            LAT_PCT="N/A"
-          fi
-          echo "- Latency: ${{ steps.dbcompare.outputs.p95_latency }} ms" >> $GITHUB_STEP_SUMMARY
-          echo "- Change: ${LAT_PCT}% vs baseline (${{ steps.dbcompare.outputs.prev_latency }} ms)" >> $GITHUB_STEP_SUMMARY
-          REL_DELTA="${{ steps.dbcompare.outputs.reliability_delta }}"
+            .container {
+              max-width: var(--max);
+              margin: auto;
+              padding: 40px 20px;
+            }
 
-          if [ "$REL_DELTA" = "0" ]; then
-            echo "- Reliability: stable vs previous run 👌" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Reliability increased: $REL_DELTA" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "### 📉 Last 5 Runs Trend" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.dbcompare.outputs.trend_snapshot }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📈 Trend Insight" >> $GITHUB_STEP_SUMMARY
+            .card {
+              background: var(--panel);
+              border: 1px solid var(--soft);
+              border-radius: var(--radius);
+              box-shadow: var(--shadow);
+              padding: 20px;
+              margin-bottom: 20px;
+            }
+            
+            canvas {
+              width: 100%;
+              margin-top: 10px;
+            }
 
-          if [ "$TREND" = "improving" ]; then
-            echo "- 📈 System improving over recent runs" >> $GITHUB_STEP_SUMMARY
+            .grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+              gap: 16px;
+            }
 
-          elif [ "$TREND" = "degrading" ]; then
-            echo "- 📉 System showing degradation trend across recent runs" >> $GITHUB_STEP_SUMMARY
+            .metric {
+              font-size: 26px;
+              font-weight: bold;
+            }
 
-          elif [ "$SEVERITY" = "moderate" ] || [ "$SEVERITY" = "critical" ]; then
-            echo "- ⚠️ Instability detected in recent runs" >> $GITHUB_STEP_SUMMARY
+            .ok { color: var(--ok); }
+            .warn { color: var(--warn); }
 
-          else
-            echo "- ➖ System stable with no significant trend shift" >> $GITHUB_STEP_SUMMARY
-          fi
+            .small { color: var(--muted); font-size: 14px; }
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.dbcompare.outputs.baseline_deviation }}" = "N/A" ]; then
-            echo "- ℹ️ No anomaly detected (within normal variance)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Baseline Deviation: ..." >> ...
-          fi
-          echo "- Severity: ${{ steps.dbcompare.outputs.deviation_severity }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Analysis Confidence: ${{ steps.dbcompare.outputs.analysis_confidence }}" >> $GITHUB_STEP_SUMMARY
+            .spark {
+              font-family: monospace;
+              color: var(--accent2);
+            }
+            </style>
+            </head>
 
-          echo "### 🧠 LLM Retrieval Quality" >> $GITHUB_STEP_SUMMARY
-          echo "- Avg Confidence: ${{ steps.dbcompare.outputs.avg_confidence }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Min Confidence (worst case): ${{ steps.dbcompare.outputs.min_confidence }}" >> $GITHUB_STEP_SUMMARY
-          CONF_PCT="${{ steps.dbcompare.outputs.confidence_pct }}"
+            <body>
+            <div class="container">
 
-          if [[ -n "$CONF_PCT" && "$CONF_PCT" != "N/A" ]]; then
-            CONF_DELTA=$(printf "%.2f" $(echo "$CONF_PCT * 100" | bc -l))
-          else
-            CONF_DELTA="N/A"
-          fi
+            <!-- HEADER -->
+            <div class="card">
+              <h1>🧠 AI RAG System Health</h1>
+              <p class="small">Multisignal regression observability across latency, retrieval, and multilingual drift</p>
+            </div>
 
-          echo "- Δ Confidence: ${{ steps.dbcompare.outputs.confidence_delta }} (${CONF_DELTA}%)" >> $GITHUB_STEP_SUMMARY
+            <!-- CORE METRICS -->
+            <div class="grid">
+              <div class="card">
+                <div>Status</div>
+                <div class="metric ${STATUS_CLASS}">$STATUS</div>
+              </div>
 
-          echo "### 🌍 Multilingual Retrieval stats" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.dbcompare.outputs.languages }}" >> $GITHUB_STEP_SUMMARY
+              <div class="card">
+                <div>Reliability</div>
+                <div class="metric">$REL / 100</div>
+              </div>
 
-          if [[ "$MIN_CONF" != "N/A" ]] && (( $(echo "$MIN_CONF < 40" | bc -l) )); then
-            echo "### 🚨 Risk Indicator" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚠️ Low-confidence retrieval detected → potential incorrect answers in some languages" >> $GITHUB_STEP_SUMMARY
-            echo "- Risky Languages: ${{ steps.dbcompare.outputs.risky_languages }}" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚠️ Weakest language: ${{ steps.dbcompare.outputs.weakest_language }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ✅ Consistent answer quality across supported languages" >> $GITHUB_STEP_SUMMARY
-          fi
+              <div class="card">
+                <div>Trend</div>
+                <div class="metric">$TREND</div>
+              </div>
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🧪 Top Flaky Tests" >> $GITHUB_STEP_SUMMARY
+              <div class="card">
+                <div>Flakiness</div>
+                <div class="metric">$FLAKE%</div>
+              </div>
+            </div>
 
-          FLAKY_TESTS="${{ steps.dbcompare.outputs.flaky_tests }}"
+            <!-- SYSTEM INTERPRETATION -->
+            <div class="card">
+              <h2>🧠 System Interpretation</h2>
+            EOF
 
-          if [ -z "$FLAKY_TESTS" ] || [ "$FLAKY_TESTS" = "none" ]; then
-            echo "- 🎉 Excellent: No flaky tests detected. Test suite is stable and reliable." >> $GITHUB_STEP_SUMMARY
+                if [ "$STATUS" = "FAIL" ]; then
+                  echo "<p class='warn'>❌ System instability detected</p>" >> $REPORT_FILE
+                elif (( $(echo "$FLAKE > 2" | bc -l) )); then
+                  echo "<p class='warn'>⚠️ Elevated flakiness detected</p>" >> $REPORT_FILE
+                else
+                  echo "<p class='ok'>✅ System stable</p>" >> $REPORT_FILE
+                fi
 
-          else
-            COUNT=$(echo "$FLAKY_TESTS" | grep -o '||' | wc -l)
-            COUNT=$((COUNT + 1))
+                cat <<EOF >> $REPORT_FILE
+            </div>
+            <!-- What changed recently? -->
+            cat <<EOF >> $REPORT_FILE
 
-            if [ "$COUNT" -eq 0 ]; then
-              echo "- 🎉 Excellent: No flaky tests detected. Test suite is stable and reliable." >> $GITHUB_STEP_SUMMARY
+            <div class="card">
+              <h2>🧠 What Changed</h2>
+              <div class="grid">
+
+                <div>
+                  <div class="small">Latency</div>
+                  <div class="metric">${LATENCY} ms</div>
+                  <div class="small">Δ ${LATENCY_DELTA}</div>
+                </div>
+
+                <div>
+                  <div class="small">Reliability Δ</div>
+                  <div class="metric">${REL_DELTA}</div>
+                </div>
+
+              </div>
+            </div>
+
+            EOF
+
+            <!-- MULTILINGUAL -->
+            <div class="card">
+              <h2>🌍 Multilingual Retrieval</h2>
+              <p>
+            EOF
+
+                echo "$LANGS" | sed \
+                  -e 's/\ben\b/English/g' \
+                  -e 's/\bes\b/Spanish/g' \
+                  -e 's/\bfr\b/French/g' \
+                  -e 's/\bde\b/German/g' \
+                  -e 's/\bpt\b/Portuguese/g' \
+                  -e 's/\bzh\b/Chinese/g' \
+                  -e 's/\bja\b/Japanese/g' \
+                >> $REPORT_FILE
+
+                cat <<EOF >> $REPORT_FILE
+              </p>
+            </div>
+
+            <!-- LANGUAGE DRIFT -->
+            <div class="card">
+              <h2>📈 Language Drift (Last 5 Runs)</h2>
+              <div class="spark">
+            EOF
+
+                echo "$LANG_TREND" | sed \
+                  -e 's/\ben\b/English/g' \
+                  -e 's/\bes\b/Spanish/g' \
+                  -e 's/\bfr\b/French/g' \
+                  -e 's/\bde\b/German/g' \
+                  -e 's/\bpt\b/Portuguese/g' \
+                  -e 's/\bzh\b/Chinese/g' \
+                  -e 's/\bja\b/Japanese/g' \
+                >> $REPORT_FILE
+
+                cat <<EOF >> $REPORT_FILE
+              </div>
+            </div>
+
+            <!-- FLAKY TESTS -->
+            <div class="card">
+              <h2>🧪 Test Stability</h2>
+            EOF
+
+                REAL=$(echo "${{ steps.dbcompare.outputs.flaky_tests }}" | tr '|' '\n' | grep -E '\([1-9][0-9]*%')
+
+                if [ -z "$REAL" ]; then
+                  echo "<p class='ok'>🎉 No flaky tests detected</p>" >> $REPORT_FILE
+                else
+                  echo "<ul>" >> $REPORT_FILE
+                  echo "$REAL" | while read -r line; do
+                    echo "<li>$line</li>" >> $REPORT_FILE
+                  done
+                  echo "</ul>" >> $REPORT_FILE
+                fi
+
+                cat <<EOF >> $REPORT_FILE
+            </div>
+
+            cat <<EOF >> $REPORT_FILE
+
+            <div class="card">
+              <h2>📉 Last 5 Runs Trend</h2>
+
+              <canvas id="trendChart" height="80"></canvas>
+
+              <div class="small">
+                ${TREND_SNAPSHOT}
+              </div>
+            </div>
+
+            EOF
+
+            cat <<EOF >> $REPORT_FILE
+
+            <div class="card">
+              <h2>📈 Trend Insight</h2>
+            EOF
+
+            if [ "$TREND" = "improving" ]; then
+              echo "<p class='ok'>📈 System improving across recent runs</p>" >> $REPORT_FILE
+            elif [ "$TREND" = "degrading" ]; then
+              echo "<p class='warn'>📉 System degradation trend detected</p>" >> $REPORT_FILE
             else
-              echo "$FLAKY_TESTS" | tr '|' '\n' | sed '/^$/d' | sed 's/^ //' | while read -r line; do
-                echo "- $line" >> $GITHUB_STEP_SUMMARY
-              done
+              echo "<p>➖ System stable</p>" >> $REPORT_FILE
             fi
-          fi
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔀 E2E Workflow Stability" >> $GITHUB_STEP_SUMMARY
-          STABILITY="${{ steps.dbcompare.outputs.workflow_stability }}"
-          if [ -z "$STABILITY" ] || [ "$STABILITY" = "no e2e data yet" ]; then
-            echo "- ℹ️ E2E metrics not yet available (requires at least 1 PR or deploy run)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "$STABILITY" | while read -r line; do
-              echo "- $line" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
+            cat <<EOF >> $REPORT_FILE
+            </div>
+            EOF
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📉 E2E Flakiness Trend" >> $GITHUB_STEP_SUMMARY
-          E2E_CURR="${{ steps.dbcompare.outputs.e2e_flakiness_current }}"
-          E2E_PREV="${{ steps.dbcompare.outputs.e2e_flakiness_prev }}"
-          E2E_DELTA="${{ steps.dbcompare.outputs.e2e_flakiness_delta }}"
-          if [ "$E2E_CURR" != "N/A" ] && [ -n "$E2E_CURR" ]; then
-            echo "- Current: ${E2E_CURR}%" >> $GITHUB_STEP_SUMMARY
-            echo "- Previous: ${E2E_PREV}%" >> $GITHUB_STEP_SUMMARY
-            DELTA_NUM="${E2E_DELTA//+/}"
-            if [[ "$E2E_DELTA" != "N/A" ]] && awk "BEGIN {exit !($DELTA_NUM > 0.5)}"; then
-              echo "- Δ +${E2E_DELTA}% 🚨 (flakiness increasing)" >> $GITHUB_STEP_SUMMARY
-            elif [[ "$E2E_DELTA" != "N/A" ]] && awk "BEGIN {exit !($DELTA_NUM < -0.5)}"; then
-              echo "- Δ ${E2E_DELTA}% ✅ (flakiness decreasing)" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "- Δ stable ➡️" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "- ℹ️ No E2E trend data yet" >> $GITHUB_STEP_SUMMARY
-          fi
+            <!-- FOOTER -->
+            <div class="card small">
+              <p>Last updated: $(date -u) UTC</p>
+              <p>🧠 AI system evaluated across non-deterministic multilingual retrieval signals</p>
+              <p class="small">Run ID: ${{ env.DB_RUN_ID }}</p>
+            </div>
 
-          if [ "${{ job.status }}" != "success" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🧩 Root Cause Analysis" >> $GITHUB_STEP_SUMMARY
+            </div>
+            cat <<EOF >> $REPORT_FILE
 
-            SIGNAL="${{ steps.dbcompare.outputs.signal }}"
+            <script>
+            (function () {
+              const data = [${TREND_DATA}];
+              const canvas = document.getElementById("trendChart");
+              if (!canvas || data.length < 2) return;
 
-            if [ -z "$SIGNAL" ]; then
-              echo "- ❌ Pipeline failure (API/infra), not a regression signal" >> $GITHUB_STEP_SUMMARY
-              echo "- Check failed step logs for root cause" >> $GITHUB_STEP_SUMMARY
+              const ctx = canvas.getContext("2d");
+              const w = canvas.width = canvas.offsetWidth;
+              const h = canvas.height;
 
-            elif [ "$SIGNAL" = "system_degradation" ]; then
-              echo "- System degradation detected: latency increase correlates with retrieval confidence degradation" >> $GITHUB_STEP_SUMMARY
+              const max = Math.max(...data);
+              const min = Math.min(...data);
 
-            elif [ "$SIGNAL" = "latency_regression" ]; then
-              echo "- Backend performance regression detected" >> $GITHUB_STEP_SUMMARY
+              const stepX = w / (data.length - 1);
 
-            elif [ "$SIGNAL" = "retrieval_regression" ]; then
-              echo "- Retrieval quality regression detected (independent of latency)" >> $GITHUB_STEP_SUMMARY
+              ctx.strokeStyle = "#06b6d4";
+              ctx.lineWidth = 2;
+              ctx.beginPath();
 
-            else
-              echo "- Regression signal detected: $SIGNAL" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+              data.forEach((val, i) => {
+                const x = i * stepX;
+                const y = h - ((val - min) / (max - min || 1)) * h;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+
+              ctx.stroke();
+            })();
+            </script>
+
+            EOF
+            </body>
+            </html>
+            EOF
       
-      - name: Capture report
-        run: |
-          echo "REPORT<<EOF" >> $GITHUB_ENV
-          cat $GITHUB_STEP_SUMMARY >> $GITHUB_ENV || echo "No summary content" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Debug REPORT
-        run: |
-          echo "$REPORT"
-
-      - name: Create weekly regression report issue
-        uses: actions/github-script@v7
+      - name: Upload dashboard report
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🧠 Weekly AI Quality Regression Report - ${process.env.REGRESSION_STATUS}`,
-              body: process.env.REPORT
-            });
+          name: regression-report
+          path: summary.md
+        
+      - name: Convert to HTML
+        run: |
+          mkdir site
+          cp summary.md site/index.md
+      
+  deploy-dashboard:
+    needs: backend-weekly-regression
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: regression-report
+          path: site
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
 
