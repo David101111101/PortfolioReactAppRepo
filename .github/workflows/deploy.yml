@@ -108,7 +108,12 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ matrix.browser }}-v1
           restore-keys: |
             ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      
+      # Install OS dependencies required by browsers (run even when browsers are cached)
+      - name: Install Playwright OS deps
+        run: npx playwright install-deps
 
+      # Keep browser download/cache behavior
       - name: Install browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
