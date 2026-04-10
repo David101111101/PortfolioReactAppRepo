@@ -1,0 +1,246 @@
+import "../App.css";
+import { Header } from "../components/Header";
+import { Section } from "../components/Section";
+import { DiplomaGrid } from "../components/DiplomaGrid";
+import { ProjectCard } from "../components/ProjectCard";
+import { diplomas, experiences, otherExperience, profile, projects, skills, stats } from "../data/portfolio";
+import ChatWidget from "../components/ChatWidget";
+import { useEffect } from "react";
+
+
+function MailToButton() {
+  async function copyEmail(event: React.MouseEvent<HTMLButtonElement>) {
+  const btn = event.currentTarget; // reference to the button itself
+  try {
+    await navigator.clipboard.writeText(profile.email);
+
+    // Change button text to "Copied"
+    btn.textContent = "Copied";
+
+    // After 2 seconds, revert back
+    setTimeout(() => {
+      btn.textContent = "Copy email";
+    }, 2000);
+
+  } catch {
+    window.location.href = `mailto:${profile.email}`;
+  }
+}
+
+  return (
+    <div  className="container-of-btn">
+      <a className="btn primary" href={`mailto:${profile.email}`}>
+        Email me
+      </a>
+      <button className="btn" onClick={copyEmail}>
+        Copy email
+      </button>
+      <a className="btn" href={profile.linkedin} target="_blank" rel="noreferrer">
+        LinkedIn
+      </a>
+      <a className="btn" href={profile.github} target="_blank" rel="noreferrer">
+        GitHub
+      </a>
+    </div>
+  );
+}
+
+export default function App() {
+  /* This effects are added after the initial render to handle chat widget animations.
+  *  If users preffer reduced motion, we skip adding these animations to respect their preferences.
+  */
+  useEffect(() => {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+  const el = document.getElementById("chatBubbleWidget");
+  if (!el) return;
+  el.classList.add("attention");
+  setTimeout(() => {
+    el.classList.remove("attention");
+  }, 2000);
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      document
+        .getElementById("chatBubbleWidget")
+        ?.classList.add("idle");
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <section id="top">
+      <Header />
+      <div className="bg bg-dark" aria-hidden="true" />
+      <div className="bg bg-light" aria-hidden="true" />
+      <main id="content">
+        {/* HERO */}
+        <section id="section" style={{ paddingTop: 20 }}>
+          <div className="container">
+            <div className="grid cols-2" style={{ alignItems: "start" }}>
+              <div>
+                {
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                  <span className="badge">{profile.languages}</span>
+                  <span className="badge">{profile.location}</span>
+                </div>
+                }
+
+                <h1 style={{ margin: 0, fontSize: 44, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+                  Automation engineered for reliability
+                </h1>
+
+                <p>
+                  {profile.summary}
+                </p>
+
+                <div style={{ marginTop: 18 }}>
+                  <MailToButton />
+                </div>
+              </div>
+              {/* TRUST PANEL */}
+              <div className="card" style={{ padding: 18 }}>
+                <div className="nda-badge-container">
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Overview of my Last Automation</h2>
+                  <span className="badge" >NDA</span>
+                </div>
+                
+                <p style={{ margin: "10px 0 0", color: "var(--muted)" }}>
+                  A backlog of 300 websites, each one requiring 30 Minutes of Manual & repetitive set up workflows.
+
+                </p>
+
+                <section id="main-section-mini-cards" className="grid cols-2" style={{ marginTop: 14 }}>
+                  {stats.map((s) => (
+                    <div key={s.label} className="card">
+                      <div className="flex-row">
+                          <div style={{ fontSize: 22, fontWeight: 800 }}>{s.value}</div>
+                          <div style={{ color: "var(--muted)" }}>{s.label}</div>
+                      </div>  
+                          {s.note ? <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{s.note}</div> : null}     
+                    </div>
+                  ))}
+                </section>
+
+                
+              </div>
+            </div>
+
+            {/* SKILLS */}
+            <section id="skills-section" className="card" style={{ padding: 18, marginTop: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>Tooling & strengths</h2>
+              <div className="grid cols-3" style={{ marginTop: 12 }}>
+                {skills.map((g) => (
+                  <div key={g.group} className="card">
+                    <div style={{ fontWeight: 700, marginBottom: 10 }}>{g.group}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {g.items.map((x) => (
+                        <span key={x} className="badge">{x}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+          </div>
+        </section>
+        {/* PROJECTS */}
+        <Section
+          id="projects"
+          title="Automation projects"
+          lead=""
+        >
+          <div className="grid cols-2">
+            {projects.map((p) => (
+              <ProjectCard key={p.title} p={p} />
+            ))}
+          </div>
+        </Section>
+        {/* DIPLOMAS */}
+        <Section
+          id="diplomas"
+          title="Diplomas & certifications"
+          lead="Structured learning across QA, Automation & Engineering."
+        >
+          <DiplomaGrid diplomas={diplomas} />
+        </Section>
+        {/* EXPERIENCE */}
+        <Section
+          id="experience"
+          title="Experience"
+          lead="Recent roles focused on delivery efficiency, QA automation, and reliable execution at scale."
+        >
+          <div className="grid cols-2">
+            {experiences.map((e) => (
+              <article key={`${e.role}-${e.company}`} className="card" style={{ padding: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18 }}>{e.role}</h3>
+                    <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>{e.company}</p>
+                  </div>
+                  <span className="badge">{e.period}</span>
+                </div>
+
+                <ul style={{ margin: "12px 0 0", paddingLeft: 18 }}>
+                  {e.bullets.map((b) => (
+                    <li key={b} style={{ marginBottom: 8, color: "var(--text)" }}>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 18, marginTop: 16 }}>
+            <p style={{ margin: 0, color: "var(--muted)" }}>{otherExperience}</p>
+          </div>
+        </Section>
+
+
+        {/* CONTACT */}
+        <Section
+          id="contact"
+          title="Let’s talk"
+          lead="Open to interviews and technical assessments"
+        >
+          <div className="card" style={{ padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>{profile.name}</div>
+                <div style={{ color: "var(--muted)", marginTop: 6 }}>{profile.role}</div>
+              </div>
+              <MailToButton />
+            </div>
+          </div>
+        </Section>
+        <ChatWidget />
+        <footer style={{ padding: "28px 0 40px", borderTop: "1px solid var(--soft)" }}>
+          <div className="container" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ color: "var(--muted)" }}>
+              © {new Date().getFullYear()} {profile.name} 
+            </span>
+            <span style={{ color: "var(--muted)" }}>
+              This assistant is an AI-powered system built and maintained by Dave. 
+              It generates responses using only verified CV and project documentation.
+
+              It is not a live human chat and may not respond to questions outside the scope of the portfolio content.
+
+              Conversations may be logged for quality, security, and system improvement purposes. No personal identifiers such as IP addresses, emails, or account data are collected or stored.
+
+              This system includes input validation, prompt injection protection, and data security guardrails designed to prevent misuse while actively blocking personal data submission and malicious inputs before processing.
+            </span>
+          </div>
+        </footer> 
+        
+      </main>
+    </section>
+  );
+
+
+}
