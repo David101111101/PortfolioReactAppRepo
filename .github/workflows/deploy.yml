@@ -111,14 +111,14 @@ jobs:
       
       # Install OS dependencies required by browsers (run even when browsers are cached)
       - name: Install Playwright OS deps
-        run: npx playwright install-deps
+        run: npx playwright install-deps ${{ matrix.browser }}
 
       # Keep browser download/cache behavior
       - name: Install browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
           for i in 1 2 3; do
-            npx playwright install ${{ matrix.browser }} --with-deps && break
+            npx playwright install ${{ matrix.browser }} && break
             echo "Retry browser install..."
             sleep 15
           done
@@ -228,7 +228,7 @@ jobs:
       - name: Audit with Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
+          configPath: ./.github/lighthouse/lighthouserc-ci.json
           uploadArtifacts: false
       
       - name: Generate Lighthouse summary
@@ -291,6 +291,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE: "/"
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Download prev lighthouse-baseline run
         uses: dawidd6/action-download-artifact@v5

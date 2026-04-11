@@ -777,32 +777,3 @@ jobs:
             </body>
             </html>
             EOF
-      
-      - name: Upload dashboard report
-        uses: actions/upload-artifact@v4
-        with:
-          name: regression-report
-          path: site/
-      
-  deploy-dashboard:
-    needs: backend-weekly-regression
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download report artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: regression-report
-          path: site
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-
