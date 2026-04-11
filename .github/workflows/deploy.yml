@@ -228,7 +228,7 @@ jobs:
       - name: Audit with Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
+          configPath: ./.github/lighthouse/lighthouserc-ci.json
           uploadArtifacts: false
       
       - name: Generate Lighthouse summary

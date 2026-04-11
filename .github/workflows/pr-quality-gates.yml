@@ -234,7 +234,7 @@ jobs:
         id: lhci
         uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: ./lighthouserc.json #contains thresholds for performance, accessibility, best practices & SEO
+          configPath: ./.github/lighthouse/lighthouserc-ci.json
           uploadArtifacts: false
 
       - name: Generate Lighthouse summary
@@ -267,6 +267,7 @@ jobs:
   quality-score:
     name: Compute PR Quality Score
     runs-on: ubuntu-latest
+    if: ${{ always() }}
     needs: [e2e, lighthouse]
 
     steps:
@@ -317,9 +318,27 @@ jobs:
         run: |
           echo "## ✅ PR Quality Gate Results" > comment.md
           echo "" >> comment.md
-          cat summaries/quality-score.md >> comment.md
-          cat summaries/chromium.md >> comment.md
-          cat summaries/lighthouse.md >> comment.md
+          if [ -f summaries/quality-score.md ]; then
+            cat summaries/quality-score.md >> comment.md
+          else
+            echo "### 🎯 PR Quality Score" >> comment.md
+            echo "Quality score summary unavailable." >> comment.md
+            echo "" >> comment.md
+          fi
+          if [ -f summaries/chromium.md ]; then
+            cat summaries/chromium.md >> comment.md
+          else
+            echo "### 🌍 E2E (chromium)" >> comment.md
+            echo "Summary unavailable." >> comment.md
+            echo "" >> comment.md
+          fi
+          if [ -f summaries/lighthouse.md ]; then
+            cat summaries/lighthouse.md >> comment.md
+          else
+            echo "### 🔎 Lighthouse" >> comment.md
+            echo "Summary unavailable." >> comment.md
+            echo "" >> comment.md
+          fi
           echo "" >> comment.md
           echo "### 🔎 Lighthouse" >> comment.md
           echo "- See Lighthouse artifact in this workflow run (Scores + failing assertions are visible in the action UI)." >> comment.md
