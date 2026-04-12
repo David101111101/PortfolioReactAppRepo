@@ -169,10 +169,11 @@ jobs:
           echo "{ \"durationSec\": $DURATION }" > metrics/duration.json
 
       - name: Upload Playwright artifacts
-        if: failure()
+        if: ${{ always() && steps.playwright.outcome != 'success' }}
         uses: actions/upload-artifact@v5
         with:
           name: playwright-chromium
+          if-no-files-found: ignore
           path: |
             playwright-report/
             test-results/

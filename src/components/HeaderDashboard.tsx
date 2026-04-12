@@ -15,15 +15,8 @@ function getInitialTheme(): "dark" | "light" {
 }
 
 
-export function Header() {
+export function HeaderDashboard() {
   const [theme, setTheme] = useState<"dark" | "light">(() => getInitialTheme());
-
-  const scrollToSection = (sectionId: string) => {
-    document.getElementById(sectionId)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -34,15 +27,6 @@ export function Header() {
 
     // Determine the next theme based on the current theme
     const next = theme === "dark" ? "light" : "dark";
-    const isTestMode = document.documentElement.getAttribute("data-test-mode") === "true";
-
-    if (isTestMode) {
-      setTheme(next);
-      localStorage.setItem("theme", next);
-      document.documentElement.setAttribute("data-theme", next);
-      return;
-    }
-
     // Trigger overlay animation
     showThemeOverlay();
     // Add a temporary class so transitions feel intentional
@@ -80,24 +64,12 @@ export function Header() {
           padding: "14px 20px",
         }}
       >
-        <a
-          id="title-name"
-          href="#/"
-          onClick={(e) => {
-            e.preventDefault();
-            scrollToSection("top");
-          }}
-          style={{ fontWeight: 700, letterSpacing: "-0.02em" }}
-        >
+        <a id="title-name" href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
           {profile.name}
         </a>
 
         <nav style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <a className="badge" href={`${import.meta.env.BASE_URL}${profile.resume}`} target="_blank" rel="noreferrer">Resume</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("projects"); }}>Projects</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("diplomas"); }}>Diplomas</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("experience"); }}>Experience</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("contact"); }}>Contact</a>
+          <a className="badge" href="#/">Home</a>
 
           <button id="theme-toggle" className="btn" onClick={toggleTheme} aria-label="Toggle theme">
             {theme === "dark" ? (

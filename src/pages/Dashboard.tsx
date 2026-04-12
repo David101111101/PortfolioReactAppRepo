@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
+import { HeaderDashboard } from "../components/HeaderDashboard";
+import "../styles/Dashboard.css";
 import {
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
 } from "recharts";
 
-type MetricKey = "latency" | "reliability" | "confidence" | "rate";
+type MetricKey = "Latency" | "Reliability" | "Confidence" | "Rate";
 
 type Run = {
   run_id: string;
@@ -24,7 +26,7 @@ type Run = {
 type MetricProps = {
   title: string;
   value: string;
-  subtitle?: string; 
+  subtitle?: string;
   onClick: () => void;
 };
 
@@ -52,6 +54,29 @@ type RegressionStory = {
   analysis_confidence: string;
 };
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatFixed(value: number | null | undefined, digits: number, suffix = "") {
+  return isFiniteNumber(value) ? `${value.toFixed(digits)}${suffix}` : "N/A";
+}
+
+function formatPercentFromWhole(value: number | null | undefined, digits = 1) {
+  return isFiniteNumber(value) ? `${value.toFixed(digits)}%` : "N/A";
+}
+
+function formatPercentFromRatio(value: number | null | undefined, digits = 1) {
+  return isFiniteNumber(value) ? `${(value * 100).toFixed(digits)}%` : "N/A";
+}
+
+function sectionId(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export default function Dashboard() {
   const [trend, setTrend] = useState<Run[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
@@ -61,168 +86,127 @@ export default function Dashboard() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [story, setStory] = useState<RegressionStory | null>(null);
-  const last5 = trend.slice(0, 5);
   const [comparison, setComparison] = useState<RegressionComparison | null>(null);
   const [languageMetrics, setLanguageMetrics] = useState<LanguageMetric[]>([]);
- 
-  useEffect(() => {
-  if (!hasSupabaseConfig) return;
 
-  fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, {
-    headers: {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`
-    }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error("Comparison API error");
-      return res.json();
-    })
-    .then(data => {
-      setComparison(data?.[0]);
-    })
-    .catch(err => console.error("Comparison fetch error:", err));
-
-}, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
   useEffect(() => {
     if (!hasSupabaseConfig) return;
+
+    fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Comparison API error");
+        return res.json();
+      })
+      .then((data) => setComparison(data?.[0]))
+      .catch((err) => console.error("Comparison fetch error:", err));
+  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
     fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, {
       headers: {
         apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`
-      }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error("Story API error");
-      return res.json();
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     })
-    .then(data => {
-      setStory(data?.[0]);
-    })
-    .catch(err => console.error("Story fetch error:", err));
-}, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
+      .then((res) => {
+        if (!res.ok) throw new Error("Story API error");
+        return res.json();
+      })
+      .then((data) => setStory(data?.[0]))
+      .catch((err) => console.error("Story fetch error:", err));
+  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
-
-  // 🔹 Load runs
   useEffect(() => {
-    if (!hasSupabaseConfig) {
-      return;
-    }
+    if (!hasSupabaseConfig) return;
 
     fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, {
       headers: {
         apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`
-      }
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error("API error");
         return res.json();
       })
-      .then(data => {
-          if (!data || data.length === 0) {
-            console.warn("⚠️ No data returned from Supabase");
-          }
+      .then((data) => {
         setRuns(data || []);
-        if (data.length > 0) setSelectedRun(data[0]);
+        if (data?.length > 0) setSelectedRun(data[0]);
       })
-  .catch(err => console.error("Fetch error:", err));
+      .catch((err) => console.error("Fetch error:", err));
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
-  // 🔹 Load trends
   useEffect(() => {
-    if (!hasSupabaseConfig) {
-      return;
-    }
+    if (!hasSupabaseConfig) return;
 
     fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc&limit=10`, {
       headers: {
         apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`
-      }
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     })
-      .then(res => res.json())
-      .then(setTrend);
-      
+      .then((res) => res.json())
+      .then(setTrend)
+      .catch((err) => console.error("Trend fetch error:", err));
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
   useEffect(() => {
-  if (!hasSupabaseConfig || !selectedRun) return;
+    if (!hasSupabaseConfig || !selectedRun) return;
 
-  fetch(
-    `${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${selectedRun.run_id}`,
-    {
+    fetch(`${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${selectedRun.run_id}`, {
       headers: {
         apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`
-      }
-    }
-  )
-    .then(res => {
-      if (!res.ok) throw new Error("Language summary fetch error");
-      return res.json();
+        Authorization: `Bearer ${supabaseKey}`,
+      },
     })
-    .then(data => setLanguageMetrics(data || []))
-    .catch(err => console.error("Language metrics error:", err));
-}, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
+      .then((res) => {
+        if (!res.ok) throw new Error("Language summary fetch error");
+        return res.json();
+      })
+      .then((data) => setLanguageMetrics(data || []))
+      .catch((err) => console.error("Language metrics error:", err));
+  }, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
   const handleRunChange = (id: string) => {
-    const run = runs.find((currentRun) => currentRun.run_id === String(id));
-    if (run) {
-      setSelectedRun(run);
-    }
-  };
-  const getRateLimitLabel = (rate: number) => {
-    if (rate < 0.1) return "🟢 Low impact";
-    if (rate < 0.3) return "🟡 Moderate throttling";
-    return "🔴 High user impact";
+    const run = runs.find((currentRun) => currentRun.run_id === id);
+    if (run) setSelectedRun(run);
   };
 
-  if (!hasSupabaseConfig) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1>🧠 AI System Dashboard</h1>
-          <p>Dashboard data is not configured for this Vite app.</p>
-          <p>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to the active .env file.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!selectedRun) return <div>Loading...</div>;
-  const chartData = trend.map(t => ({
-    date: new Date(t.run_timestamp).toLocaleDateString(),
-    latency: t.p95_latency,
-    confidence: t.avg_confidence,
-    reliability: t.reliability_score,
-    rate: t.enforcement_rate
-  }));
-  const latest = trend[0];
-  const previous = trend[1];
-
-  const latencySpike =
-  latest && previous &&
-  latest.p95_latency > previous.p95_latency * 1.2;
-
-  const getRankShiftLabel = (value: number) => {
-    if (value < 0.2) return "🟢 Stable retrieval";
-    if (value < 0.5) return "🟡 Moderate drift";
-    return "🔴 High ranking instability";
+  const getRateLimitLabel = (rate: number | null | undefined) => {
+    if (!isFiniteNumber(rate)) return "No rate-limit data";
+    if (rate < 0.1) return "Low impact";
+    if (rate < 0.3) return "Moderate throttling";
+    return "High user impact";
   };
 
-  const getLatencyDeltaLabel = (pct: number) => {
-    if (pct > 0.2) return "🔴 Significant slowdown";
-    if (pct > 0) return "🟡 Slight slowdown";
-    if (pct > -0.2) return "🟢 Slight improvement";
-    return "🟢 Major improvement";
+  const getRankShiftLabel = (value: number | null | undefined) => {
+    if (!isFiniteNumber(value)) return "No drift data";
+    if (value < 0.2) return "Stable retrieval";
+    if (value < 0.5) return "Moderate drift";
+    return "High ranking instability";
   };
 
-  const getConfidenceDeltaLabel = (pct: number) => {
-    if (pct < -0.1) return "🔴 Confidence drop";
-    if (pct < 0) return "🟡 Slight drop";
-    if (pct < 0.1) return "🟢 Stable";
-    return "🟢 Improved";
+  const getLatencyDeltaLabel = (pct: number | null | undefined) => {
+    if (!isFiniteNumber(pct)) return "No comparison data";
+    if (pct > 0.2) return "Significant slowdown";
+    if (pct > 0) return "Slight slowdown";
+    if (pct > -0.2) return "Slight improvement";
+    return "Major improvement";
+  };
+
+  const getConfidenceDeltaLabel = (pct: number | null | undefined) => {
+    if (!isFiniteNumber(pct)) return "No comparison data";
+    if (pct < -0.1) return "Confidence drop";
+    if (pct < 0) return "Slight drop";
+    if (pct < 0.1) return "Stable";
+    return "Improved";
   };
 
   const languageMap: Record<string, string> = {
@@ -232,324 +216,308 @@ export default function Dashboard() {
     de: "German",
     pt: "Portuguese",
     zh: "Chinese",
-    ja: "Japanese"
-  };  
-  const getLanguageName = (code: string) =>
-    languageMap[code] || code;
-  const getLanguageRisk = (l: LanguageMetric) => {
-    if (l.min_confidence < 60) return "🔴 Critical";
-    if (l.min_confidence < 75) return "🟡 Risk";
-    return "🟢 Healthy";
+    ja: "Japanese",
   };
-  const isUnstable = (l: LanguageMetric) =>
-    l.avg_confidence - l.min_confidence > 15;
+
+  const getLanguageName = (code: string) => languageMap[code] || code;
+  const getLanguageRisk = (language: LanguageMetric) => {
+    if (!isFiniteNumber(language.min_confidence)) return "No language data";
+    if (language.min_confidence < 60) return "Critical";
+    if (language.min_confidence < 75) return "Risk";
+    return "Healthy";
+  };
+
+  const isUnstable = (language: LanguageMetric) =>
+    isFiniteNumber(language.avg_confidence) &&
+    isFiniteNumber(language.min_confidence) &&
+    language.avg_confidence - language.min_confidence > 15;
+
+  if (!hasSupabaseConfig) {
+    return (
+      <section id={sectionId("AI System Dashboard")}>
+        <section className="dashboard-card" id={sectionId("Dashboard Configuration")}>
+          <h1>AI System Dashboard</h1>
+          <p>Dashboard data is not configured for this Vite app.</p>
+          <p>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to the active .env file.</p>
+        </section>
+      </section>
+    );
+  }
+
+  if (!selectedRun) {
+    return <section className="dashboard-page">Loading...</section>;
+  }
+
+  const chronologicalTrend = [...trend].sort(
+    (a, b) => new Date(a.run_timestamp).getTime() - new Date(b.run_timestamp).getTime()
+  );
+
+  const chartData = chronologicalTrend.map((entry) => ({
+    date: new Date(entry.run_timestamp).toLocaleDateString(),
+    latency: entry.p95_latency,
+    confidence: entry.avg_confidence,
+    reliability: entry.reliability_score,
+    rate: entry.enforcement_rate,
+  }));
+
+  const latest = trend[0];
+  const previous = trend[1];
+  const last5 = trend.slice(0, 5);
+  const latencySpike =
+    isFiniteNumber(latest?.p95_latency) &&
+    isFiniteNumber(previous?.p95_latency) &&
+    latest.p95_latency > previous.p95_latency * 1.2;
+
   const sortedLanguages = [...languageMetrics].sort(
     (a, b) => a.min_confidence - b.min_confidence
   );
   const worstLanguage = sortedLanguages[0];
+  const hasLanguageMetrics = languageMetrics.length > 0;
 
-
-
-  
   return (
-    <div style={styles.container}>
-      <h1>🧠 AI System Dashboard</h1>
+    <section className="dashboard-page" id={sectionId("AI System Dashboard")}>
+      <HeaderDashboard />
+      <section className="bg bg-dark" aria-hidden="true" />
+      <section className="bg bg-light" aria-hidden="true" />
 
-      {/* 🔹 Run Selector */}
-      <div style={styles.card}>
-        <label>Select Run: </label>
-        <select onChange={(e) => handleRunChange(e.target.value)}>
-          {runs.map(run => (
-            <option key={run.run_id} value={run.run_id}>
-              Run {run.run_id} — {new Date(run.run_timestamp).toLocaleString()}
-            </option>
-          ))}
-        </select>
-      </div>
+      <main id="content" className="dashboard-main">
+        <h1>AI System Dashboard</h1>
 
-      {/* 🔹 Metrics Grid */}
-      <div style={styles.grid}>
-        <Metric
-          title="P95 Latency"
-          value={`${selectedRun.p95_latency} ms`}
-          onClick={() => setSelectedMetric("latency")}
-        />
-        <Metric
-          title="Reliability"
-          value={`${(selectedRun.reliability_score).toFixed(1)}%`}
-          onClick={() => setSelectedMetric("reliability")}
-        />
-        <Metric
-          title="Confidence"
-          value={`${(selectedRun.avg_confidence).toFixed(1)}%`}
-          onClick={() => setSelectedMetric("confidence")}
-        />
-        <Metric
-          title="Rate Limit"
-          value={`${(selectedRun.enforcement_rate * 100).toFixed(1)}%`}
-          subtitle={getRateLimitLabel(selectedRun.enforcement_rate)}
-          onClick={() => setSelectedMetric("rate")}
-        />
-      </div>
+        <section className="dashboard-card" id={sectionId("Run Selector")}>
+          <h2>Run Selector</h2>
+          <label htmlFor="run-selector">Select Run:</label>
+          <select id="run-selector" className="dashboard-select" onChange={(e) => handleRunChange(e.target.value)}>
+            {runs.map((run) => (
+              <option key={run.run_id} value={run.run_id}>
+                Run {run.run_id} - {new Date(run.run_timestamp).toLocaleString()}
+              </option>
+            ))}
+          </select>
+        </section>
 
-      {comparison && (
-        <div style={styles.card}>
-        <h2>📊 Regression Impact (vs Previous Run)</h2>
-
-        <div style={styles.row}>
-          <span>Latency</span>
-          <span>{(comparison.latency_pct * 100).toFixed(1)}%</span>
-          <span>{getLatencyDeltaLabel(comparison.latency_pct)}</span>
-        </div>
-
-        <div style={styles.row}>
-          <span>Confidence</span>
-          <span>{(comparison.confidence_pct * 100).toFixed(1)}%</span>
-          <span>{getConfidenceDeltaLabel(comparison.confidence_pct)}</span>
-        </div>
-
-        <div style={styles.row}>
-          <span>Reliability</span>
-          <span>{(comparison.reliability_delta * 100).toFixed(1)}%</span>
-          <span>
-            {comparison.reliability_delta < 0
-              ? "🔴 Degradation"
-              : "🟢 Improvement"}
-          </span>
-        </div>
-      </div>
-      )}
-      
-      <div style={styles.card}>
-        <h2>📈 System Trends</h2>
-
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            
-            <XAxis 
-              dataKey="date" 
-              label={{ value: "Run Date", position: "insideBottom", offset: -5 }} 
+        <section className="dashboard-card" id={sectionId("Key Metrics")}>
+          <h2>Key Metrics</h2>
+          <section className="dashboard-grid">
+            <Metric
+              title="P95 Latency"
+              value={isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}
+              onClick={() => setSelectedMetric("Latency")}
             />
-            <YAxis 
-              label={{ 
-                value: "Metrics", 
-                angle: -90, 
-                position: "insideLeft" 
-              }} 
+            <Metric
+              title="Reliability"
+              value={formatPercentFromWhole(selectedRun.reliability_score)}
+              onClick={() => setSelectedMetric("Reliability")}
             />
-            <Tooltip />
+            <Metric
+              title="Confidence"
+              value={formatPercentFromWhole(selectedRun.avg_confidence)}
+              onClick={() => setSelectedMetric("Confidence")}
+            />
+            <Metric
+              title="Rate Limit"
+              value={formatPercentFromRatio(selectedRun.enforcement_rate)}
+              subtitle={getRateLimitLabel(selectedRun.enforcement_rate)}
+              onClick={() => setSelectedMetric("Rate")}
+            />
+          </section>
+        </section>
 
-            <Line type="monotone" name="Latency (ms)" dataKey="latency" />
-            <Line type="monotone" name="Confidence Score" dataKey="confidence" />
-            <Line type="monotone" name="Reliability Score" dataKey="reliability" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* 🔹 Drill-down Panel */}
-      {selectedMetric && (
-        <div style={styles.card}>
-          <h2>📊 {selectedMetric} Trend</h2>
-           {latencySpike && selectedMetric === "latency" && (
-              <p style={{ color: "orange" }}>
-                ⚠️ Latency increased &gt;20% vs previous run
-              </p>
+        {selectedMetric && (
+          <section className="dashboard-card" id={sectionId(`${selectedMetric} Trend`)}>
+            <h2>{selectedMetric} Trend</h2>
+            {latencySpike && selectedMetric === "Latency" && (
+              <p className="dashboard-warning-text">Latency increased more than 20% vs previous run</p>
             )}
-
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-
-              {selectedMetric === "latency" && <Line dataKey="latency" />}
-              {selectedMetric === "confidence" && <Line dataKey="confidence" />}
-              {selectedMetric === "reliability" && <Line dataKey="reliability" />}
-              {selectedMetric === "rate" && <Line dataKey="rate" />}
-            </LineChart>
-          </ResponsiveContainer>
-
-          <Insight metric={selectedMetric} />
-        </div>
-      )}
-
-      {/* 🔹 Multilingual */}
-            {/* 🌍 Multilingual Intelligence */}
-      <div style={styles.card}>
-        <h2>🌍 Multilingual Retrieval Intelligence</h2>
-
-        <h4>📊 Current State</h4>
-        {sortedLanguages.map(l => (
-          <div key={l.language} style={styles.row}>
-            <span>{getLanguageName(l.language)}</span>
-            <span>avg={l.avg_confidence.toFixed(1)} | min={l.min_confidence.toFixed(1)}</span>
-            <span>{getLanguageRisk(l)} {isUnstable(l) ? "⚠️ Unstable" : ""}</span>
-          </div>
-        ))}
-
-        {worstLanguage && (
-          <>
-            <h4>⚠️ Highest Risk</h4>
-            <p>
-              <b>{getLanguageName(worstLanguage.language)} — min {worstLanguage.min_confidence.toFixed(1)}</b>
-            </p>
-          </>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={chartData}>
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                {selectedMetric === "Latency" && <Line dataKey="Latency" />}
+                {selectedMetric === "Confidence" && <Line dataKey="Confidence" />}
+                {selectedMetric === "Reliability" && <Line dataKey="Reliability" />}
+                {selectedMetric === "Rate" && <Line dataKey="Rate" />}
+              </LineChart>
+            </ResponsiveContainer>
+            <Insight metric={selectedMetric} />
+          </section>
         )}
 
-        <h4>🔬 Retrieval Stability</h4>
-        <p>
-          {selectedRun.avg_rank_shift.toFixed(3)} — <b>{getRankShiftLabel(selectedRun.avg_rank_shift)}</b>
-        </p>
-      </div>
-      {/* 📉 Drift */}
-      <div style={styles.card}>
-        <h2>📉 Language Drift (Approx)</h2>
+        {comparison && (
+          <section className="dashboard-card" id={sectionId("Regression Impact vs Previous Run")}>
+            <h2>Regression Impact (vs Previous Run)</h2>
+            <section className="dashboard-row">
+              <span>Latency</span>
+              <span>{formatPercentFromRatio(comparison.latency_pct)}</span>
+              <span>{getLatencyDeltaLabel(comparison.latency_pct)}</span>
+            </section>
+            <section className="dashboard-row">
+              <span>Confidence</span>
+              <span>{formatPercentFromRatio(comparison.confidence_pct)}</span>
+              <span>{getConfidenceDeltaLabel(comparison.confidence_pct)}</span>
+            </section>
+            <section className="dashboard-row">
+              <span>Reliability</span>
+              <span>{formatPercentFromRatio(comparison.reliability_delta)}</span>
+              <span>
+                {isFiniteNumber(comparison.reliability_delta)
+                  ? comparison.reliability_delta < 0
+                    ? "Degradation"
+                    : "Improvement"
+                  : "No comparison data"}
+              </span>
+            </section>
+          </section>
+        )}
 
-        {languageMetrics.map(l => {
-          const prev = trend[1];
-          const delta = prev ? l.avg_confidence - prev.avg_confidence : 0;
+        <section className="dashboard-card" id={sectionId("System Trends")}>
+          <h2>System Trends</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" label={{ value: "Run Date", position: "insideBottom", offset: -5 }} />
+              <YAxis label={{ value: "Metrics", angle: -90, position: "insideLeft" }} />
+              <Tooltip />
+              <Line type="monotone" name="Latency (ms)" dataKey="latency" />
+              <Line type="monotone" name="Confidence Score" dataKey="confidence" />
+              <Line type="monotone" name="Reliability Score" dataKey="Reliability" />
+            </LineChart>
+          </ResponsiveContainer>
+        </section>
 
-          const label =
-            delta < -10 ? "🔻 Regression" :
-            delta < -3 ? "⚠️ Drop" :
-            delta > 3 ? "🔼 Improvement" :
-            "➖ Stable";
+        <section className="dashboard-card" id={sectionId("Multilingual Retrieval Intelligence")}>
+          <h2>Multilingual Retrieval Intelligence</h2>
+          <h3>Current State</h3>
+          {hasLanguageMetrics ? (
+            sortedLanguages.map((language) => (
+              <section key={language.language} className="dashboard-row">
+                <span>{getLanguageName(language.language)}</span>
+                <span>
+                  avg={formatFixed(language.avg_confidence, 1)} | min={formatFixed(language.min_confidence, 1)}
+                </span>
+                <span>
+                  {getLanguageRisk(language)} {isUnstable(language) ? "Unstable" : ""}
+                </span>
+              </section>
+            ))
+          ) : (
+            <p>No language metrics available for this run.</p>
+          )}
 
-          return (
-            <div key={l.language} style={styles.row}>
-              <span>{getLanguageName(l.language)}</span>
-              <span>{delta.toFixed(1)}</span>
-              <span>{label}</span>
-            </div>
-          );
-        })}
-      </div>
-      {story && (
-        <div style={styles.card}>
-          <h2>🧠 AI System Intelligence</h2>
+          {worstLanguage && (
+            <>
+              <h3>Highest Risk</h3>
+              <p>
+                <b>
+                  {getLanguageName(worstLanguage.language)} - min {formatFixed(worstLanguage.min_confidence, 1)}
+                </b>
+              </p>
+            </>
+          )}
 
-          <p>Trend: <b>{story.trend_direction}</b></p>
-          <p>Severity: <b>{story.regression_severity}</b></p>
-          <p>Primary Signal: <b>{story.primary_signal}</b></p>
-          <p>User Impact: <b>{story.user_impact}</b></p>
-          <p>Analysis Confidence: <b>{story.analysis_confidence}</b></p>
-        </div>
-      )}
+          <h3>Retrieval Stability</h3>
+          <p>
+            {formatFixed(selectedRun.avg_rank_shift, 3)} - <b>{getRankShiftLabel(selectedRun.avg_rank_shift)}</b>
+          </p>
+        </section>
 
-      <div style={styles.card}>
-        <h2>📉 Last 5 Runs Trend</h2>
+        <section className="dashboard-card" id={sectionId("Language Drift Approx")}>
+          <h2>Language Drift (Approx)</h2>
+          {hasLanguageMetrics ? (
+            languageMetrics.map((language) => {
+              const delta =
+                isFiniteNumber(language.avg_confidence) && isFiniteNumber(previous?.avg_confidence)
+                  ? language.avg_confidence - previous.avg_confidence
+                  : null;
 
-        {/* Header */}
-        <div style={{ ...styles.row, fontWeight: "bold", opacity: 0.7 }}>
-          <span>Date</span>
-          <span>Latency (ms)</span>
-          <span>Confidence</span>
-          <span>Reliability</span>
-        </div>
+              const label =
+                !isFiniteNumber(delta)
+                  ? "No drift data"
+                  : delta < -10
+                    ? "Regression"
+                    : delta < -3
+                      ? "Drop"
+                      : delta > 3
+                        ? "Improvement"
+                        : "Stable";
 
-        {last5.map(r => (
-          <div key={r.run_id} style={styles.row}>
-            <span>{new Date(r.run_timestamp).toLocaleDateString()}</span>
-            <span>{r.p95_latency} ms</span>
-            <span>{r.avg_confidence?.toFixed(2)}</span>
-            <span>{r.reliability_score?.toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-      {/* 🧠 Risk Summary */}
-      <div style={styles.card}>
-        <h2>🧠 AI Risk Summary</h2>
+              return (
+                <section key={language.language} className="dashboard-row">
+                  <span>{getLanguageName(language.language)}</span>
+                  <span>{formatFixed(delta, 1)}</span>
+                  <span>{label}</span>
+                </section>
+              );
+            })
+          ) : (
+            <p>No drift data available for this run.</p>
+          )}
+        </section>
 
-        <p>
-          Worst-case confidence: <b>{worstLanguage?.min_confidence.toFixed(1)}</b>
-        </p>
+        {story && (
+          <section className="dashboard-card" id={sectionId("AI System Intelligence")}>
+            <h2>AI System Intelligence</h2>
+            <p>Trend: <b>{story.trend_direction}</b></p>
+            <p>Severity: <b>{story.regression_severity}</b></p>
+            <p>Primary Signal: <b>{story.primary_signal}</b></p>
+            <p>User Impact: <b>{story.user_impact}</b></p>
+            <p>Analysis Confidence: <b>{story.analysis_confidence}</b></p>
+          </section>
+        )}
 
-        <p>
-          Stability:{" "}
-          <b>
-            {languageMetrics.some(isUnstable)
-              ? "⚠️ Non-deterministic behavior detected"
-              : "🟢 Stable system"}
-          </b>
-        </p>
-      </div>
-    </div>
+        <section className="dashboard-card" id={sectionId("Last 5 Runs Trend")}>
+          <h2>Last 5 Runs Trend</h2>
+          <section className="dashboard-row dashboard-row-header">
+            <span>Date</span>
+            <span>Latency (ms)</span>
+            <span>Confidence</span>
+            <span>Reliability</span>
+          </section>
+          {last5.map((run) => (
+            <section key={run.run_id} className="dashboard-row">
+              <span>{new Date(run.run_timestamp).toLocaleDateString()}</span>
+              <span>{run.p95_latency} ms</span>
+              <span>{run.avg_confidence?.toFixed(2)}</span>
+              <span>{run.reliability_score?.toFixed(2)}</span>
+            </section>
+          ))}
+        </section>
+
+        <section className="dashboard-card" id={sectionId("AI Risk Summary")}>
+          <h2>AI Risk Summary</h2>
+          <p>
+            Worst-case confidence: <b>{worstLanguage ? worstLanguage.min_confidence.toFixed(1) : "N/A"}</b>
+          </p>
+          <p>
+            Stability: <b>{languageMetrics.some(isUnstable) ? "Non-deterministic behavior detected" : "Stable system"}</b>
+          </p>
+        </section>
+      </main>
+    </section>
   );
 }
 
-// 🔹 Metric Card
 function Metric({ title, value, subtitle, onClick }: MetricProps) {
   return (
-    <div onClick={onClick} style={styles.metric}>
+    <button
+      type="button"
+      className="dashboard-metric"
+      onClick={onClick}
+    >
       <div>{title}</div>
-      <div style={styles.metricValue}>{value}</div>
-
-      {subtitle && (
-        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-          {subtitle}
-        </div>
-      )}
-    </div>
+      <div className="dashboard-metric-value">{value}</div>
+      {subtitle && <div className="dashboard-metric-subtitle">{subtitle}</div>}
+    </button>
   );
 }
-// 🔹 Insight Component
+
 function Insight({ metric }: InsightProps) {
   let message = "";
 
-  if (metric === "latency") {
-    message = "⚠️ Increased latency may degrade LLM response quality.";
-  }
-  if (metric === "reliability") {
-    message = "📉 Reliability drop indicates regression risk.";
-  }
-  if (metric === "confidence") {
-    message = "🧠 Lower confidence suggests retrieval degradation.";
-  }
-  if (metric === "rate") {
-    message = "🚦 Rate limit issues may block users.";
-  }
+  if (metric === "Latency") message = "Increased latency may degrade LLM response quality.";
+  if (metric === "Reliability") message = "Reliability drop indicates regression risk.";
+  if (metric === "Confidence") message = "Lower confidence suggests retrieval degradation.";
+  if (metric === "Rate") message = "Rate limit issues may block users.";
 
-  return (
-    <p style={{ marginTop: 10, color: "orange" }}>
-      {message}
-    </p>
-  );
+  return <p className="dashboard-insight-text">{message}</p>;
 }
-
-// 🔹 Styles
-const styles = {
-  container: {
-    padding: 20,
-    color: "white",
-    background: "#0b1020",
-    minHeight: "100vh"
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: 16,
-    marginTop: 20
-  },
-  card: {
-    background: "#111827",
-    padding: 20,
-    borderRadius: 12,
-    marginTop: 20
-  },
-  metric: {
-    background: "#1f2937",
-    padding: 20,
-    borderRadius: 12,
-    cursor: "pointer"
-  },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: "bold"
-  },
-  row: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: 6
-  }
-};
