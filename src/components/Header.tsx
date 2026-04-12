@@ -34,6 +34,15 @@ export function Header() {
 
     // Determine the next theme based on the current theme
     const next = theme === "dark" ? "light" : "dark";
+    const isTestMode = document.documentElement.getAttribute("data-test-mode") === "true";
+
+    if (isTestMode) {
+      setTheme(next);
+      localStorage.setItem("theme", next);
+      document.documentElement.setAttribute("data-theme", next);
+      return;
+    }
+
     // Trigger overlay animation
     showThemeOverlay();
     // Add a temporary class so transitions feel intentional

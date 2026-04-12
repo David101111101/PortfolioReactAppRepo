@@ -1,14 +1,17 @@
+/// <reference types="node" />
 import { defineConfig} from "@playwright/test";
 
 // Origin only
 const ORIGIN = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173";
-// in CI runs tests headless to avoid flakiness
-const isCI = !!process.env.CI;
+const isHeaded =
+  process.env.PLAYWRIGHT_HEADED === "1" ||
+  process.env.PLAYWRIGHT_HEADED === "true";
+const headless = !isHeaded;
 
 export default defineConfig({
   testDir: "./e2e/specs",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
+  forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 4 : undefined,
 
@@ -22,14 +25,12 @@ export default defineConfig({
   ],
 
   use: {
-    // Keep baseURL as ORIGIN only; base-path routing is handled by your page objects (goto()).
     baseURL: ORIGIN,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     actionTimeout: 15_000,
     navigationTimeout: 40_000,
-    viewport: { width: 800, height: 600 },
     contextOptions: {
       reducedMotion: 'reduce'
     }
@@ -44,9 +45,16 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "chromium", use: { browserName: "chromium", headless: isCI }},
-    { name: "firefox",  use: { browserName: "firefox",  headless: isCI, actionTimeout: 25000, navigationTimeout: 60000  }},
-    { name: "webkit",   use: { browserName: "webkit",   headless: isCI}
+    {
+      name: "chromium",
+      use: {
+        browserName: "chromium",
+        headless,
+        permissions: ["clipboard-read", "clipboard-write"],
+      },
+    },
+    { name: "firefox",  use: { browserName: "firefox",  headless, actionTimeout: 25000, navigationTimeout: 60000  }},
+    { name: "webkit",   use: { browserName: "webkit",   headless }
     },
   ]
   

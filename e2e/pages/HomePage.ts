@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { expect, type Locator, type Page } from "@playwright/test";
 //This page object is designed to abstract away details of how the Home page is implemented, providing a stable API for tests. It should not contain assertions or test logic, only methods for interacting with the page and querying its state.
 function escapeRegExp(s: string) {
@@ -5,11 +6,15 @@ function escapeRegExp(s: string) {
 }
 type Theme = "dark" | "light";
 export class HomePage {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
   // This disables all animations and transitions to have a deterministic testing suite
   async enableTestMode() {
-  await this.page.evaluate(() => {
-    document.documentElement.setAttribute("data-test-mode", "true");
+    await this.page.addInitScript(() => {
+      document.documentElement.setAttribute("data-test-mode", "true");
     });
   }
   async toggleTheme() {
@@ -35,6 +40,9 @@ export class HomePage {
   const normalized = basePath.startsWith("/") ? basePath : `/${basePath}`;
   await this.enableTestMode();
   await this.page.goto(normalized,{ waitUntil: "domcontentloaded" });
+  await this.page.evaluate(() => {
+    document.documentElement.setAttribute("data-test-mode", "true");
+  });
   await this.page.emulateMedia({ reducedMotion: "reduce" });
   // disable animations AFTER document exists
     await this.page.addStyleTag({
