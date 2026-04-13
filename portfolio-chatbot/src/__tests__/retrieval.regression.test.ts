@@ -74,6 +74,7 @@ interface AskResponse extends AssistantResponse {
 interface RetrieverRegressionMetric {
   run_id: string;
   test_id: "retrieval_regression" | "retrieval_hallucination_guard";
+  test_name: string;
   language: string;
   avg_similarity: number;
   max_similarity: number;
@@ -200,6 +201,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
         metrics.push({
           run_id: RUN_ID,
           test_id: "retrieval_regression",
+          test_name: "should maintain retrieval invariance and grounding across languages",
           language: lang,
           avg_similarity: r.retrieval.avgSimilarity,
           max_similarity: r.retrieval.maxSimilarity,
@@ -243,6 +245,7 @@ it("should not hallucinate when knowledge is absent", async () => {
       metrics.push({
         run_id: RUN_ID,
         test_id: "retrieval_hallucination_guard",
+        test_name: "should not hallucinate when knowledge is absent",
         language: "en",
         avg_similarity: probe.retrieval.avgSimilarity,
         max_similarity: probe.retrieval.maxSimilarity,

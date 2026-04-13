@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { profile } from "../data/portfolio";
 import { showThemeOverlay } from "../themeOverlay";
 
 declare global {
@@ -64,9 +63,9 @@ export function HeaderDashboard() {
           padding: "14px 20px",
         }}
       >
-        <a id="title-name" href="#top" style={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
-          {profile.name}
-        </a>
+        <h1>
+          Dave's RAG Quality Intelligence Dashboard
+        </h1>
 
         <nav style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
           <a className="badge" href="#/">Home</a>

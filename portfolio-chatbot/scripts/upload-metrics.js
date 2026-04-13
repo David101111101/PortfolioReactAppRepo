@@ -96,6 +96,7 @@ async function uploadRetrieval(metrics) {
     const payload = {
       run_id: dbRunId,
       test_id: m.test_id,
+      test_name: m.test_name,
       language: m.language,
       avg_similarity: m.avg_similarity,
       max_similarity: m.max_similarity,
@@ -115,6 +116,7 @@ async function uploadRateLimit(metrics) {
   for (const m of metrics) {
     const payload = {
       run_id: dbRunId,
+      test_name: m.test_name,
       total_requests: m.total_requests,
       total_429: m.total_429,
       enforcement_rate: m.enforcement_rate,
@@ -215,6 +217,7 @@ async function uploadPerformance(metrics) {
   for (const m of metrics) {
     const payload = {
       run_id: dbRunId,
+      test_name: m.test_name,
       sample_size: m.sample_size,
       concurrent_requests: m.concurrent_requests,
       min_latency: m.min_latency,
