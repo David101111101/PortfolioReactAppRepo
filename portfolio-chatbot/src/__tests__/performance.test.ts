@@ -26,6 +26,7 @@ const CONCURRENT_REQUESTS = 3;
 interface PerformanceRegressionMetric {
   run_id: string;
   test_id: "performance_regression";
+  test_name: string;
   sample_size: number;
   concurrent_requests: number;
   min_latency: number;
@@ -137,6 +138,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
       metrics.push({
         run_id: RUN_ID,
         test_id: "performance_regression",
+        test_name: "should maintain acceptable P95 latency and handle light concurrency",
         sample_size: SAMPLE_SIZE,
         concurrent_requests: CONCURRENT_REQUESTS,
 

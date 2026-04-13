@@ -26,6 +26,7 @@ const RUN_ID = process.env.RUN_ID ?? randomUUID();
 interface RateLimitRegressionMetric {
   run_id: string;
   test_id: "rate_limit_regression";
+  test_name: string;
   total_requests: number;
   total_429: number;
   enforcement_rate: number;
@@ -107,6 +108,7 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting (Artifact-Based)",
       metrics.push({
         run_id: RUN_ID,
         test_id: "rate_limit_regression",
+        test_name: "should block requests exceeding the per-IP limit",
         total_requests: totalRequests,
         total_429: total429,                 //Consistency of enforcement
         enforcement_rate: enforcementRate, //Strength of blocking
