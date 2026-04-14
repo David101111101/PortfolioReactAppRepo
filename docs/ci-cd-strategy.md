@@ -197,6 +197,20 @@ Defined in `.github/workflows/weekly-regression-gates.yml`.
 - Queries 30+ Supabase view columns for structured dashboard variables
 - Populates Supabase regression tables that power the **live AI Observability Dashboard** at `/#/dashboard`
 
+### 7.4 Chatbot Dashboard Integration (Self-Aware Mode)
+
+After each weekly regression run, the Dashboard enables a second operating mode for the AI chatbot.
+
+When a user selects a run on the Dashboard page, `buildRunSnapshotContext()` (in `src/pages/Dashboard.tsx`) builds a structured context block from the selected run and the previous run, including pre-computed deltas for all key signals. This block is injected into the chatbot system prompt via the `runContext` prop.
+
+The chatbot then operates in **Analysis Mode**, where it:
+- References actual metric values from the snapshot
+- Compares current vs previous run using the injected deltas
+- Applies correlation rules to identify root causes
+- Provides actionable debugging guidance grounded in real data
+
+This means the weekly regression pipeline does not only surface data in a dashboard — it also arms the chatbot to explain that data on demand.
+
 ## 8) Quality Gates Currently Enforced
 
 ### 8.1 Code Quality (Lint Gate)
@@ -232,6 +246,7 @@ Current pipeline feedback channels:
 - Auto-updated PR result comment (lint + E2E + Lighthouse + quality score)
 - Release summary with Lighthouse delta vs previous baseline
 - Supabase analytics views → Live AI Observability Dashboard at `/#/dashboard`
+- Dashboard run snapshot → AI chatbot analysis mode (chatbot explains live run data on demand)
 
 ## 10) Pipeline Overview
 
@@ -264,4 +279,6 @@ flowchart TD
   MetricsUpload --> DBAnalysis["Statistical Analysis\nTrend · Anomalies · Severity Classification"]
   DBAnalysis --> Dashboard["AI Observability Dashboard\nLive at /#/dashboard"]
   DBAnalysis --> RegressionGate["Regression Severity Gate\nBlocks pipeline on critical or moderate signal"]
+  Dashboard --> RunSnapshot["Run Snapshot Builder\nbuildRunSnapshotContext()"]
+  RunSnapshot --> ChatbotAnalysis["AI Chatbot — Analysis Mode\nReasons about live run data on demand"]
 ```

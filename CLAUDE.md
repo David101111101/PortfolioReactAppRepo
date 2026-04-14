@@ -11,6 +11,10 @@ A production-grade AI Quality Intelligence Platform serving as a portfolio site.
 
 The project's main purpose is to demonstrate engineering quality through the depth of its own CI/CD pipeline — the weekly regression suite detects AI behavioral regressions in production using statistical baselines.
 
+The chatbot operates in two modes depending on which page it is opened from:
+- **Mode 1 — General (Home Page):** No run data in context. Answers architecture and design questions based on retrieved documentation.
+- **Mode 2 — Analysis (Dashboard Page):** A run snapshot (current run + previous run + deltas for all key metrics) is injected into the chatbot context. The chatbot analyzes real production metrics, compares runs, and guides debugging. This makes the chatbot self-aware of its own observability data.
+
 ---
 
 ## Commands
@@ -68,6 +72,8 @@ Frontend (React/Vite)
 **Ingestion pipeline** (offline, run once): `scripts/ingest.ts` chunks markdown/PDF docs, generates embeddings, and upserts vectors into Supabase.
 
 **Frontend data flow**: `src/services/streamAssistant.ts` handles streaming SSE from the Worker; `src/services/chatApi.ts` is the HTTP layer. Portfolio content lives in `src/data/portfolio.ts`.
+
+**Dashboard chatbot integration**: `src/pages/Dashboard.tsx` builds a structured run snapshot (`buildRunSnapshotContext`) from the selected run and the previous run (current values + deltas for P95 latency, reliability score, avg/min confidence, enforcement rate, avg rank shift). This snapshot is passed to the `ChatWidget` as `runContext`, which prepends it to the system prompt — switching the chatbot into analysis mode.
 
 **Durable Objects** (`src/rateLimiter.ts`) implement per-IP sliding window rate limiting — each IP gets its own Durable Object instance.
 

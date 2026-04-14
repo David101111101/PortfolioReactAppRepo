@@ -7,6 +7,7 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  isAnchor?: boolean;
 };
 
 const createMessage = (
@@ -25,7 +26,21 @@ const INITIAL_GREETING = `This R.A.G. assistant is my approach to exploring and 
 
 Conversations may be logged, but no personal information is stored.`;
 
-export default function ChatWidget() {
+export default function ChatWidget({
+  disableBackdrop = false,
+  runContext,
+  greeting,
+  externalQuery,
+  onExternalQueryConsumed,
+  conversationKey,
+}: {
+  disableBackdrop?: boolean;
+  runContext?: string;
+  greeting?: string;
+  externalQuery?: string;
+  onExternalQueryConsumed?: () => void;
+  conversationKey?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,35 +49,35 @@ export default function ChatWidget() {
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
 
+  const greetingText = greeting ?? INITIAL_GREETING;
+
   const TYPING_SPEED = 13;
   const savedScrollTopRef = useRef(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bubbleRef = useRef<HTMLButtonElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const navIndexRef = useRef(-1);
-  
+  const isOpenRef = useRef(false);
+  isOpenRef.current = isOpen;
+
   const userMessageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pendingScrollUserIdRef = useRef<string | null>(null);
   const lastCompletedUserIdRef = useRef<string | null>(null);
+  const pendingAnchorScrollRef = useRef<string | null>(null);
   const setNav = (i: number) => {
     navIndexRef.current = i;
   };
 
   const scrollUserToTop = useCallback((el: HTMLDivElement | null) => {
-  if (!el) return;
-
-  el.scrollIntoView({
-    block: "start",
-    behavior: "auto",
-  });
-}, []);
+    if (!el) return;
+    el.scrollIntoView({ block: "start", behavior: "auto" });
+  }, []);
 
   const keepInputFocus = useCallback(() => {
-    const input = inputRef.current;
-    if (!input) return;
-
+    const el = inputRef.current;
+    if (!el) return;
     requestAnimationFrame(() => {
-      input.focus({ preventScroll: true });
+      el.focus({ preventScroll: true });
     });
   }, []);
 
@@ -78,7 +93,6 @@ export default function ChatWidget() {
     if (scrollContainerRef.current) {
       savedScrollTopRef.current = scrollContainerRef.current.scrollTop;
     }
-
     setVisible(false);
     setTimeout(() => setIsOpen(false), 200);
   };
@@ -90,6 +104,7 @@ export default function ChatWidget() {
     restoreFocusRef: bubbleRef,
   });
 
+  // Restore scroll position when chat reopens
   useEffect(() => {
     if (!isOpen) return;
     const id = requestAnimationFrame(() => {
@@ -103,6 +118,7 @@ export default function ChatWidget() {
     return () => cancelAnimationFrame(id);
   }, [isOpen]);
 
+  // Start greeting typewriter when messages are empty
   useEffect(() => {
     if (messages.length !== 0) return;
     setIsTypingGreeting(true);
@@ -110,97 +126,119 @@ export default function ChatWidget() {
     setMessages([createMessage("assistant", "")]);
   }, [messages.length]);
 
+  // Scroll user message into view while streaming
   useEffect(() => {
-  if (!isStreaming) return;
-
-  const id = pendingScrollUserIdRef.current;
-  if (!id) return;
-
-  const el = userMessageRefs.current[id];
-  if (!el) return;
-
-  scrollUserToTop(el);
-}, [messages, isStreaming, scrollUserToTop]);
-
-const handleStreamingFinishedScroll = useCallback(() => {
-  const id = lastCompletedUserIdRef.current;
-  if (!id) return;
-
-  const el = userMessageRefs.current[id];
-  if (!el) return;
-
-  requestAnimationFrame(() => {
+    if (!isStreaming) return;
+    const id = pendingScrollUserIdRef.current;
+    if (!id) return;
+    const el = userMessageRefs.current[id];
+    if (!el) return;
     scrollUserToTop(el);
-  });
+  }, [messages, isStreaming, scrollUserToTop]);
 
-  lastCompletedUserIdRef.current = null;
-}, [scrollUserToTop]);
+  const handleStreamingFinishedScroll = useCallback(() => {
+    const id = lastCompletedUserIdRef.current;
+    if (!id) return;
+    const el = userMessageRefs.current[id];
+    if (!el) return;
+    requestAnimationFrame(() => { scrollUserToTop(el); });
+    lastCompletedUserIdRef.current = null;
+  }, [scrollUserToTop]);
 
-useEffect(() => {
-  if (!isStreaming) {
-    handleStreamingFinishedScroll();
-  }
-}, [isStreaming, handleStreamingFinishedScroll]);
+  useEffect(() => {
+    if (!isStreaming) {
+      handleStreamingFinishedScroll();
+    }
+  }, [isStreaming, handleStreamingFinishedScroll]);
 
+  // Typewriter effect for greeting
   useEffect(() => {
     if (!isTypingGreeting) return;
-    if (greetingIndex >= INITIAL_GREETING.length) {
+    if (greetingIndex >= greetingText.length) {
       setIsTypingGreeting(false);
-
       requestAnimationFrame(() => {
         if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = 0;
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
       });
       return;
     }
 
     const timeout = setTimeout(() => {
-      const nextChar = INITIAL_GREETING[greetingIndex];
-
+      const nextChar = greetingText[greetingIndex];
       setMessages((prev) => {
         const updated = [...prev];
-        if (updated.length > 0 && updated[0].role === "assistant") {
-          updated[0] = {
-            ...updated[0],
-            content: updated[0].content + nextChar,
-          };
+        const last = updated[updated.length - 1];
+        if (last && last.role === "assistant") {
+          updated[updated.length - 1] = { ...last, content: last.content + nextChar };
         }
         return updated;
       });
-
       setGreetingIndex((prev) => prev + 1);
     }, TYPING_SPEED);
 
     return () => clearTimeout(timeout);
-  }, [greetingIndex, isTypingGreeting]);
+  }, [greetingIndex, isTypingGreeting, greetingText]);
+
+  // External query: open chat and pre-fill input
+  useEffect(() => {
+    if (!externalQuery) return;
+    setInput(externalQuery);
+    onExternalQueryConsumed?.();
+    if (!isOpenRef.current) {
+      setIsOpen(true);
+      setTimeout(() => setVisible(true), 10);
+    }
+    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+  }, [externalQuery, onExternalQueryConsumed]);
+
+  // Append a new context greeting when the selected run changes
+  const prevConversationKeyRef = useRef<string | undefined>(conversationKey);
+  useEffect(() => {
+    const prev = prevConversationKeyRef.current;
+    prevConversationKeyRef.current = conversationKey;
+    if (!prev || !conversationKey || prev === conversationKey) return;
+    const newMsg = { ...createMessage("assistant", greetingText), isAnchor: true };
+    pendingAnchorScrollRef.current = newMsg.id;
+    setMessages((msgs) => [...msgs, newMsg]);
+  }, [conversationKey, greetingText]);
+
+  // Scroll to a newly appended anchor greeting after React commits the render
+  useEffect(() => {
+    const id = pendingAnchorScrollRef.current;
+    if (!id) return;
+    const el = userMessageRefs.current[id];
+    if (!el) return;
+    pendingAnchorScrollRef.current = null;
+    requestAnimationFrame(() => scrollUserToTop(el));
+  }, [messages, scrollUserToTop]);
+
+  // Auto-resize textarea whenever input changes
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [input]);
 
   const goPrevQuestion = useCallback(() => {
-    const userMessages = messages.filter((m) => m.role === "user");
-    if (!userMessages.length) return;
-
+    const navMessages = messages.filter((m) => m.role === "user" || m.isAnchor);
+    if (!navMessages.length) return;
     const current = navIndexRef.current;
-    const next =
-      current <= 0 ? userMessages.length - 1 : current - 1;
-
-    const el = userMessageRefs.current[userMessages[next].id];
+    const next = current <= 0 ? navMessages.length - 1 : current - 1;
+    const el = userMessageRefs.current[navMessages[next].id];
     if (!el) return;
-
     scrollUserToTop(el);
     setNav(next);
   }, [messages, scrollUserToTop]);
 
   const goNextQuestion = useCallback(() => {
-    const userMessages = messages.filter((m) => m.role === "user");
-    if (!userMessages.length) return;
-
+    const navMessages = messages.filter((m) => m.role === "user" || m.isAnchor);
+    if (!navMessages.length) return;
     const current = navIndexRef.current;
-    const next =
-      current >= userMessages.length - 1 ? 0 : current + 1;
-
-    const el = userMessageRefs.current[userMessages[next].id];
+    const next = current >= navMessages.length - 1 ? 0 : current + 1;
+    const el = userMessageRefs.current[navMessages[next].id];
     if (!el) return;
-
     scrollUserToTop(el);
     setNav(next);
   }, [messages, scrollUserToTop]);
@@ -214,35 +252,17 @@ useEffect(() => {
       if (input && document.activeElement === input) {
         const caret = input.selectionStart ?? 0;
         const end = input.value.length;
-
-        if (e.key === "ArrowUp" && caret === 0) {
-          e.preventDefault();
-          goPrevQuestion();
-        }
-
-        if (e.key === "ArrowDown" && caret === end) {
-          e.preventDefault();
-          goNextQuestion();
-        }
-
+        if (e.key === "ArrowUp" && caret === 0) { e.preventDefault(); goPrevQuestion(); }
+        if (e.key === "ArrowDown" && caret === end) { e.preventDefault(); goNextQuestion(); }
         return;
       }
 
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        goPrevQuestion();
-      }
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        goNextQuestion();
-      }
+      if (e.key === "ArrowUp") { e.preventDefault(); goPrevQuestion(); }
+      if (e.key === "ArrowDown") { e.preventDefault(); goNextQuestion(); }
     };
 
     document.addEventListener("keydown", handleKey);
-
-    return () =>
-      document.removeEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [goNextQuestion, goPrevQuestion, isOpen]);
 
   const sendMessage = async () => {
@@ -253,6 +273,7 @@ useEffect(() => {
     const assistantMessage = createMessage("assistant", "");
 
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setIsStreaming(true);
     pendingScrollUserIdRef.current = userMessage.id;
     lastCompletedUserIdRef.current = userMessage.id;
@@ -260,8 +281,7 @@ useEffect(() => {
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
 
     try {
-      const response = await sendChatQuestion(question);
-
+      const response = await sendChatQuestion(question, runContext);
       await streamAssistantResponse(response, (chunk) => {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -275,10 +295,7 @@ useEffect(() => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessage.id
-            ? {
-                ...msg,
-                content: "Something went wrong. Please try again.",
-              }
+            ? { ...msg, content: "Something went wrong. Please try again." }
             : msg
         )
       );
@@ -309,19 +326,21 @@ useEffect(() => {
         <div
           id="chat-window"
           className={`chat-backdrop ${visible ? "open" : "close"}`}
-          onPointerDown={requestClose}
+          onPointerDown={disableBackdrop ? undefined : requestClose}
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgb(0,0,0,.4)",
-            backdropFilter: "blur(3px) saturate(140%)",
-            WebkitBackdropFilter: "blur(3px) saturate(140%)",
+            pointerEvents: disableBackdrop ? "none" : undefined,
+            background: disableBackdrop ? "transparent" : "rgb(0,0,0,.4)",
+            backdropFilter: disableBackdrop ? "none" : "blur(3px) saturate(140%)",
+            WebkitBackdropFilter: disableBackdrop ? "none" : "blur(3px) saturate(140%)",
             zIndex: 999,
             display: "flex",
             justifyContent: "flex-end",
             alignItems: "flex-end",
-            transition:
-              "backdrop-filter 20s cubic-bezier(0.4,0,0.2,1), -webkit-backdrop-filter 20s cubic-bezier(0.4,0,0.2,1)",
+            transition: disableBackdrop
+              ? undefined
+              : "backdrop-filter 20s cubic-bezier(0.4,0,0.2,1), -webkit-backdrop-filter 20s cubic-bezier(0.4,0,0.2,1)",
           }}
         >
           <div
@@ -333,6 +352,7 @@ useEffect(() => {
             onPointerDown={(e) => e.stopPropagation()}
             id="chat-window-section"
             className={`chat-widget ${visible ? "open" : "close"}`}
+            style={disableBackdrop ? { pointerEvents: "auto" } : undefined}
           >
             <div id="chat-title">
               Welcome to Dave's Interactive Portfolio
@@ -341,24 +361,16 @@ useEffect(() => {
             <div ref={scrollContainerRef} className="chat-scroll">
               {messages.map((msg, index) => {
                 const isUser = msg.role === "user";
-
                 return (
                   <div
                     key={msg.id}
                     ref={
-                      isUser
-                        ? (node) => {
-                            userMessageRefs.current[msg.id] = node;
-                          }
+                      (isUser || msg.isAnchor)
+                        ? (node) => { userMessageRefs.current[msg.id] = node; }
                         : undefined
                     }
-                    className={`chat-message ${
-                      isUser ? "chat-user" : "chat-assistant"
-                    }`}
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      lineHeight: "1.6",
-                    }}
+                    className={`chat-message ${isUser ? "chat-user" : "chat-assistant"}`}
+                    style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}
                   >
                     {isUser && "> "}
                     {msg.content}
@@ -378,20 +390,10 @@ useEffect(() => {
                 aria-label="Previous question"
                 onPointerDown={preventButtonFocus}
                 onMouseDown={preventButtonFocus}
-                onClick={() => {
-                  goPrevQuestion();
-                  keepInputFocus();
-                }}
+                onClick={() => { goPrevQuestion(); keepInputFocus(); }}
               >
                 <svg width="28" height="28" viewBox="0 0 24 24">
-                  <path
-                    d="M6 14l6-6 6 6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
 
@@ -400,35 +402,26 @@ useEffect(() => {
                 aria-label="Next question"
                 onPointerDown={preventButtonFocus}
                 onMouseDown={preventButtonFocus}
-                onClick={() => {
-                  goNextQuestion();
-                  keepInputFocus();
-                }}
+                onClick={() => { goNextQuestion(); keepInputFocus(); }}
               >
                 <svg width="28" height="28px" viewBox="0 0 24 24">
-                  <path
-                    d="M6 10l6 6 6-6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                borderTop: "1px solid var(--soft)",
-              }}
-            >
-              <input
+            <div style={{ display: "flex", borderTop: "1px solid var(--soft)" }}>
+              <textarea
                 value={input}
                 ref={inputRef}
+                rows={1}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
                 style={{
                   flex: 1,
                   background: "transparent",
@@ -437,6 +430,15 @@ useEffect(() => {
                   color: "#fff",
                   padding: "12px",
                   fontSize: "14px",
+                  resize: "none",
+                  overflowY: "hidden",
+                  lineHeight: "1.4",
+                  minHeight: "40px",
+                  maxHeight: "120px",
+                  display: "block",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
                 }}
                 placeholder="Ask me anything in any language"
               />

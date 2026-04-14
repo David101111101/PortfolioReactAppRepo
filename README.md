@@ -79,6 +79,37 @@ The decision layer distills all signals into one question:
 
 The platform includes a live React dashboard at `/#/dashboard` built with Recharts and backed by Supabase SQL analytics views. It renders real production metrics after every weekly regression run, no manual report generation required.
 
+## Self-Aware AI Chatbot — Dashboard Integration
+
+The chatbot is now integrated with the historical observability dashboard. When a user selects a run on the Dashboard page, the chatbot automatically receives a structured **run snapshot** — including current metrics, the previous run for comparison, and pre-computed deltas — and switches into analysis mode.
+
+This means the chatbot can reason about **its own production metrics in real time**.
+
+### Two Operating Modes
+
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| **Mode 1 — General (Home Page)** | No run data in context | Explains system architecture, metric formulas, debugging playbooks, and engineering decisions |
+| **Mode 2 — Analysis (Dashboard Page)** | Run snapshot injected by the dashboard | Analyzes actual metric values, compares current vs previous run, identifies root causes, suggests investigation steps |
+
+### Run Snapshot Context
+
+When a run is selected on the Dashboard, the following signals are injected into the chatbot context:
+
+- `P95 Latency` — current + previous + delta
+- `Reliability Score` — current + previous + delta
+- `Avg Confidence / Min Confidence` — current + previous + delta
+- `Enforcement Rate` — current + previous + delta
+- `Avg Rank Shift` — current + previous + delta
+
+The chatbot uses this structured context to apply correlation rules, identify which signal changed most, and produce actionable debugging guidance grounded in real run data.
+
+### Key Insight
+
+This creates a closed loop: the same system that runs weekly regression tests and populates the dashboard also powers the chatbot that explains those results. The chatbot is not a standalone assistant — it is part of the observability platform.
+
+---
+
 ## 🧠 AI Debugging Intelligence Layer
 
 This project goes beyond monitoring and introduces an **AI-powered debugging intelligence layer** on top of the observability system.

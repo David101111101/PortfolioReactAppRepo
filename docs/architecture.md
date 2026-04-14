@@ -10,6 +10,7 @@ This document summarizes the major system components and end-to-end data flow fo
 - Embedding generation: OpenAI embeddings for both offline documents and live queries.
 - LLM interaction: OpenAI chat completion streaming grounded by retrieved context.
 - Observability: Weekly CI metrics ingested into Supabase, surfaced in a live React dashboard.
+- Self-aware chatbot integration: The Dashboard injects a structured run snapshot into the chatbot context, enabling the assistant to reason about live production metrics. The chatbot operates in two distinct modes depending on where it is opened (see below).
 
 ## Architecture Diagram
 
@@ -85,6 +86,7 @@ flowchart LR
 6. API calls the LLM with grounded context and streams output back to the frontend.
 7. Frontend renders streamed tokens in real time.
 8. Weekly CI regression results are ingested into Supabase and surfaced in the live AI Observability Dashboard.
+9. When a user selects a run on the Dashboard, a structured run snapshot (current metrics + previous run + deltas) is injected into the chatbot context, switching the assistant into analysis mode so it can reason about live production data.
 
 ## Sequence Diagram: Chatbot Query Flow
 
@@ -240,6 +242,31 @@ flowchart TD
   FlakinessViews --> FlakinessPanel
   E2EStability --> StoryPanel
 ```
+
+## Chatbot Dashboard Integration — Self-Aware Mode
+
+`src/pages/Dashboard.tsx` exposes the chatbot in two modes depending on context.
+
+### Mode 1 — General (Home Page)
+
+The chatbot receives no run data. It answers questions about system architecture, metric formulas, debugging playbooks, and engineering decisions using retrieved documentation chunks.
+
+### Mode 2 — Analysis (Dashboard Page)
+
+When a user selects a run on the Dashboard, `buildRunSnapshotContext()` assembles a structured text block containing:
+
+- Current run: run ID, timestamp, P95 latency, reliability score, avg/min confidence, enforcement rate, avg rank shift
+- Previous run: same fields (or a note that this is the earliest recorded run)
+- Deltas: pre-computed differences (current − previous) in both absolute and percentage form
+
+This block is prepended to the system prompt via the `runContext` prop on `ChatWidget`. The LLM is instructed to use this data to answer questions about the selected run — comparing metrics, identifying which signal changed most, applying correlation rules, and suggesting what to investigate next.
+
+The chatbot greeting on the Dashboard also reflects the live run data:
+> "I have access to Run [id] — Reliability [score], P95 [ms], Confidence avg [value]. What do you want to investigate?"
+
+This creates a closed loop: the same weekly regression pipeline that generates the data populates the dashboard, and the chatbot explains it.
+
+---
 
 ### SLA Status System
 

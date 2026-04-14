@@ -26,6 +26,8 @@ This plan reflects a pragmatic automation approach aligned with QA Automation En
 - Retrieval Layer: Supabase RPC + pgvector similarity search
 - AI Provider: OpenAI embeddings and chat completion
 - Frontend: Static SPA (GitHub Pages deployment)
+- Observability Dashboard: Live React page at `/#/dashboard` backed by Supabase analytics views
+- Self-aware chatbot: Dual-mode assistant integrated with the Dashboard
 
 ### Runtime Flow
 
@@ -34,8 +36,15 @@ This plan reflects a pragmatic automation approach aligned with QA Automation En
 3. Rate limiter enforces per-IP throttling
 4. Prompt guard validates input safety
 5. Embedding + retrieval executed
-6. Context constructed and sent to LLM
+6. Context constructed and sent to LLM (documentation chunks, plus optional run snapshot in Dashboard mode)
 7. Response returned or safe fallback triggered
+
+### Chatbot Operating Modes
+
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| **Mode 1 — General** | Home page (no run data) | Answers architecture and design questions using retrieved documentation |
+| **Mode 2 — Analysis** | Dashboard page (run snapshot injected) | Analyzes actual run metrics, compares current vs previous run, identifies root causes |
 
 ---
 
@@ -53,6 +62,7 @@ This plan reflects a pragmatic automation approach aligned with QA Automation En
 - Critical frontend flows
 - Accessibility baseline
 - CI automation gates
+- Chatbot Dashboard integration: run snapshot injection, dual-mode behavior, analysis mode responses grounded in real run data
 
 ### Out of Scope
 
@@ -261,6 +271,7 @@ Weekly automated validation:
 ## 13. Future Improvements Roadmap
 
 - Expand multilingual dataset coverage
-- Add observability validation tests once telemetry expands
 - Add higher concurrency performance testing
 - Introduce structured test data management strategy
+- Add E2E tests for chatbot Analysis Mode: verify that run snapshot is injected correctly and that the assistant response references actual metric values from the selected run
+- Add regression tests for `buildRunSnapshotContext()`: verify delta computation accuracy and correct handling of the "earliest run" edge case (no previous run available)

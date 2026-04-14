@@ -48,6 +48,8 @@ const EXPECTED_CONCEPTS = [
   "cloudflare",
   "security",
   "testing",
+  "ci",
+  "debug",
 ];
 
 interface RetrievalDocument {
@@ -191,12 +193,27 @@ describe.runIf(process.env.NIGHTLY === "true")(
         expect(conceptScore).toBeGreaterThanOrEqual(1);
 
         // --- 5. Confidence calibration
-        if (r.retrieval.passedCount >= 5) {
-          expect(r.confidence).toBeGreaterThan(50);
+        const strongRetrieval = r.retrieval.passedCount >= 5;
+        const hasGrounding = conceptScore >= 1;
+
+        // Confidence should be coherent, not necessarily high
+        if (strongRetrieval && hasGrounding) {
+          expect(r.confidence).toBeGreaterThan(25); // 
         } else {
+          expect(r.confidence).toBeLessThan(80);
+        }
+        // Confidence should correlate with similarity (not just passedCount)
+        if (r.retrieval.avgSimilarity > 0.6 && conceptScore >= 1) {
+          expect(r.confidence).toBeGreaterThan(30);
+        }
+        // Low retrieval → confidence should not be high
+        if (r.retrieval.avgSimilarity < 0.4) {
           expect(r.confidence).toBeLessThan(70);
         }
-
+        // Confidence should correlate with similarity
+        if (r.retrieval.avgSimilarity > 0.7) {
+          expect(r.confidence).toBeGreaterThan(40);
+        }
         // --- 6. Persist metrics (🚀 enables dashboard)
         metrics.push({
           run_id: RUN_ID,

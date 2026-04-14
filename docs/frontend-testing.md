@@ -30,6 +30,7 @@ This portfolio itself demonstrates production-grade automation practices. Every 
 | **Lint quality gate** | ESLint, TypeScript, Stylelint, HTMLHint enforced on every PR; zero-error policy |
 | **Deterministic test-mode rendering contract** | Eliminates UI flake from modern visual effects in local and CI E2E without runtime style-injection races |
 | **AI Dashboard navigation test** | Validates `/#/dashboard` routing and page load for the live observability dashboard |
+| **Chatbot dual-mode integration** | Dashboard page injects a run snapshot into the chatbot context; chatbot operates in Analysis Mode, reasoning about live production metrics from the selected run |
 | **Debug artifacts** | Traces, screenshots, and videos auto-retained on failure for instant root-cause analysis |
 | **JUnit in Checks UI** | Test results appear in GitHub's native Checks panel — no downloads needed |
 | **Automated PR comments** | github-actions[bot] posts a summary per run so reviewers get instant signal |
@@ -102,6 +103,16 @@ The Dashboard queries Supabase directly via REST API and renders live production
 - **Regression Story panel** — narrative: trend direction, regression severity, primary signal, user impact, analysis confidence
 - **Test Run table** — per-workflow pass/fail with commit SHA, surfaced from `e2e_workflow_stability` view
 - **Flaky Test detail** — per-test flakiness %, severity, recency, last seen timestamp
+
+### Chatbot Integration — Analysis Mode
+
+When a user selects a run on the Dashboard, `buildRunSnapshotContext()` assembles a structured snapshot (current run + previous run + pre-computed deltas for P95 latency, reliability score, avg/min confidence, enforcement rate, and avg rank shift) and passes it to `ChatWidget` via the `runContext` prop.
+
+The chatbot switches into **Analysis Mode**: it references actual metric values, compares runs using the injected deltas, applies correlation rules to identify root causes, and provides actionable debugging guidance — all grounded in the selected run's real data.
+
+The chatbot greeting on the Dashboard reflects the live run: `"I have access to Run [id] — Reliability [score], P95 [ms], Confidence avg [value]. What do you want to investigate?"`
+
+This is the **self-aware mode**: the same system that runs weekly regression tests and generates the data also explains it through the chatbot.
 
 ### Visualisation library
 

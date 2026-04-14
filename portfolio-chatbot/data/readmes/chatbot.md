@@ -1,4 +1,4 @@
-# Portfolio AI Chatbot Assistant — RAG + Debugging Intelligence System
+# Portfolio AI Chatbot Assistant — Self-Aware RAG + Debugging Intelligence System
 
 ## Overview
 
@@ -8,7 +8,7 @@ The assistant retrieves verified portfolio documentation and generates responses
 
 This is not a generic chatbot.
 
-It is a **Retrieval-Augmented Generation (RAG) system enhanced with an AI Debugging Intelligence Layer**.
+It is a **Retrieval-Augmented Generation (RAG) system enhanced with an AI Debugging Intelligence Layer and historical observability integration**.
 
 ---
 
@@ -22,6 +22,7 @@ This system allows users to:
 - Understand engineering decisions and architecture
 - Explore system behavior and debugging workflows
 - Receive grounded, non-hallucinated answers
+- Analyze historical production run data from the observability dashboard
 
 ---
 
@@ -29,11 +30,11 @@ This system allows users to:
 
 The system has evolved from:
 
-→ Documentation retrieval  
+→ Documentation retrieval
 
 into:
 
-→ **Engineering reasoning system**
+→ **Self-aware engineering intelligence system**
 
 It can now answer:
 
@@ -41,18 +42,111 @@ It can now answer:
 - Is this latency spike meaningful?
 - Which metric caused a regression?
 - What should be investigated next?
+- What changed between this run and the previous one?
+
+---
+
+# Two Operating Modes (VERY IMPORTANT)
+
+This chatbot operates in two distinct modes depending on where it is opened.
+
+---
+
+## MODE 1 — GENERAL (HOME PAGE)
+
+**Trigger:** No run data is present in the context.
+
+**Behavior:**
+
+- Use architectural knowledge of this system to explain:
+  - system design and component roles
+  - metric formulas and how signals are computed
+  - debugging playbooks and root cause patterns
+  - correlation rules between metrics
+- Focus on: "how the system works" and "what usually causes X"
+- Do NOT fabricate specific run values
+- If asked about specific run values, say you cannot confirm them without run data, then reason based on system behavior
+- Keep answers concise (4–6 sentences for most questions)
+- Avoid long enumerations unless explicitly requested
+
+**Example questions answered in Mode 1:**
+
+- "How does the reliability score work?"
+- "What causes confidence to drop?"
+- "Explain the rate limiting system"
+- "How does RAG retrieval work in this system?"
+
+---
+
+## MODE 2 — ANALYSIS (DASHBOARD PAGE)
+
+**Trigger:** The context includes a block beginning with `=== RUN ANALYSIS CONTEXT ===`
+
+**Behavior:**
+
+- You MUST use the provided run data
+- Reference actual values from the snapshot
+- Compare CURRENT vs PREVIOUS run using the deltas provided
+- Explain what the changes mean (direction, magnitude, interpretation)
+- Identify likely root causes using correlation rules
+- Suggest what should be investigated next
+- If PREVIOUS RUN is "Not available", analyze the current run standalone and note it is the earliest recorded run
+- When asked about a single metric, focus the reasoning on that metric — do not enumerate all metrics unless explicitly asked
+
+**Required reasoning structure for Dashboard Mode:**
+
+1. Direct answer to the question
+2. Data reference (actual values from the snapshot)
+3. Change analysis (delta vs previous run)
+4. Interpretation (what the change means)
+5. Correlation (connect related signals: latency, confidence, reliability, rate limiting)
+6. Actionable guidance (what to check next)
+
+**Example questions answered in Mode 2:**
+
+- "What happened to reliability in this run?"
+- "Is this latency spike a concern?"
+- "Which metric changed the most?"
+- "Did confidence improve or degrade compared to the last run?"
+- "What should I investigate based on these numbers?"
+
+---
+
+# Run Snapshot Structure (Dashboard Mode)
+
+When a run is selected on the Dashboard, the following data is injected into the context:
+
+**Current Run:**
+- Run ID and timestamp
+- P95 Latency (milliseconds — lower is better)
+- Reliability Score (0–100 — higher is better)
+- Avg Confidence (0–100 — higher is better)
+- Min Confidence (0–100 — worst-case retrieval quality)
+- Enforcement Rate (percentage — rate limiting activity)
+- Avg Rank Shift (rank positions — lower = more stable retrieval ordering)
+
+**Previous Run (if available):**
+- Same fields as current run
+
+**Deltas (current − previous):**
+- P95 Latency delta in ms and percentage
+- Reliability Score delta
+- Avg Confidence delta
+- Min Confidence delta
+- Enforcement Rate delta
+- Avg Rank Shift delta
 
 ---
 
 # High-Level Architecture
 
-User Question  
-→ Edge API (Cloudflare Worker)  
-→ Input Validation + Security Layer  
-→ Vector Retrieval (Supabase)  
-→ Context Assembly  
-→ Language Model Generation  
-→ Streaming Response  
+User Question
+→ Edge API (Cloudflare Worker)
+→ Input Validation + Security Layer
+→ Vector Retrieval (Supabase)
+→ Context Assembly (documentation + optional run snapshot)
+→ Language Model Generation
+→ Streaming Response
 
 ---
 
@@ -95,21 +189,21 @@ Retrieval ensures responses are grounded in real content.
 
 The model:
 
-- receives structured context
-- answers ONLY using retrieved chunks
+- receives structured context (documentation chunks + optional run snapshot)
+- answers ONLY using retrieved chunks and injected run data
 - is restricted from using external knowledge
 
 This prevents hallucination and ensures accuracy.
 
 ---
 
-# AI Debugging Intelligence Layer (NEW)
+# AI Debugging Intelligence Layer
 
 ## Purpose
 
 To transform the system from:
 
-→ answering questions  
+→ answering questions
 
 into:
 
@@ -124,10 +218,10 @@ into:
 Define how signals are computed:
 
 - latency (P95)
-- confidence
-- reliability score
+- confidence (avg and min)
+- reliability score: pass_rate × 0.7 + (1 − flaky_rate) × 0.2 + all_passed_bonus × 0.1
 - release confidence
-- rate limiting
+- rate limiting enforcement rate
 
 ---
 
@@ -135,12 +229,13 @@ Define how signals are computed:
 
 Maps:
 
-→ symptom → root cause → investigation steps  
+→ symptom → root cause → investigation steps
 
-Example:
+Examples:
 
-- Confidence drop → check retrieval quality
-- Latency increase → inspect backend performance
+- Confidence drop → check retrieval quality, inspect vector similarity scores
+- Latency increase → inspect backend performance, embedding generation time
+- Reliability drop → check pass rate and flakiness independently
 
 ---
 
@@ -148,21 +243,11 @@ Example:
 
 Define relationships between signals:
 
-Examples:
-
-- latency ↑ + confidence ↓ → backend affecting retrieval
-- confidence ↓ only → retrieval issue
-- latency ↑ only → performance issue
-
----
-
-## Result
-
-The system can reason about:
-
-- system degradation
-- root causes
-- engineering impact
+- latency ↑ + confidence ↓ → backend is affecting retrieval quality
+- confidence ↓ only → retrieval issue, not performance
+- latency ↑ only → performance issue, retrieval unaffected
+- min_confidence ↓ while avg_confidence stable → single language or edge case degrading
+- enforcement_rate deviation → rate limiting misconfiguration or traffic spike
 
 ---
 
@@ -170,16 +255,21 @@ The system can reason about:
 
 The chatbot is tightly integrated with the AI Observability Dashboard.
 
+The Dashboard runs weekly regression tests and stores results in Supabase. When a user selects a run on the Dashboard page, the chatbot receives a structured snapshot of that run and can reason about the data directly.
+
+This creates a closed loop: the same system that detects regressions also explains them.
+
 ---
 
 ## Signals Available
 
-- Latency (performance)
-- Confidence (retrieval quality)
-- Reliability (system health)
+- Latency (P95 performance)
+- Confidence (retrieval quality — avg and min)
+- Reliability Score (weighted system health)
 - Release Confidence (deployment readiness)
-- Rate limit enforcement
-- Flakiness
+- Enforcement Rate (rate limit correctness)
+- Flakiness (test stability)
+- Avg Rank Shift (retrieval ordering stability)
 
 ---
 
@@ -187,21 +277,9 @@ The chatbot is tightly integrated with the AI Observability Dashboard.
 
 All signals follow:
 
-→ baseline vs actual  
-→ deviation  
-→ interpretation  
-
----
-
-## Example Reasoning
-
-Instead of:
-
-"Latency is high"
-
-The system answers:
-
-"Latency increased +7.8% vs baseline and is entering degraded range — monitor backend performance."
+→ baseline vs actual
+→ deviation
+→ interpretation
 
 ---
 
@@ -223,6 +301,7 @@ Ensures:
 - deterministic truncation
 - coherent technical context
 - prioritization of high-value information
+- run snapshot prepended when available (Dashboard mode)
 
 ---
 
@@ -295,6 +374,8 @@ Validates:
 - concurrency behavior
 - rate limit correctness
 
+Results are ingested into Supabase and surfaced in the Dashboard, where the chatbot can analyze them directly.
+
 ---
 
 ## Key Principle
@@ -331,6 +412,9 @@ not experimental systems.
 - performance testing
 - retrieval validation
 - rate limit verification
+- metrics ingested into Supabase
+- Dashboard updated with new run data
+- chatbot can analyze results via run snapshot
 
 ---
 
@@ -341,6 +425,7 @@ not experimental systems.
 - separation of ingestion vs inference
 - streaming responses
 - edge execution for performance
+- run snapshot injection enables self-referential debugging
 
 ---
 
@@ -348,6 +433,7 @@ not experimental systems.
 
 - RAG system design
 - AI observability systems
+- self-aware AI assistant integration
 - backend API engineering
 - edge computing
 - vector databases
@@ -364,6 +450,7 @@ The result is an intelligent assistant that:
 - explains engineering decisions
 - analyzes system behavior
 - guides debugging
+- reasons about historical production metrics
 - demonstrates real-world AI system design
 
 ---
@@ -372,18 +459,19 @@ The result is an intelligent assistant that:
 
 This system represents a shift from:
 
-→ static documentation  
+→ static documentation
 
 to:
 
-→ **interactive engineering intelligence**
+→ **interactive engineering intelligence with historical data awareness**
 
 It enables users to explore not just:
 
-→ what was built  
+→ what was built
 
 but:
 
-→ how it works  
-→ why decisions were made  
-→ how issues are diagnosed  
+→ how it works
+→ why decisions were made
+→ how issues are diagnosed
+→ what the system is doing right now
