@@ -327,18 +327,24 @@ jobs:
       - name: Compute Lighthouse trend
         id: lhtrend
         run: |
-          CURRENT=$(cat metrics/lighthouse.json | jq .score)
+          CURRENT=$(jq .score metrics/lighthouse.json)
+          PREV="N/A"
+          DELTA="N/A"
 
-          if [ "$DELTA" != "N/A" ]; then
-            if [ "$DELTA" -gt 0 ]; then ICON="⬆️"
-            elif [ "$DELTA" -lt 0 ]; then ICON="⬇️"
-            else ICON="➡️"
+          if [ -f prev-metrics/lighthouse.json ]; then
+            PREV=$(jq .score prev-metrics/lighthouse.json)
+            if [ -n "$PREV" ] && [ "$PREV" != "null" ]; then
+              DELTA=$(( CURRENT - PREV ))
+              if   [ "$DELTA" -gt 0 ]; then DELTA="+${DELTA} ⬆️"
+              elif [ "$DELTA" -lt 0 ]; then DELTA="${DELTA} ⬇️"
+              else                          DELTA="${DELTA} ➡️"
+              fi
             fi
           fi
 
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          echo "prev=$PREV" >> $GITHUB_OUTPUT
-          echo "delta=$DELTA" >> $GITHUB_OUTPUT
+          echo "prev=$PREV"       >> $GITHUB_OUTPUT
+          echo "delta=$DELTA"     >> $GITHUB_OUTPUT
           
       - name: Deployment quality summary
         run: |

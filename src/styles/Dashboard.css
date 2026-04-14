@@ -216,10 +216,10 @@ h2 {
 
 .dashboard-scroll-top {
   position: fixed;
-  bottom: 5px;
-  right: 24px;
-  width: 50px;
-  height: 50px;
+  bottom: 90px;
+  right: 40px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 1px solid var(--soft);
   background: radial-gradient(120% 140% at 100% 100%, rgb(120 160 255 / 10%), transparent 60%), rgb(0 0 0 / 70%);
@@ -228,11 +228,9 @@ h2 {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 24px;
-  z-index: 99;
+  z-index: 998;
   color: inherit;
   transition: opacity 0.2s ease;
-  animation: float-idle 3s ease-in-out infinite;
 }
 
 .dashboard-scroll-top:hover {
@@ -279,18 +277,21 @@ h2 {
   h2 {font-size: 1.125rem;}
 
   .dashboard-scroll-top{
-  width: 45px;
-  height: 45px;
+  bottom: 110px;
+  right: 40px;
+  width: 35px;
+  height: 35px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, auto);
   }
 }
 
 @media (width <= 500px) {
   .dashboard-metric-value {
     font-size: 16px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
   }
 
   .dashboard-row {

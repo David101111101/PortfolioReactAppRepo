@@ -1,345 +1,466 @@
 # AI Quality Intelligence Platform For R.A.G. Systems
 
 [![Weekly Regression Suite](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/weekly-regression-gates.yml)
-[![PR Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml/badge.svg?branch=FIX-CI-Regression-Suite-environment-variable-fix)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml) 
+[![PR Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/pr-quality-gates.yml)
 [![Deployment Quality Gates](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/deploy.yml)
 [![Lint Quality Gate](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/lint-quality-gate.yml/badge.svg)](https://github.com/David101111101/PortfolioReactAppRepo/actions/workflows/lint-quality-gate.yml)
 
+**Live site:** https://www.daveautomation.dev/ &nbsp;|&nbsp; **AI Dashboard:** https://www.daveautomation.dev/#/dashboard
 
+---
 
+This system detects AI behavioral regressions in production, surfaces them in a live observability dashboard, and gates every release on measurable quality signals automatically, every week.
 
-
-https://www.daveautomation.dev/
-
-
-This project is not only a QA Automation suite. It is a production-grade quality intelligence system for non-deterministic AI RAG applications, where traditional pass/fail testing is not enough.
-
-AI systems often fail in ways that are:
-- probabilistic: confidence drops instead of hard failures
-- silent: bad answers instead of crashes
-- gradual: performance and quality drift over time
+It is a production-grade AI Quality Intelligence Platform for RAG (Retrieval-Augmented Generation) systems. Traditional pass/fail testing is not enough for AI: confidence drops instead of crashes, answers degrade instead of erroring, and quality drifts over time across languages. This platform addresses all three.
 
 ## How to Navigate This Project
 
-If you're a recruiter:
-→ Start with "Real-World Impact"
+If you're a recruiter → start with **Real-World Impact** and **Skills & Engineering Depth**
 
-If you're an engineer:
-→ Jump to "Architecture" and "CI/CD Testing Strategy"
+If you're an engineer → jump to **Architecture** and **CI/CD Testing Strategy**
 
-If you're interested in AI testing:
-→ Focus on "Signal-Based Quality Assessment" and "Weekly Regression"
+If you're interested in AI testing → focus on **Signal-Based Quality Assessment** and **AI Observability Dashboard**
 
-### Problem
+---
 
-AI systems require custom validation and verification which evolves with each deploy
+## The Problem AI Teams Face
 
-- Did response quality degrade?
-- Did latency impact answer correctness?
-- What languages are affected and by how much?
-- Is this a one-off issue or an actual trend?
+AI systems fail in ways that traditional QA cannot catch:
 
-### Solution
+- **Probabilistic:** confidence drops instead of hard failures
+- **Silent:** bad answers instead of crashes or 5xx errors
+- **Gradual:** retrieval quality and latency drift across deploys
+- **Multilingual:** degradation hits some languages before others
 
-This project implements a multi-signal regression intelligence system that:
-- tracks retrieval quality across 7 languages
-- monitors latency and performance degradation
+Standard test suites return green while the system is quietly serving worse answers to real users.
+
+## The Solution
+
+This platform implements a multi-signal regression intelligence system that:
+
+- tracks retrieval confidence across 7 languages per weekly run
+- monitors P95 latency and flags deviations vs a calibrated baseline
 - detects statistical anomalies using z-score analysis
-- enforces flakiness budgets for test reliability
-- computes a reliability score per run
-- stores signals historically for trend analysis
+- enforces flakiness budgets to keep test reliability measurable
+- computes a weighted reliability score per run
+- ingests all signals into Supabase and exposes them through a live React dashboard
 
-All of those signals are aggregated into a single decision layer:
+The decision layer distills all signals into one question:
 
 > Is the system healthy, why not, and who is impacted?
 
-### What Makes This Different
+---
 
-This system transforms QA Automation from verification and validation into a decision making analysis layer and enables teams to make release decisions based on measurable AI reliability instead of intuition.
+## What Makes This Different
 
-#### 1. Signal-Based Quality Assessment
-- confidence scores instead of binary-only assertions
-- worst-case detection (`min_confidence`) to represent real user risk
+### 1. Signal-Based Quality Assessment
+- Retrieval confidence scores instead of binary-only assertions
+- Worst-case detection (`min_confidence`) to surface real user risk, not just averages
+- Rate-limit enforcement correctness tracked as a measurable percentage
 
-#### 2. Trend Detection Instead Of Single-Run Judgement
-- regression deltas versus previous runs
-- historical baselines
-- anomaly detection using standard deviation
+### 2. Trend Detection Instead Of Single-Run Judgement
+- Regression deltas vs previous runs via `regression_run_comparison` Supabase view
+- Historical baselines derived from real production data
+- Anomaly detection using standard deviation (z-score)
 
-#### 3. User-Impact Visibility
-- multilingual retrieval monitoring
-- identification of which language degraded
-- worst-case experience surfaced directly in reports
+### 3. User-Impact Visibility
+- Multilingual retrieval monitoring: English, Spanish, French, German, Portuguese, Chinese, Japanese
+- Identification of which language degraded and by how much
+- Worst-case experience surfaced directly in the dashboard, not buried in logs
 
-#### 4. Test Reliability As A First-Class Signal
-- flakiness tracked per test and per run
-- flaky-budget enforcement in release gates
-- reduced false confidence from unstable tests
+### 4. Test Reliability As A First-Class Signal
+- Flakiness tracked per test and per run via `test_flakiness_enriched` view
+- Flaky-budget enforcement blocks releases when the threshold is crossed
+- Reduced false confidence from unstable tests: reliability score = pass_rate × 0.7 + (1 − flaky_rate) × 0.2 + all_passed bonus × 0.1
 
-### High-Level Architecture
+---
 
-```text
-CI Tests
-   -> Metrics Extraction
-   -> Supabase Database
-   -> Regression Views / SQL Intelligence Layer
-   -> CI Dashboard + Weekly Reports
-   -> Automated Regression Gate
+## AI Observability Dashboard
+
+The platform includes a live React dashboard at `/#/dashboard` built with Recharts and backed by Supabase SQL analytics views. It renders real production metrics after every weekly regression run, no manual report generation required.
+
+## 🧠 AI Debugging Intelligence Layer
+
+This project goes beyond monitoring and introduces an **AI-powered debugging intelligence layer** on top of the observability system.
+
+The goal is not just to detect regressions, but to explain them.
+
+---
+
+### ❗ Problem
+
+Traditional dashboards answer:
+
+→ *What changed?*
+
+But engineers need to know:
+
+- Why did reliability drop?
+- Is this latency spike meaningful?
+- Which metric caused the regression?
+- What should I investigate next?
+
+Without this layer, engineers must manually correlate metrics, interpret trends, and infer root causes.
+
+---
+
+### ✅ Solution
+
+This system introduces a structured reasoning layer composed of:
+
+- **Metric Formulas** → how each signal is computed  
+- **Debugging Playbook** → how to investigate issues  
+- **Correlation Rules** → how metrics relate and influence each other  
+
+Together, they enable the system to transform raw data into **actionable explanations**.
+
+---
+
+### ⚙️ How It Works
+
+1. Metrics are computed and stored (latency, confidence, reliability, etc.)
+2. Baselines are derived from historical data
+3. Deviations are detected (baseline vs actual)
+4. Correlation rules analyze relationships between signals
+5. Debugging playbooks map patterns → root causes → actions
+
+---
+
+### 🔍 Example
+
+Instead of showing:
+
+> Reliability: 89 (-2%)
+
+The system explains:
+
+> Reliability decreased due to increased latency (+8%) and confidence drop (-4%).  
+> Likely cause: backend performance degradation affecting retrieval quality.  
+> Recommended action: inspect API latency and retrieved context.
+
+---
+
+### 🚀 Impact
+
+This transforms the system from:
+
+→ **Observability (what happened)**  
+
+into:
+
+→ **Debugging Intelligence (why it happened and what to do next)**  
+
+---
+
+### 🧠 Engineering Significance
+
+This layer reflects a shift from:
+
+- test automation → decision systems  
+- metrics → reasoning  
+- dashboards → engineering intelligence  
+
+It aligns with the goal of building systems that:
+
+- reduce cognitive load on engineers  
+- accelerate root cause analysis  
+- enable faster, safer releases  
+
+---
+
+### 🎯 Key Insight
+
+In AI systems, failures are rarely binary.
+
+They are:
+
+- gradual  
+- probabilistic  
+- multi-factor  
+
+This requires systems that can:
+
+→ correlate signals  
+→ interpret changes  
+→ guide investigation  
+
+### Dashboard Panels
+
+| Panel | Data Source | What It Shows |
+|-------|-------------|---------------|
+| **P95 Latency** | `regression_run_comparison` | Deviation vs 5 400 ms baseline — Healthy / Slight degradation / Degraded / Severe |
+| **Retrieval Confidence** | `retrieval_language_summary` | avg and min confidence per language; risk bands Critical <60%, Risk 60–75%, Healthy ≥75% |
+| **Reliability Score** | `regression_run_comparison` | Weighted score trend (baseline 91) rendered as Recharts LineChart with SLA band overlays |
+| **Rate-Limit Enforcement** | `regression_run_comparison` | Measured block rate vs expected 30.8% — drift classified into four severity bands |
+| **Flakiness Trend** | `flakiness_run_summary` + `flakiness_trend` | Current flakiness % + 5-run sparkline; SLA: green <1%, yellow <3%, red ≥3% |
+| **Regression Story** | `regression_story` | Narrative: trend direction, severity, primary signal, user impact, analysis confidence |
+| **Test Run Table** | `e2e_workflow_stability` | Per-workflow pass/fail with commit SHA and timestamp |
+| **Flaky Test Detail** | `test_flakiness_enriched` | Per-test flakiness %, severity, recency, last seen |
+
+### Observability Data Pipeline
+
+```mermaid
+flowchart TD
+  subgraph CI["Weekly Scheduled Regression"]
+    BackendTests["Production API Regression Suite\nLatency · Confidence · Rate Limit"]
+    E2ETests["E2E Test Suite\nPer-test Metric Collection"]
+  end
+
+  subgraph Ingestion["Metrics Ingestion"]
+    UploadMetrics["Regression Metric Upload\nto Supabase"]
+    IngestE2E["E2E Metric Ingestion\n& Reliability Score Computation"]
+  end
+
+  subgraph DB["Supabase Database"]
+    Tables[("Test Run Records\nPer-test Results\nRegression Metrics")]
+  end
+
+  subgraph Views["SQL Intelligence Layer"]
+    RegComparison["Run-over-Run Comparison\nLatency · Confidence · Reliability"]
+    RegStory["Regression Story\nTrend · Severity · User Impact"]
+    FlakinessViews["Flakiness Intelligence\nPer-run · Trend · Per-test"]
+    LangSummary["Language Confidence\n7-language Breakdown & Trend"]
+  end
+
+  subgraph Dashboard["AI Observability Dashboard"]
+    LatencyPanel["Latency Health\nDeviation vs Historical Baseline"]
+    ConfidencePanel["Retrieval Confidence\nPer-language Risk Bands"]
+    ReliabilityPanel["Reliability Score Trend\nVisualized with SLA Band Overlays"]
+    StoryPanel["Regression Story\nNarrative · Severity · Who Is Affected"]
+    FlakinessPanel["Flakiness Tracker\nSparkline & Per-test Detail"]
+  end
+
+  BackendTests --> UploadMetrics --> Tables
+  E2ETests --> IngestE2E --> Tables
+  Tables --> RegComparison & RegStory & FlakinessViews & LangSummary
+  RegComparison --> LatencyPanel & ReliabilityPanel
+  RegStory --> StoryPanel
+  LangSummary --> ConfidencePanel
+  FlakinessViews --> FlakinessPanel
 ```
-
-This layered approach gives:
-- separation of concerns
-- reusable analytics
-- scalable observability
 
 ### Example Weekly Dashboard Output
 
-Each weekly run can produce a system-level health report such as:
-- latency increased by `+32%` vs baseline of `43.71ms`
-- retrieval confidence dropped by `-18%`
-- Spanish identified as the worst-performing language
-- flakiness at `3.4%`, above threshold
-- anomaly detected at `2.3σ` from baseline
+A typical weekly run surfaces a system-level health report such as:
+- latency increased by `+32%` vs baseline of 5 400 ms
+- retrieval confidence dropped by `−18%`
+- Spanish identified as the worst-performing language (min confidence 42%)
+- flakiness at `3.4%`, above the 3% threshold
+- anomaly detected at `2.3σ` from baseline — regression severity: `moderate`
 
 This transforms QA from validation into decision-making.
 
-### Real-World Impact
+---
 
-This system helps teams:
-- detect and log silent AI regressions before users do
-- understand why a regression happened
-- identify who is affected by the regression
-- track system health over time
-- make release decisions based on data instead of intuition
+## Architecture
 
-### Key Engineering Decisions
+### 1. RAG Chatbot Architecture
 
-- views over raw queries: stable analytics layer
-- worst-case metrics over averages: stronger real-user risk signal
-- DB-driven intelligence: CI stays lightweight while analytics remain reusable
-- statistical anomaly detection: more robust than static thresholds alone
-- flakiness as a first-class signal: trust in test results becomes measurable
+```mermaid
+flowchart LR
+  subgraph Client
+    U[User]
+    CW[ChatWidget]
+    APIClient[chatApi]
+    StreamClient[streamAssistant]
+  end
 
-## Quality assurance built-in
+  subgraph Security
+    Handler[Cloudflare Worker handler]
+    Validate[Request validation and CORS]
+    RL[Rate limit check]
+    PG[Prompt guard]
+  end
+
+  subgraph Retrieval
+    QEmb[Query embedding]
+    VS[Vector search RPC]
+    RG[Retrieval guard]
+    CB[Context builder]
+    VDB[(Supabase pgvector)]
+  end
+
+  subgraph Generation
+    LLMCall[LLM streaming call]
+    LLM[OpenAI gpt-4o-mini]
+    EMB[OpenAI text-embedding-3-small]
+  end
+
+  U --> CW --> APIClient --> Handler --> Validate --> RL --> PG --> QEmb --> VS --> RG --> CB --> LLMCall --> StreamClient --> CW
+  QEmb --> EMB
+  VS --> VDB
+  LLMCall --> LLM
+```
+
+### 2. Security Layers + QA Validation Mapping
+
+```mermaid
+flowchart TD
+  subgraph SecurityLayers[Security Controls]
+    CORS[CORS and origin checks]
+    RateLimit[Durable Object 10 req/min]
+    PromptGuard[Injection and PII guard]
+    RetrievalGuard[Similarity threshold guard]
+    Fallback[Safe fallback responses]
+    Logging[abuse_logs + latency signals]
+  end
+
+  subgraph QATesting[QA Automation Coverage]
+    GuardTests[promptGuard.test.ts]
+    ContractTests[api.contract.test.ts]
+    RetrievalTests[retrieval.regression.test.ts]
+    RateTests[rateLimit.test.ts]
+    PerfTests[performance.test.ts]
+  end
+
+  CORS --> ContractTests
+  RateLimit --> RateTests
+  PromptGuard --> GuardTests
+  RetrievalGuard --> RetrievalTests
+  Fallback --> ContractTests
+  Logging --> PerfTests
+```
+
+### 3. Multi-Layer Quality Gates + Observability Loop
+
+```mermaid
+flowchart TD
+  PR[Pull Request Opened] --> LintGate[Lint Quality Gate\nCode Quality · Types · CSS · HTML]
+  PR --> PRBackend[Backend Unit & Contract Tests]
+
+  LintGate --> PRE2E[Chromium E2E Tests\n+ Live Metric Telemetry]
+  PRBackend --> PRE2E
+  PRE2E --> PRLH[Performance & Accessibility Gate]
+  PRLH --> QScore[Composite Quality Score\nE2E · Accessibility · Performance · Bundle]
+  QScore --> PRComment[Auto-updated PR Summary Comment]
+
+  PRLH -->|pass| Merge[PR Review & Merge]
+  PRLH -->|fail| StopPR[Block Merge]
+
+  Merge --> Main[Push to main]
+  Main --> DepBackend[Backend Verification]
+  DepBackend --> DepE2E[Full Browser Matrix\nChromium · Firefox · WebKit\n+ Live Metric Telemetry]
+  DepE2E --> FlakyBudget[Flakiness Budget Gate\nBlocks release if threshold exceeded]
+  FlakyBudget --> DepLH[Performance & Accessibility Gate]
+  DepLH -->|pass| Pages[Deploy to GitHub Pages]
+  DepLH -->|fail| StopDeploy[Block Release]
+  Pages --> LHTrend[Lighthouse Trend vs Previous Baseline]
+
+  WeeklyTrigger[Weekly Scheduled Regression]
+  WeeklyTrigger --> PerformanceTests[LLM Latency & Performance Tests]
+  PerformanceTests --> RetrievalRegressionTests[RAG Retrieval Quality Checks\n7 Languages · Confidence · Fallback]
+  RetrievalRegressionTests --> RateLimitTests[Rate-Limit Enforcement Checks]
+  RateLimitTests --> MetricsUpload[Regression Metrics Ingestion\ninto Supabase]
+  MetricsUpload --> DBViews[SQL Intelligence Layer\nRun Comparison · Flakiness · Language Confidence]
+  DBViews --> Dashboard[AI Observability Dashboard\nLive at /#/dashboard]
+  DBViews --> RegressionGate[Regression Severity Gate\nBlocks pipeline on critical or moderate signal]
+```
+
+---
+
+## Skills & Engineering Depth
+
+This project is a working system, building it required integrating a wide range of competencies that are directly applicable to teams adopting AI.
+
+| Domain | Skills Demonstrated |
+|--------|-------------------|
+| **AI Quality Assurance** | RAG retrieval testing, LLM latency monitoring, multilingual regression (7 languages), retrieval confidence scoring, z-score anomaly detection, fallback validation |
+| **CI/CD Engineering** | 4 GitHub Actions workflows, tiered quality gates (lint → PR → deploy → weekly), flakiness budget enforcement, JUnit in Checks UI, artifact telemetry pipeline |
+| **Full-Stack Engineering** | React + TypeScript SPA, Vite, Cloudflare Workers, Durable Objects (rate limiting), Supabase pgvector, OpenAI streaming SSE |
+| **Security Engineering** | Defense-in-depth prompt guards (injection, PII, SQL, XSS, SSRF, encoded payloads), CORS enforcement, rate limiting, retrieval grounding, safe fallback responses |
+| **Observability Engineering** | Supabase SQL analytics views, live React dashboard, Recharts visualizations with SLA band overlays, four-band SLA status system, deviation-from-baseline scoring |
+| **Test Framework Design** | Playwright POM architecture, deterministic test-mode rendering contract, axe-core WCAG accessibility testing, Lighthouse CI performance budgets, per-test flakiness tracking |
+| **Database Engineering** | pgvector similarity search, SQL analytics views as a stable analytics layer, Supabase REST API integration, metrics ingestion pipeline design |
+
+### Why This Matters
+
+As companies adopt AI systems, QA teams face a fundamentally different class of failures: non-deterministic outputs, gradual quality drift, multilingual edge cases, and silent degradation that traditional pass/fail testing cannot surface. The skills to build quality infrastructure *for* AI systems, not just *with* AI tools are becoming essential.
+
+This project demonstrates that full-stack QA engineering at this level of maturity requires:
+- understanding AI pipelines well enough to define meaningful quality signals
+- building the data infrastructure to collect and analyse those signals at scale
+- surfacing insights in a form that enables release decisions without manual work
+- doing all of this continuously, automatically, and with a closed feedback loop
+
+The result is a system where quality is not asserted it is measured, trended, and visible.
+
+---
+
+## Quality Assurance Built-In
 
 - **Automated E2E tests** — Backend validation, Chromium PR checks, and multi-browser release verification
-- **Cross-browser validation** — Chromium on PRs, full matrix before deployment (Chromium, Firefox, WebKit)
+- **Cross-browser validation** — Chromium on PRs, full matrix (Chromium, Firefox, WebKit) before deployment
 - **Accessibility audits** — axe-core integration ensures WCAG compliance
-- **Performance budgets** — Lighthouse CI prevents regressions
+- **Performance budgets** — Lighthouse CI prevents regressions (perf ≥70, a11y ≥90, best-practices ≥85, SEO ≥85)
 - **Quality telemetry** — Bundle size, flaky-test budget, Lighthouse score, and latency trends tracked in CI
 - **Instant debugging** — Traces, screenshots, videos, and workflow summaries generated on failure
 
 ---
 
-## AI Testing Architecture Diagrams
-
-These are the most important Mermaid diagrams from the docs folder, included here to show how I am adapting classic QA automation to modern AI testing techniques.
+## CI/CD Testing Strategy
 
 Reference docs:
 - [docs/architecture.md](docs/architecture.md)
+- [docs/ci-cd-strategy.md](docs/ci-cd-strategy.md)
 - [docs/security-architecture.md](docs/security-architecture.md)
 - [docs/qa-strategy-architecture.md](docs/qa-strategy-architecture.md)
 
-### 1) RAG Chatbot Architecture (Client → Security → Retrieval → Generation)
-
-```mermaid
-flowchart LR
-   subgraph Client
-      U[User]
-      CW[ChatWidget]
-      APIClient[chatApi]
-      StreamClient[streamAssistant]
-   end
-
-   subgraph Security
-      Handler[Cloudflare Worker handler]
-      Validate[Request validation and CORS]
-      RL[Rate limit check]
-      PG[Prompt guard]
-   end
-
-   subgraph Retrieval
-      QEmb[Query embedding]
-      VS[Vector search RPC]
-      RG[Retrieval guard]
-      CB[Context builder]
-      VDB[(Supabase pgvector)]
-   end
-
-   subgraph Generation
-      LLMCall[LLM streaming call]
-      LLM[OpenAI gpt-4o-mini]
-      EMB[OpenAI text-embedding-3-small]
-   end
-
-   U --> CW --> APIClient --> Handler --> Validate --> RL --> PG --> QEmb --> VS --> RG --> CB --> LLMCall --> StreamClient --> CW
-   QEmb --> EMB
-   VS --> VDB
-   LLMCall --> LLM
-```
-
-### 2) Security Layers + QA Validation Mapping
-
-```mermaid
-flowchart TD
-   subgraph SecurityLayers[Security Controls]
-      CORS[CORS and origin checks]
-      RateLimit[Durable Object 10 req/min]
-      PromptGuard[Injection and PII guard]
-      RetrievalGuard[Similarity threshold guard]
-      Fallback[Safe fallback responses]
-      Logging[abuse_logs + latency signals]
-   end
-
-   subgraph QATesting[QA Automation Coverage]
-      GuardTests[promptGuard.test.ts]
-      ContractTests[api.contract.test.ts]
-      RetrievalTests[retrieval.regression.test.ts]
-      RateTests[rateLimit.test.ts]
-      PerfTests[performance.test.ts]
-   end
-
-   CORS --> ContractTests
-   RateLimit --> RateTests
-   PromptGuard --> GuardTests
-   RetrievalGuard --> RetrievalTests
-   Fallback --> ContractTests
-   Logging --> PerfTests
-```
-
-### 3) Multi-Layer Quality Gates CI/CD Testing Strategy
-
-This repo demonstrates a **production-grade testing pipeline** where quality checks happen at every stage, both before and after merging to main .
-
-```mermaid
-flowchart TD
-   PR[Pull Request opened] --> LintGate[Lint Quality Gate]
-   PR --> PRBackend[Backend Unit Tests]
-
-   LintGate --> PRE2E[Chromium E2E]
-   PRBackend --> PRE2E
-   PRE2E --> PRLH[SEO, Performance & Accessibility Quality Gate]
-   PRLH --> PRComment[PR comment and summaries]
-
-   PRLH -->|pass| Merge[PR review and merge]
-   PRLH -->|fail| StopPR[Block merge]
-
-   Merge --> Main[Push to main]
-   Main --> DepBackend[Deploy Backend Unit Verification]
-   DepBackend --> DepE2E[Playwright matrix: Chromium, Firefox, Webkit]
-   DepE2E --> FlakyBudget[Flakyness Threshold Enforcement]
-   FlakyBudget --> DepLH[SEO, Performance & Accessibility Quality Gate]
-   DepLH -->|pass| Pages[Deploy to GitHub Pages]
-   DepLH -->|fail| StopDeploy[Block release]
-
-   Pages --> LHTrend[Lighthouse Trend vs Previous Baseline]
-   LHTrend --> ReleaseSummary[Release quality summary]
-
-   WeeklyTrigger[Weekly Production Regression Suite]
-   WeeklyTrigger --> PerformanceTests[Performance Tests]
-   PerformanceTests --> RetrievalRegressionTests[Retrieval Regression Tests]
-   RetrievalRegressionTests --> RateLimitTests[API Rate Limit Tests]
-   RateLimitTests --> MetricsUpload[Upload metrics to database]
-   MetricsUpload --> DBAnalysis[Regression and anomaly DB  analysis]
-   DBAnalysis --> WeeklyReport[AI weekly health dashboard and issue report]
-```
-
----
-
-## 🚀 PR Quality Gates: Playwright E2E + GitHub Actions
-
-This portfolio itself demonstrates production-grade automation practices. Every pull request is validated through an integrated Playwright E2E framework before merging to `main`.
-
-### What's automated
-
-| Feature | Benefit |
-|---------|---------|
-| **Fixtures + Page Object Model (POM)** | Maintainable, scalable test architecture that reduces friction as tests grow |
-| **Tiered browser execution** | Fast Chromium feedback on PRs, then full browser matrix before release |
-| **Accessibility checks** | axe-core integration validates WCAG compliance in every PR |
-| **Performance budgets** | Lighthouse CI enforces performance thresholds—no regressions slip through |
-| **Flaky budget enforcement** | Release pipeline fails when flaky behavior crosses an explicit threshold |
-| **CI telemetry artifacts** | Bundle size, E2E pass/fail, duration, Lighthouse, and latency metrics are retained for trend analysis |
-| **Debug artifacts** | Traces, screenshots, and videos auto-retained on failure for instant root-cause analysis |
-| **JUnit in Checks UI** | Test results appear in GitHub's native Checks panel—no downloads needed |
-| **Automated PR comments** | github-actions[bot] posts a summary per run so reviewers get instant signal |
-
-### Why it matters
-
-✅ **PR gates reduce regressions** — main stays deployable  
-✅ **Debug artifacts make failures actionable** — not constrained to "red/green"  
-✅ **Fast, readable CI feedback** — developers iterate with confidence  
-
-
-Tests validate:
-- ✅ Smoke (page loads, critical paths work)
-- ✅ Navigation (header, routing, external links)
-- ✅ Accessibility (axe-core: WCAG compliance)
-- ✅ Resume download functionality
-
-## CI Behavior: PR Quality Gates
+### PR Quality Gates
 
 **Trigger:** Every pull request to `main`
 
 **What runs:**
-- ✅ **Backend validation** — Root + chatbot dependencies install, Worker boots locally, and backend unit/contract tests run first
-- ✅ **Chromium-only E2E** — Frontend builds and Playwright runs the Chromium project for fast PR feedback:
-  - Page loads and critical paths work
-  - Navigation between sections
-  - Resume download functionality
-- ✅ **Metrics capture** — Bundle size, E2E result, accessibility metric, and duration are uploaded as artifacts
-- ✅ **Lighthouse gate** — Runs after Chromium E2E passes, enforcing performance, accessibility, best-practices, and SEO thresholds
-- ✅ **Visual reports** — JUnit results appear in GitHub Checks UI
-- ✅ **Automated PR summary** — The workflow downloads summaries/metrics and refreshes a single bot comment with the gate results and debugging path
+- **Lint gate** — ESLint, TypeScript, Stylelint, HTMLHint; zero-error policy blocks merge
+- **Backend validation** — Worker boots locally, backend unit/contract tests run first
+- **Chromium-only E2E** — Frontend builds and Playwright runs Chromium for fast feedback
+- **Metrics capture** — Bundle size, E2E result, accessibility metric, and duration uploaded as artifacts and ingested to Supabase
+- **Lighthouse gate** — Performance, accessibility, best-practices, and SEO thresholds enforced
+- **Automated PR summary** — Bot comment with gate results, quality score, and debugging path
 
 **Outcome:**
-- 🚫 **Fails?** PR blocks merge. Reviewer sees instant feedback.
-- ✅ **Passes?** Green checkmark appears. PR is safe to merge.
+- Fails → PR blocks merge. Reviewer sees instant feedback.
+- Passes → Green checkmark. PR is safe to merge.
 
 Workflow: [.github/workflows/pr-quality-gates.yml](.github/workflows/pr-quality-gates.yml)
 
-### CD Behavior: Deploy with Verification
+### Deploy with Verification
 
-**Trigger:** Push to `main` (after PR merge) or manual workflow dispatch
+**Trigger:** Push to `main` or manual dispatch
 
 **Quality gates before deployment:**
 1. **Backend verification** — Worker starts and backend `test:ci` suite runs
-2. **E2E browser matrix** — Playwright runs on Chromium, Firefox, and WebKit with per-browser summaries
-3. **Flaky budget enforcement** — The release fails if flaky counts exceed the configured threshold
-4. **Lighthouse audit** — Runs after the E2E matrix completes and stores a reusable score artifact
-5. **Deploy** — GitHub Pages deployment only happens after all verification gates pass
-6. **Release summary** — Deployment writes environment details and keeps Lighthouse score data for future trend comparison
+2. **E2E browser matrix** — Playwright on Chromium, Firefox, and WebKit with per-browser summaries
+3. **Flaky budget enforcement** — Release fails if flaky count exceeds threshold (max 3)
+4. **Lighthouse audit** — Stores score artifact for future trend comparison
+5. **Deploy** — GitHub Pages deployment only after all gates pass
+6. **Release summary** — Lighthouse delta vs previous baseline published
 
-**Deployment only happens if:**
-- ✅ Backend tests pass
-- ✅ Multi-browser E2E and flaky budget checks pass
-- ✅ Lighthouse budgets pass
-
-**Workflow:** [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+Workflow: [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
 
 ### Weekly Production Regression
 
-**Trigger:** Every Wednesday at `01:00 UTC` or manual workflow dispatch
+**Trigger:** Every Wednesday at `01:00 UTC` or manual dispatch
 
 **What runs:**
-- ✅ **Production endpoint validation** — `API_BASE_URL` must be present and `/health` must respond before tests start
-- ✅ **Nightly regression mode** — Backend `test:ci` runs against the deployed API with `NIGHTLY=true`
-- ✅ **JUnit publishing** — Regression results are surfaced in GitHub Checks
-- ✅ **Latency trend tracking** — The current latency metric is compared against the previous weekly run and added to the dashboard summary
+- **Production endpoint validation** — `/health` must respond before tests start
+- **Nightly regression mode** — Backend `test:ci` runs against deployed API with `NIGHTLY=true`
+- **Retrieval regression** — 7-language confidence checks against production endpoint
+- **Rate limit regression** — Per-IP enforcement correctness verified
+- **Performance regression** — Latency median and max checked against baseline
+- **Metrics ingestion** — Results uploaded to Supabase via `upload-metrics.js`
+- **Regression gate** — `regression_story` view queried; severity `critical` or `moderate` fails the job
+- **Dashboard update** — All views refresh automatically; live dashboard reflects new data
 
-**Outcome:**
-- 🚫 **Fails?** Production drift or regression is visible in the weekly dashboard and artifacts.
-- ✅ **Passes?** The workflow records a fresh confidence signal for retrieval, contracts, rate limiting, and latency.
+Workflow: [.github/workflows/weekly-regression-gates.yml](.github/workflows/weekly-regression-gates.yml)
 
-### Why Two Test Stages?
+### Why Four Stages?
 
-| Stage | Scope | Speed | Cost |
-|-------|-------|-------|------|
-| **PR Quality Gates (CI)** | Fast feedback: backend + Chromium E2E + metrics + Lighthouse + PR comment | Faster | Protects merge quality |
-| **Deploy Verification (CD)** | Comprehensive: backend + 3-browser matrix + flaky budget + Lighthouse + Pages deploy | Slower | Final release confidence |
-| **Weekly Regression** | Production endpoint health, NIGHTLY backend regression, JUnit, and latency trending | Slowest | Detects post-release drift |
-
-This balances **thoroughness** (catch issues in PR) with **speed** (fast deployment feedback).
+| Stage | Scope | Speed | Purpose |
+|-------|-------|-------|---------|
+| **Lint Gate** | Static analysis across all file types | Fastest | Code quality and type correctness |
+| **PR Quality Gates** | Backend + Chromium E2E + Lighthouse + quality score | Fast | Merge safety with data telemetry |
+| **Deploy Verification** | Backend + 3-browser matrix + flaky budget + Lighthouse | Slower | Release confidence |
+| **Weekly Regression** | Production endpoint + AI-specific metrics + Dashboard ingestion | Slowest | Continuous AI health monitoring |
 
 ---
 
@@ -352,19 +473,22 @@ This balances **thoroughness** (catch issues in PR) with **speed** (fast deploym
 | `playwright-report/` | HTML test report with stats | Overview of pass/fail |
 | `test-results/` | Per-test folders with screenshots/videos | Visual debugging |
 | `trace.zip` | Playwright trace file | Replay test execution step-by-step |
+| `metrics/lint.json` | Lint error counts + threshold status | Lint gate result detail |
+| `metrics/e2e.json` | Pass/fail counts + flakiness | E2E gate result detail |
+| `metrics/lighthouse.json` | Score per category | Performance gate result detail |
 
 ---
 
 ## Deployment
 
-This repo is designed to be CI/CD friendly with automated PR quality gates and release pipelines.
-
 Workflows:
-- 🔒 **[PR Quality Gates](.github/workflows/pr-quality-gates.yml)** — Backend-first PR validation with Chromium E2E, metrics capture, Lighthouse, and auto-updated PR summaries
-- 🚀 **[Deploy with Verification](.github/workflows/deploy.yml)** — Backend verification, 3-browser E2E, flaky-budget enforcement, Lighthouse, and gated GitHub Pages release
-- 🧪 **[Weekly Regression Suite](.github/workflows/weekly-regression-gates.yml)** — Scheduled production health checks, NIGHTLY regression tests, and latency-trend reporting
+- **[Lint Quality Gate](.github/workflows/lint-quality-gate.yml)** — ESLint, TypeScript, Stylelint, HTMLHint; zero-error policy on every PR
+- **[PR Quality Gates](.github/workflows/pr-quality-gates.yml)** — Backend-first PR validation with Chromium E2E, metrics capture, Lighthouse, and auto-updated PR summaries
+- **[Deploy with Verification](.github/workflows/deploy.yml)** — Backend verification, 3-browser E2E, flaky-budget enforcement, Lighthouse, and gated GitHub Pages release
+- **[Weekly Regression Suite](.github/workflows/weekly-regression-gates.yml)** — Scheduled production health checks, NIGHTLY regression tests, metrics ingestion, and live Dashboard data refresh
 
+---
 
 ## Contact
 
-- Email davidstevenabril@gmail.com
+Email: davidstevenabril@gmail.com

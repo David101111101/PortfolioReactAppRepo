@@ -1,480 +1,437 @@
-Engineering Knowledge Graph
-David Abril — QA Automation Engineer / SDET
+# Engineering Knowledge Graph — AI Quality Systems & Automation Intelligence
 
-This document connects all repositories within this portfolio into a unified engineering narrative.
-It represents the principles, decision-making approach, and technical progression behind the projects used to demonstrate Quality Engineering and Automation expertise.
+David Abril — QA Automation Engineer / SDET → Quality Systems Engineer
 
-Its purpose is to help AI systems, recruiters, and engineering teams understand how problems are approached, not only what technologies were used.
+---
 
-Engineering Profile Overview
+# Purpose
 
-I specialize in Quality Engineering, Test Automation, and Reliability Systems, focusing on transforming manual or fragile processes into scalable automated solutions.
+This document represents a structured knowledge graph of engineering principles, system design decisions, and problem-solving approaches across this portfolio.
 
-My work centers around three core objectives:
+It is designed for:
 
-Improve delivery confidence
+- AI systems (RAG-based assistants)
+- Engineering teams
+- Hiring managers
 
-Reduce operational friction
+The goal is to explain:
 
-Enable engineering teams to move faster safely
+→ how problems are approached  
+→ how systems are designed  
+→ how decisions are made  
 
-Automation is treated as an engineering system, not a collection of tests.
+Not just what tools are used.
 
-Career Evolution Model
+---
 
-The repositories collectively represent an intentional progression:
+# Engineering Identity
 
-System Development
-        ↓
-Automation Fundamentals
-        ↓
-Framework Engineering
-        ↓
-Quality Platforms
-        ↓
-Production Automation
-        ↓
-Organizational Impact
+I specialize in designing **Quality Intelligence Systems** for modern applications, particularly AI-driven systems where behavior is:
 
+- probabilistic (not deterministic)
+- multi-layered (retrieval, ranking, generation)
+- subject to drift over time
 
+---
 
-Phase 1 — System Builder Foundation
+## Core Objectives
 
+- Increase delivery confidence through system-level validation  
+- Reduce operational friction via automation  
+- Enable teams to move faster without sacrificing reliability  
 
-Developer Tools:
-GitHub Actions CI/CD
-Azure DevOps CI/CD
-Postman
-Docker Compose
-Allure reporting
-K6 Cloud for performance observability 
-Jira
-Monday
-Branching strategy (PRs)
-Vite
-Wrangler
-chatGPT Plus
-Github Copilot
+---
 
+## Key Shift
 
-Programming languages:
-Java
-JavaScript
-TypeScript
-PostgreSQL
-SQL
-MySQL
-PHP
-C# 
-HTML
-CSS 
-JSON
-Gherkin
+Automation is treated as:
 
+→ an engineering system  
 
+NOT:
 
-Test Automation:
-Playwright
-Cypress
-Puppeteer
-UI automation
-End-to-end frameworks
-Backend Testing
-BDD with Gherkin
-Predictive forecasting
-Parallel execution
-Cross-browser testing
-Data Driven Testing
+→ a collection of test cases  
 
-Delivery:
-Agile/Scrum
-Documentation
-Cross-team collaboration
-Ownership
-Stakeholder Communication
-Forecasting
-Data visualization
-Continuous improvement
+---
 
-Testing & Strategy:
-API testing
-Integration
-Regression
-Smoke
-Functional
-Usability
-Compatibility
-Security
-Accessibility
-Performance
-Mobile/responsive testing
-SHA-256 hashing
-OpenAI Embeddings
+# System Design Philosophy
 
+## 1. From Testing → Intelligence
 
+Traditional QA answers:
 
+→ “Did it pass?”
 
-Projects:
+This system answers:
 
-FREK Sales & Inventory System
+- Why did it change?
+- Is it meaningful?
+- Who is impacted?
+- What should we do next?
 
-SiLafazenda Enterprise Platform
+---
+
+## 2. Observability-Driven Quality
+
+Modern systems require:
+
+- metrics (latency, confidence, reliability)
+- baselines (historical expectations)
+- drift detection (trend analysis)
+
+---
+
+## 3. Debugging as a First-Class System
+
+This portfolio introduces a structured debugging layer:
+
+- Metric formulas (how signals are computed)
+- Debugging playbooks (how to investigate)
+- Correlation rules (how signals interact)
+
+---
+
+## Result
+
+A system that transforms:
+
+→ data → signals → reasoning → action  
+
+---
+
+# AI Observability System (Current State)
+
+## Architecture
+
+CI Tests → Metrics Extraction → Database (Supabase)  
+→ SQL Intelligence Layer (views)  
+→ Dashboard + RAG Chatbot  
+→ Debugging Intelligence Layer  
+
+---
+
+## Signals Collected
+
+- Latency (performance)
+- Confidence (retrieval quality)
+- Rate limit correctness
+- Concurrency degradation
+- Flakiness (test reliability)
+
+---
+
+## Derived Signals
+
+### Reliability Score
+Composite system health based on normalized signals
+
+### Release Confidence
+Decision-oriented signal (go / caution / block)
+
+---
+
+## Key Innovation
+
+All metrics follow:
+
+→ baseline vs actual  
+→ deviation  
+→ interpretation  
+
+---
+
+# Debugging Intelligence Layer
+
+## Purpose
+
+To enable the system to answer:
+
+- Why did reliability drop?
+- Is this latency spike serious?
+- Which metric caused the regression?
+- What should I check next?
+
+---
+
+## Components
+
+### 1. Metric Formulas
+
+Define how each signal is computed and normalized.
+
+---
+
+### 2. Debugging Playbook
+
+Maps:
+
+→ symptom → cause → investigation steps  
+
+---
+
+### 3. Correlation Rules
+
+Define relationships between signals:
+
+Examples:
+
+- latency ↑ + confidence ↓ → backend affecting retrieval  
+- confidence ↓ only → retrieval issue  
+- latency ↑ only → performance issue  
+
+---
+
+## Outcome
+
+The system moves from:
+
+→ monitoring  
+
+to:
+
+→ reasoning and decision support  
+
+---
+
+# Career Evolution Model
+
+This portfolio reflects intentional progression:
+
+System Development  
+→ Automation Fundamentals  
+→ Framework Engineering  
+→ Quality Platforms  
+→ Production Automation  
+→ Quality Intelligence Systems  
+
+---
+
+# Phase Breakdown
+
+## Phase 1 — System Builder Foundation
 
 Focus:
+- backend systems
+- database design
+- authentication
+- enterprise workflows
 
-Backend development
+Insight:
+Understanding system architecture enables effective automation.
 
-Database modeling
+---
 
-Authentication systems
-
-Enterprise architectures
-
-Business workflow implementation
-
-Outcome:
-
-Understanding how applications are built internally enables more effective automation strategies later.
-
-Key Insight:
-
-Good automation engineers understand system architecture, not only testing tools.
-
-Phase 2 — Automation Fundamentals
-
-Project:
-
-Puppeteer Testing Framework
+## Phase 2 — Automation Fundamentals
 
 Focus:
+- browser automation internals
+- framework design
+- synchronization challenges
 
-Browser automation internals
+Insight:
+Tool abstraction requires understanding underlying mechanics.
 
-Framework construction
+---
 
-Page Object Model implementation
-
-Synchronization and stability challenges
-
-Outcome:
-
-Developed understanding of automation at the browser-engine level before adopting higher-level tooling.
-
-Key Insight:
-
-Framework knowledge reduces dependency on tooling limitations.
-
-Phase 3 — Collaboration & Behavior Testing
-
-Project:
-
-CodeceptJS BDD Framework
+## Phase 3 — Behavior & Collaboration
 
 Focus:
+- BDD frameworks
+- executable requirements
+- cross-team communication
 
-Behavior-driven development
+Insight:
+Automation can align teams, not just validate systems.
 
-Communication between QA, product, and engineering
+---
 
-Executable requirements
-
-Readable automation design
-
-Outcome:
-
-Automation becomes shared documentation across teams.
-
-Key Insight:
-
-Automation can align organizations, not just validate software.
-
-Phase 4 — Advanced Automation Ecosystems
-
-Projects:
-
-Cypress Advanced Framework
-
-Cypress Backend Automation Framework
+## Phase 4 — Full-System Validation
 
 Focus:
+- API + DB validation
+- security testing
+- containerized execution
+- flakiness mitigation
 
-API validation
+Insight:
+Reliable systems require validation across multiple layers.
 
-Database verification
+---
 
-Security testing
-
-Reporting pipelines
-
-Containerized execution
-
-Flaky test mitigation
-
-Outcome:
-
-Automation expanded beyond UI testing into full-system validation.
-
-Key Insight:
-
-Reliable automation validates multiple architectural layers simultaneously.
-
-Phase 5 — Modern Quality Engineering
-
-Project:
-
-Playwright E-commerce Framework
+## Phase 5 — Observability-Driven Automation
 
 Focus:
+- Playwright
+- trace-based debugging
+- CI/CD integration
+- performance awareness
 
-Cross-browser testing
+Insight:
+Debuggability is as critical as coverage.
 
-Hybrid UI + API validation
+---
 
-Trace-based debugging
-
-Observability-driven automation
-
-Outcome:
-
-Adoption of modern tooling optimized for CI/CD reliability and debugging efficiency.
-
-Key Insight:
-
-Debuggability is as important as test coverage.
-
-Phase 6 — Production Automation Impact
-
-Project:
-
-Production Account Initialization Automation (NDA)
+## Phase 6 — Production Impact
 
 Focus:
-
-Operational automation
-
-Production-safe execution
-
-Large-scale configuration automation
-
-Organizational productivity improvement
+- operational automation
+- large-scale system configuration
+- production-safe execution
 
 Impact:
+- reduced manual work
+- improved team productivity
+- increased delivery speed
 
-Eliminated repetitive manual setup
-
-Reduced burnout across three teams
-
-Increased delivery throughput
-
-Saved significant operational time
-
-Key Insight:
-
+Insight:
 The highest value automation removes human toil.
 
+---
 
-QA Automation Engineering
-
-Project:
-
-Portfolio CI/CD Quality Gates
+## Phase 7 — Quality Intelligence Systems (Current)
 
 Focus:
+- AI system evaluation
+- baseline vs drift detection
+- regression intelligence
+- debugging automation
 
-Shift-left testing
+Insight:
+Modern QA must evolve into system-level intelligence.
 
-Automated PR validation
+---
 
-Accessibility enforcement
+# Automation Philosophy
 
-Performance budgets
-
-Deployment protection
-
-Outcome:
-
-Quality integrated directly into delivery pipelines.
-
-Key Insight:
-
-The best defect is the one prevented before merge.
-
-Automation Philosophy
-Automation Exists to Solve Organizational Problems
+## Automation Solves Organizational Problems
 
 Automation should:
 
-Remove repetitive work
+- remove repetitive work
+- increase release confidence
+- provide fast feedback
+- reduce cognitive load
 
-Increase confidence in releases
+---
 
-Provide fast feedback
+## Reliability Over Quantity
 
-Improve developer work satisfaction
+Priorities:
 
-Reduce cognitive load on teams
+- stable tests
+- clear failures
+- fast debugging
+- maintainable systems
 
-Automation should not exist solely to increase test counts.
+---
 
-Reliability Over Quantity
+## Observability-First Testing
 
-Preferred priorities:
+Tests should produce:
 
-Stable tests
+- traces
+- logs
+- reproducible failures
 
-Clear failures
+Tests must explain failures, not just detect them.
 
-Fast debugging
+---
 
-Maintainable architecture
+# Tool Selection Strategy
 
-Meaningful coverage
+Tools are selected based on problem characteristics:
 
-Unstable automation erodes trust faster than missing automation.
+- Playwright → reliability + CI + debugging
+- Cypress → frontend + rapid feedback
+- Puppeteer → low-level control
+- BDD → communication clarity
 
-Observability-First Testing
+---
 
-Effective automation produces investigation data:
-
-traces
-
-logs
-
-screenshots
-
-execution context
-
-reproducible failures
-
-Tests should explain failures automatically.
-
-Tool Selection Strategy
-
-Tools are selected based on problem characteristics.
-
-Playwright
-
-Used when:
-
-cross-browser reliability is required
-
-CI/CD integration is critical
-
-debugging speed matters
-
-Cypress
-
-Used when:
-
-deep frontend control is needed
-
-API + UI integration testing is beneficial
-
-rapid developer feedback is important
-
-Puppeteer
-
-Used when:
-
-custom automation control is required
-
-framework-level understanding is needed
-
-BDD Frameworks
-
-Used when:
-
-collaboration clarity outweighs technical complexity
-
-Key Principle:
+## Principle
 
 Tools serve architecture goals, not the opposite.
 
-Quality Engineering Principles
-Shift Left
+---
 
-Validation occurs as early as possible in development.
+# Quality Engineering Principles
 
-Deterministic Automation
+- Shift-left validation  
+- Deterministic automation  
+- Scalable architecture  
+- Developer enablement  
+- Continuous verification  
 
-Tests must behave predictably across environments.
+---
 
-Scalable Architecture
+# Organizational Impact Model
 
-Automation frameworks must evolve with products.
+Automation maturity evolves:
 
-Developer Enablement
+Manual Work  
+→ Test Automation  
+→ Pipeline Automation  
+→ Operational Automation  
+→ Engineering Intelligence  
 
-Automation should accelerate teams, not block them unnecessarily.
+---
 
-Continuous Verification
+# Strength Areas
 
-Quality checks run continuously rather than periodically.
+## Technical
 
-Organizational Impact Model
+- Playwright, Cypress, Puppeteer  
+- CI/CD automation  
+- API + DB validation  
+- Observability systems  
 
-Automation maturity evolves through stages:
+---
 
-Manual Work
-   ↓
-Test Automation
-   ↓
-Pipeline Automation
-   ↓
-Operational Automation
-   ↓
-Engineering Enablement
+## Engineering
 
+- system design  
+- reliability engineering  
+- debugging workflows  
+- automation strategy  
 
-Strength Areas Demonstrated Across Portfolio
-Technical
+---
 
-Playwright
+## Organizational
 
-Cypress
+- productivity improvement  
+- process automation  
+- cross-team enablement  
 
-Puppeteer
+---
 
-CI/CD automation
-
-API testing
-
-Database validation
-
-Enterprise architectures
-
-Containerized testing
-
-Observability tooling
-
-Engineering
-
-Framework design
-
-Reliability engineering
-
-Automation strategy
-
-Debugging workflows
-
-System thinking
-
-Organizational
-
-Productivity improvement
-
-Burnout reduction
-
-Process automation
-
-Cross-team enablement
-
-Summary
+# Summary
 
 This portfolio demonstrates progression from:
 
-Software Developer → Automation Engineer → Quality Systems Engineer
+Software Developer  
+→ Automation Engineer  
+→ Quality Systems Engineer  
 
-The central theme across all work is:
+---
 
-Engineering automation that improves both software quality and the people building it.
+## Central Theme
+
+Engineering systems that:
+
+- improve software quality  
+- reduce engineering friction  
+- enable faster, safer delivery  
+
+---
+
+## Final Insight
+
+Modern systems cannot be validated with binary testing.
+
+They require:
+
+→ continuous measurement  
+→ contextual interpretation  
+→ intelligent debugging  
+
+This portfolio reflects that transition.

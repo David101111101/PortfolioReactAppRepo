@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "url": ["http://localhost/"],
+      "url": ["http://localhost/", "http://localhost/#/dashboard"],
       "isSinglePageApplication": true,
       "numberOfRuns": 1,
       "settings": {
