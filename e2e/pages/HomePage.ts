@@ -89,6 +89,47 @@ externalLink(name: RegExp, index = 0) {
   return this.page.getByRole("link", { name }).nth(index);
 }
 
+  // ================= HAMBURGER / RESPONSIVE NAV =================
+
+  /** The hamburger toggle button (exists in DOM at all viewports, CSS hides it on desktop) */
+  hamburgerBtn(): Locator {
+    return this.page.locator("#hamburger-btn");
+  }
+
+  /** The mobile nav dropdown panel (only in DOM when menu is open) */
+  mobilePanel(): Locator {
+    return this.page.locator("#nav-mobile-panel");
+  }
+
+  /** The desktop horizontal nav wrapper */
+  desktopNav(): Locator {
+    return this.page.locator(".nav-desktop");
+  }
+
+  /** Set viewport to a mobile size (below 768px breakpoint) */
+  async setMobileViewport() {
+    await this.page.setViewportSize({ width: 400, height: 844 });
+  }
+
+  /** Set viewport back to a standard desktop size */
+  async setDesktopViewport() {
+    await this.page.setViewportSize({ width: 1280, height: 720 });
+  }
+
+  /** Open the mobile menu (asserts it was closed first) */
+  async openMobileMenu() {
+    await expect(this.hamburgerBtn()).toHaveAttribute("aria-expanded", "false");
+    await this.hamburgerBtn().click();
+    await expect(this.mobilePanel()).toBeVisible();
+  }
+
+  /** Close the mobile menu by clicking the hamburger again */
+  async closeMobileMenu() {
+    await expect(this.hamburgerBtn()).toHaveAttribute("aria-expanded", "true");
+    await this.hamburgerBtn().click();
+    await expect(this.mobilePanel()).not.toBeVisible();
+  }
+
   // ================= CHATBOT =================
 
 chatBubble() {
