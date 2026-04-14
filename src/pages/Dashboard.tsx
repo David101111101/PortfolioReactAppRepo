@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { HeaderDashboard } from "../components/HeaderDashboard";
+import "../App.css";
 import "../styles/Dashboard.css";
+import ChatWidget from "../components/ChatWidget";
 import {
   CartesianGrid,
   Legend,
@@ -1232,6 +1234,7 @@ export default function Dashboard() {
         <div style={{ height: "2rem" }} aria-hidden="true" />
       </main>
 
+      <ChatWidget />
       {showScrollTop && (
         <button
           type="button"
@@ -1239,7 +1242,7 @@ export default function Dashboard() {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24">
+          <svg width="16" height="20" viewBox="0 0 24 24">
             <path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>

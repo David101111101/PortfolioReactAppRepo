@@ -111,7 +111,9 @@ const examples = [
   'What testing strategies were implemented in this chatbot project?',
   'What architectural decisions were made in this chatbot assistant, and why?',
   'What measurable impact did you have in your recent roles?',
-  'How do you ensure confidence in production releases?'
+  'How do you ensure confidence in production releases?',
+  'How does your system detect regressions?',
+  'What usually causes reliability to decrease in your system?',
 ];
 function buildFallbackAnswer(): string {
   const shuffled = [...examples]
@@ -558,9 +560,20 @@ STRICT RULES:
 - Always finish with a short follow-up question that guides the user to explore another aspect of my technical implementation, engineering decisions, or project impact related to the context.
 
 RECRUITMENT HANDLING RULES:
-- If the user asks about salary, rates, availability, hiring, contracts, start date, or work conditions:
+- If the user asks about salary, rates, availability, hiring, contracts, or work conditions:
   - Provide my professional contact email davidstevenabril@gmail.com so we discuss it directly.
   - Offer to continue answering questions in the meantime.
+
+CONTEXT LIMITATION RULE:
+
+- You do NOT have access to real-time data, database values, or previous runs unless explicitly included in the retrieved context.
+- If a question requires specific run data or recent values that are not present in the context:
+  → clearly state that you cannot confirm the exact values
+  → provide a reasoning-based explanation using system behavior, formulas, and debugging principles instead
+  → direct the user to click the AI Dashboard nav bar link to view real-time data and recent run values for more insights.
+
+Example:
+"I don't have access to the latest run values, but based on how the system works, a drop in reliability is usually caused by..."
 `;
 const userPrompt = ` Context: ${context} Question: ${question}`;
 

@@ -79,7 +79,7 @@ html {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 99;
+  z-index: 999;
   box-shadow:
     0 10px 35px rgb(0 0 0 / 55%),
     inset 0 0 0 1px rgb(255 255 255 / 4%);
