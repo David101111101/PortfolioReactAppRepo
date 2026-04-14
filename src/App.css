@@ -101,16 +101,19 @@ html {
   opacity: 0;
 }
 
-.chat-widget input {
+.chat-widget input,
+.chat-widget textarea {
   font-size: 14px;
   letter-spacing: 0.2px;
 }
 
-.chat-widget input::placeholder {
+.chat-widget input::placeholder,
+.chat-widget textarea::placeholder {
   color: rgb(255 255 255 / 35%);
 }
 
-.chat-widget input:focus {
+.chat-widget input:focus,
+.chat-widget textarea:focus {
   background: rgb(255 255 255 / 2%);
 }
 
@@ -186,7 +189,7 @@ html {
 .chat-nav-controls {
   position: absolute;
   right: 10px;
-  bottom: 50px;
+  top: 50px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -385,3 +388,4 @@ html[data-test-mode="true"] * {
     bottom: 120px;
   }
 }
+

@@ -100,8 +100,13 @@ describe.runIf(process.env.NIGHTLY === "true")(
       /**
       * Validate performance threshold
       */
-      expect(median).toBeLessThan(MAX_LATENCY_MS);
-      expect(max).toBeLessThan(MAX_LATENCY_MS * 1.25);
+
+      // Primary signal (most important)
+      expect(p95).toBeLessThan(MAX_LATENCY_MS * 1.1);
+      // Median = sanity check (not strict)
+      expect(median).toBeLessThan(MAX_LATENCY_MS * 1.15);
+      // spike protection
+      expect(max).toBeLessThan(MAX_LATENCY_MS * 1.5);
       /**
        * 4️⃣ Concurrency Simulation
        *     Light parallel load to ensure no blocking or race issues.

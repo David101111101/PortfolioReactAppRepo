@@ -86,6 +86,7 @@ flowchart TD
 | **Security Scenarios** | Prompt injection, PII detection, SQL/XSS/encoded payload patterns | Input validation and guard effectiveness at request layer | PR + Deploy |
 | **Performance Gates** | Lighthouse assertions, weekly scheduled latency checks, rate limit regression | Web vitals/accessibility budgets + backend latency guardrails | Deploy + Weekly |
 | **Observability** | `Dashboard.tsx` live Supabase queries | Real-time production health, latency, confidence, reliability, flakiness | Continuous (post-weekly ingestion) |
+| **Chatbot — Analysis Mode** | `Dashboard.tsx` run snapshot → `ChatWidget` `runContext` prop | Chatbot receives structured run data (current + previous + deltas) and reasons about live metrics on demand | Triggered per run selection on Dashboard |
 
 ## Live Observability Dashboard
 
@@ -118,3 +119,4 @@ flowchart TD
 4. **AI-Specific Metrics**: We track LLM latency, fallback rates, and retrieval confidence, traditional QA metrics don't apply.
 5. **Production Health First**: Weekly regression tests hit the deployed endpoint, not mocks, catching real-world degradation.
 6. **Closed Feedback Loop**: The live Dashboard surfaces production signals back to the team without requiring manual report generation, data flows automatically from CI through Supabase into the UI.
+7. **Self-Aware AI Debugging**: The chatbot is integrated with the observability pipeline. When a run is selected on the Dashboard, a structured snapshot (current + previous run + deltas) is injected into the chatbot context. The assistant can then explain regressions, identify which metric changed most, apply correlation rules, and guide debugging — all grounded in real production data from that specific run.

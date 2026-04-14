@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { HeaderDashboard } from "../components/HeaderDashboard";
 import "../App.css";
@@ -92,6 +92,7 @@ type MetricProps = {
   subtitle?: ReactNode;
   status?: SlaStatus;
   onClick: () => void;
+  onAskAI?: () => void;
 };
 
 type InsightProps = {
@@ -286,6 +287,92 @@ function getSeverityClass(severity: string | null | undefined): string {
   return "dashboard-severity-low";
 }
 
+// ─── Run Snapshot Builder ─────────────────────────────────────────────────────
+
+function buildRunSnapshotContext(current: Run, previous: Run | null): string {
+  const fmt = (v: number | null | undefined, digits: number, suffix = "") =>
+    typeof v === "number" && Number.isFinite(v) ? `${v.toFixed(digits)}${suffix}` : "N/A";
+
+  const fmtPct = (v: number | null | undefined, digits = 1) =>
+    typeof v === "number" && Number.isFinite(v) ? `${(v * 100).toFixed(digits)}%` : "N/A";
+
+  const delta = (c: number | null | undefined, p: number | null | undefined, digits: number, suffix = "") => {
+    if (typeof c !== "number" || !Number.isFinite(c) || typeof p !== "number" || !Number.isFinite(p)) return "N/A";
+    const d = c - p;
+    return `${d >= 0 ? "+" : ""}${d.toFixed(digits)}${suffix}`;
+  };
+
+  const deltaPct = (c: number | null | undefined, p: number | null | undefined, digits = 1) => {
+    if (typeof c !== "number" || !Number.isFinite(c) || typeof p !== "number" || !Number.isFinite(p) || p === 0) return "N/A";
+    const d = ((c - p) / Math.abs(p)) * 100;
+    return `${d >= 0 ? "+" : ""}${d.toFixed(digits)}%`;
+  };
+
+  const lines: string[] = [
+    "=== RUN ANALYSIS CONTEXT ===",
+    "",
+    `CURRENT RUN: ${current.run_id}`,
+    `Timestamp: ${current.run_timestamp}`,
+    `P95 Latency: ${fmt(current.p95_latency, 0, " ms")}`,
+    `Reliability Score: ${fmt(current.reliability_score, 1)}`,
+    `Avg Confidence: ${fmt(current.avg_confidence, 1)}`,
+    `Min Confidence: ${fmt(current.min_confidence, 1)}`,
+    `Enforcement Rate: ${fmtPct(current.enforcement_rate)}`,
+    `Avg Rank Shift: ${fmt(current.avg_rank_shift, 3)}`,
+    "",
+  ];
+
+  if (previous) {
+    lines.push(
+      `PREVIOUS RUN: ${previous.run_id}`,
+      `Timestamp: ${previous.run_timestamp}`,
+      `P95 Latency: ${fmt(previous.p95_latency, 0, " ms")}`,
+      `Reliability Score: ${fmt(previous.reliability_score, 1)}`,
+      `Avg Confidence: ${fmt(previous.avg_confidence, 1)}`,
+      `Min Confidence: ${fmt(previous.min_confidence, 1)}`,
+      `Enforcement Rate: ${fmtPct(previous.enforcement_rate)}`,
+      `Avg Rank Shift: ${fmt(previous.avg_rank_shift, 3)}`,
+      "",
+      "DELTAS (current − previous):",
+      `P95 Latency: ${delta(current.p95_latency, previous.p95_latency, 0, " ms")} (${deltaPct(current.p95_latency, previous.p95_latency)})`,
+      `Reliability Score: ${delta(current.reliability_score, previous.reliability_score, 1)} (${deltaPct(current.reliability_score, previous.reliability_score)})`,
+      `Avg Confidence: ${delta(current.avg_confidence, previous.avg_confidence, 1)} (${deltaPct(current.avg_confidence, previous.avg_confidence)})`,
+      `Min Confidence: ${delta(current.min_confidence, previous.min_confidence, 1)} (${deltaPct(current.min_confidence, previous.min_confidence)})`,
+      `Enforcement Rate: ${delta(current.enforcement_rate, previous.enforcement_rate, 4)} (${deltaPct(current.enforcement_rate, previous.enforcement_rate)})`,
+      `Avg Rank Shift: ${delta(current.avg_rank_shift, previous.avg_rank_shift, 3)}`,
+      "",
+    );
+  } else {
+    lines.push("PREVIOUS RUN: Not available (this is the earliest recorded run)", "");
+  }
+
+  lines.push(
+    "FIELD LEGEND:",
+    "- P95 Latency: milliseconds (lower is better)",
+    "- Reliability Score: 0–100 scale (higher is better)",
+    "- Avg Confidence / Min Confidence: 0–100 scale (higher is better)",
+    "- Enforcement Rate: already formatted as a percentage (rate limiting activity)",
+    "- Avg Rank Shift: rank positions (lower = more stable retrieval ordering)",
+    "",
+    "=== END CONTEXT ===",
+  );
+
+  return lines.join("\n");
+}
+
+// ─── Helpers (outside component to avoid recreation on every render) ─────────
+
+function formatDateTime(ts: string) {
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -313,134 +400,90 @@ export default function Dashboard() {
   const [flakyTests, setFlakyTests] = useState<FlakyTest[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [chatQuery, setChatQuery] = useState<string | undefined>(undefined);
 
-  // ── Regression comparison ───────────────────────────────────────────────────
+  const runContext = useMemo(() => {
+    if (!selectedRun) return undefined;
+    const idx = runs.findIndex((r) => r.run_id === selectedRun.run_id);
+    const previousRun = idx >= 0 && idx + 1 < runs.length ? runs[idx + 1] : null;
+    return buildRunSnapshotContext(selectedRun, previousRun);
+  }, [selectedRun, runs]);
+
+  const chatGreeting = useMemo(() => {
+    if (!selectedRun || !runContext) return undefined;
+    const runShort = selectedRun.run_id.split("-").pop();
+    return `I have access to Run ${runShort} — Reliability ${isFiniteNumber(selectedRun.reliability_score) ? selectedRun.reliability_score.toFixed(1) : "N/A"}, P95 ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}, Confidence avg ${isFiniteNumber(selectedRun.avg_confidence) ? selectedRun.avg_confidence.toFixed(1) : "N/A"}. What do you want to investigate?\n\nConversations may be logged, but no personal information is stored.`;
+  }, [selectedRun, runContext]);
+
+  // ── Mount-time fetches — all fire in parallel ───────────────────────────────
   useEffect(() => {
     if (!hasSupabaseConfig) return;
 
-    fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Comparison API error");
-        return res.json();
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, { headers }),
+    ])
+      .then((responses) => {
+        for (const res of responses) {
+          if (!res.ok) throw new Error(`API error: ${res.status}`);
+        }
+        return Promise.all(responses.map((r) => r.json()));
       })
-      .then((data) => setComparison(data?.[0] ?? null))
-      .catch((err) => console.error("Comparison fetch error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Regression story ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Story API error");
-        return res.json();
-      })
-      .then((data) => setStory(data?.[0] ?? null))
-      .catch((err) => console.error("Story fetch error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Runs — single fetch; trend derived via slice ────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Runs API error");
-        return res.json();
-      })
-      .then((data) => {
-        const normalized = Array.isArray(data) ? data : [];
+      .then(([compData, storyData, runsData, flakyTrendData, flakyTestsData, testRunsData]) => {
+        setComparison(compData?.[0] ?? null);
+        setStory(storyData?.[0] ?? null);
+        const normalized = Array.isArray(runsData) ? runsData : [];
         setRuns(normalized);
         setTrend(normalized.slice(0, 10));
         if (normalized.length > 0) setSelectedRun(normalized[0]);
+        setFlakinessTrend(Array.isArray(flakyTrendData) ? flakyTrendData : []);
+        setFlakyTests(Array.isArray(flakyTestsData) ? flakyTestsData : []);
+        setTestRuns(Array.isArray(testRunsData) ? testRunsData : []);
       })
-      .catch((err) => console.error("Runs fetch error:", err))
+      .catch((err) => {
+        console.error("Dashboard fetch error:", err);
+        setFetchError("Failed to load dashboard data. Please refresh the page.");
+      })
       .finally(() => setIsLoadingRuns(false));
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
-  // ── Language metrics (per selected run) ────────────────────────────────────
+  // ── Per-run fetches — cancelled when run changes or component unmounts ───────
   useEffect(() => {
     if (!hasSupabaseConfig || !selectedRun) return;
 
+    const controller = new AbortController();
     const safeRunId = encodeURIComponent(selectedRun.run_id);
-    fetch(`${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${safeRunId}`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Language summary fetch error");
-        return res.json();
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${safeRunId}`, { headers, signal: controller.signal }),
+      fetch(`${supabaseUrl}/rest/v1/flakiness_run_summary?run_id=eq.${safeRunId}`, { headers, signal: controller.signal }),
+    ])
+      .then((responses) => {
+        for (const res of responses) {
+          if (!res.ok) throw new Error(`Per-run API error: ${res.status}`);
+        }
+        return Promise.all(responses.map((r) => r.json()));
       })
-      .then((data) => setLanguageMetrics(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Language metrics error:", err));
+      .then(([langData, flakinessData]) => {
+        setLanguageMetrics(Array.isArray(langData) ? langData : []);
+        setFlakiness(Array.isArray(flakinessData) ? (flakinessData[0] ?? null) : null);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Per-run fetch error:", err);
+        }
+      });
+
+    return () => controller.abort();
   }, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Flakiness (per selected run) ───────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig || !selectedRun) return;
-
-    const safeRunId = encodeURIComponent(selectedRun.run_id);
-    fetch(`${supabaseUrl}/rest/v1/flakiness_run_summary?run_id=eq.${safeRunId}`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flakiness fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakiness(Array.isArray(data) ? (data[0] ?? null) : null))
-      .catch((err) => console.error("Flakiness error:", err));
-  }, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Flakiness trend (global) ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flakiness trend fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakinessTrend(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Flakiness trend error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Per-test flakiness breakdown ───────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flaky tests fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakyTests(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Flaky tests error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Test runs — for failure correlation ──────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Test runs fetch error");
-        return res.json();
-      })
-      .then((data) => setTestRuns(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Test runs error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
   // ── Derived flakiness values ────────────────────────────────────────────────
   const hasFlakinessTrend = flakinessTrend.length > 0;
@@ -448,17 +491,6 @@ export default function Dashboard() {
   const prevFlaky = flakinessTrend.length > 1 ? flakinessTrend[1]?.flakiness_pct : null;
   const flakinessDelta =
     isFiniteNumber(latestFlaky) && isFiniteNumber(prevFlaky) ? latestFlaky - prevFlaky : null;
-
-  const formatDateTime = (ts: string) => {
-    const d = new Date(ts);
-    return d.toLocaleString(undefined, {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
 
   const flakinessChartData =
     flakinessTrend.length > 0
@@ -640,25 +672,48 @@ export default function Dashboard() {
 
       <main id="content" className="dashboard-main">
 
+        {fetchError && (
+          <section className="dashboard-card" role="alert">
+            <p style={{ color: "var(--color-red, #e53e3e)" }}>{fetchError}</p>
+          </section>
+        )}
+
         {/* ── Run Selector ──────────────────────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Run Selector")}>
           <h2>Select Evaluation Run</h2>
           <p className="dashboard-section-desc">
-            Choose a CI pipeline run to inspect. Each run reflects a full automated test suite
+            Choose a CI pipeline run to inspect.
+            Each run reflects a fully automated test suite
             execution and AI regression analysis.
           </p>
-          <label htmlFor="run-selector">Select Run:</label>
-          <select
-            id="run-selector"
-            className="dashboard-select"
-            onChange={(e) => handleRunChange(e.target.value)}
-          >
-            {runs.map((run) => (
-              <option key={run.run_id} value={run.run_id}>
-                Run {run.run_id.split("-").pop()} — {formatDateTime(run.run_timestamp)}
-              </option>
-            ))}
-          </select>
+          <p className="dashboard-section-desc">Click 💬 on each section to ask the AI about it.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <label htmlFor="run-selector">Select Run:</label>
+            <select
+              id="run-selector"
+              className="dashboard-select"
+              value={selectedRun.run_id}
+              onChange={(e) => handleRunChange(e.target.value)}
+            >
+              {runs.map((run) => (
+                <option key={run.run_id} value={run.run_id}>
+                  Run {run.run_id.split("-").pop()} — {formatDateTime(run.run_timestamp)}
+                </option>
+              ))}
+            </select>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Ask AI about this run"
+                title="Ask AI about this run"
+                onClick={() => setChatQuery("Summarize the current run and highlight anything that needs attention.")}
+              >
+                💬
+              </button>
+            )}
+          </div>
         </section>
 
         {/* ── System Health Overview ─────────────────────────────────────────── */}
@@ -673,6 +728,7 @@ export default function Dashboard() {
               title="P95 Latency"
               value={isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}
               status={getLatencyDeviationStatus(selectedRun.p95_latency)?.status ?? null}
+              onAskAI={runContext ? () => setChatQuery("Analyze P95 latency for this run. Is it within baseline? How does it compare to the previous run?") : undefined}
               subtitle={(() => {
                 const dev = getLatencyDeviationStatus(selectedRun.p95_latency);
                 if (!dev) return "No latency data";
@@ -698,6 +754,7 @@ export default function Dashboard() {
               title="Reliability"
               value={isFiniteNumber(selectedRun.reliability_score) ? `${selectedRun.reliability_score.toFixed(1)}` : "N/A"}
               status={getReliabilityDeviationStatus(selectedRun.reliability_score)?.status ?? null}
+              onAskAI={runContext ? () => setChatQuery("Analyze reliability for this run. What's causing any deviation from baseline and how does it compare to the previous run?") : undefined}
               subtitle={(() => {
                 const dev = getReliabilityDeviationStatus(selectedRun.reliability_score);
                 if (!dev) return "No reliability data";
@@ -723,6 +780,7 @@ export default function Dashboard() {
               title="Confidence"
               value={isFiniteNumber(selectedRun.avg_confidence) ? `${selectedRun.avg_confidence.toFixed(1)}` : "N/A"}
               status={getConfidenceDeviationStatus(selectedRun.avg_confidence)?.status ?? null}
+              onAskAI={runContext ? () => setChatQuery("Analyze retrieval confidence for this run. Is avg or min confidence a concern? How does it compare to the previous run?") : undefined}
               subtitle={(() => {
                 const dev = getConfidenceDeviationStatus(selectedRun.avg_confidence);
                 if (!dev) return "No confidence data";
@@ -750,6 +808,7 @@ export default function Dashboard() {
                 ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%`
                 : "N/A"}
               status={getRateLimitSeverity(selectedRun.enforcement_rate)?.status ?? null}
+              onAskAI={runContext ? () => setChatQuery("Analyze rate limit enforcement for this run. Is the enforcement rate within expected range and what does any deviation indicate?") : undefined}
               subtitle={(() => {
                 const dev = getRateLimitSeverity(selectedRun.enforcement_rate);
                 if (!dev) return "No rate-limit data";
@@ -1072,7 +1131,21 @@ export default function Dashboard() {
         {/* ── AI System Intelligence ────────────────────────────────────────── */}
         {story && (
           <section className="dashboard-card" id={sectionId("AI System Intelligence")}>
-            <h2>AI System Intelligence</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+              <h2 style={{ margin: 0 }}>AI System Intelligence</h2>
+              {runContext && (
+                <button
+                  type="button"
+                  className="dashboard-scroll-top"
+                  style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                  aria-label="Debug with AI"
+                  title="Debug with AI"
+                  onClick={() => setChatQuery(`The system is showing ${story.regression_severity} severity with ${story.primary_signal} as the primary signal. What's likely causing this and what should I investigate first?`)}
+                >
+                  💬
+                </button>
+              )}
+            </div>
             <p className="dashboard-section-desc">
               Automated narrative analysis of the current regression trend. Treat high-severity
               signals as a prompt to investigate the primary signal immediately.
@@ -1089,7 +1162,7 @@ export default function Dashboard() {
         <section className="dashboard-card" id={sectionId("Last 5 Runs Trend")}>
           <h2>Last 5 Runs Trend</h2>
           <p className="dashboard-section-desc">
-            Recent run history for at-a-glance health comparison across the five latest CI runs.
+            Recent run history for at-a-glance health comparison. Click a run to select it, then 💬 to ask the AI about it.
           </p>
           {last5.length > 0 ? (
             <>
@@ -1099,14 +1172,28 @@ export default function Dashboard() {
                 <span>Confidence</span>
                 <span>Reliability</span>
               </section>
-              {last5.map((run) => (
-                <section key={run.run_id} className="dashboard-row">
-                  <span>{new Date(run.run_timestamp).toLocaleDateString()}</span>
-                  <span>{isFiniteNumber(run.p95_latency) ? `${run.p95_latency} ms` : "N/A"}</span>
-                  <span>{formatFixed(run.avg_confidence, 2)}</span>
-                  <span>{formatFixed(run.reliability_score, 2)}</span>
-                </section>
-              ))}
+              {last5.map((run) => {
+                const isSelected = run.run_id === selectedRun.run_id;
+                return (
+                  <section
+                    key={run.run_id}
+                    className="dashboard-row"
+                    style={{
+                      cursor: "pointer",
+                      borderRadius: 6,
+                      padding: "2px 4px",
+                      background: isSelected ? "rgb(255 255 255 / 6%)" : undefined,
+                      outline: isSelected ? "1px solid var(--soft)" : undefined,
+                    }}
+                    onClick={() => handleRunChange(run.run_id)}
+                  >
+                    <span>{new Date(run.run_timestamp).toLocaleDateString()}</span>
+                    <span>{isFiniteNumber(run.p95_latency) ? `${run.p95_latency} ms` : "N/A"}</span>
+                    <span>{formatFixed(run.avg_confidence, 2)}</span>
+                    <span>{formatFixed(run.reliability_score, 2)}</span>
+                  </section>
+                );
+              })}
             </>
           ) : (
             <p>No run history available yet.</p>
@@ -1234,7 +1321,14 @@ export default function Dashboard() {
         <div style={{ height: "2rem" }} aria-hidden="true" />
       </main>
 
-      <ChatWidget />
+      <ChatWidget
+        disableBackdrop
+        runContext={runContext}
+        greeting={chatGreeting}
+        externalQuery={chatQuery}
+        onExternalQueryConsumed={() => setChatQuery(undefined)}
+        conversationKey={selectedRun.run_id}
+      />
       {showScrollTop && (
         <button
           type="button"
@@ -1253,17 +1347,31 @@ export default function Dashboard() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Metric({ title, value, subtitle, status, onClick }: MetricProps) {
+function Metric({ title, value, subtitle, status, onClick, onAskAI }: MetricProps) {
   const valueColorClass = status ? `dashboard-metric-value-${status}` : "";
   return (
-    <button type="button" className="dashboard-metric" onClick={onClick}>
-      <div>{title}</div>
-      <div className={`dashboard-metric-value${valueColorClass ? ` ${valueColorClass}` : ""}`}>
-        {value}
-        {status && <span className={`dashboard-status-dot dashboard-status-${status}`} />}
-      </div>
-      {subtitle && <div className="dashboard-metric-subtitle">{subtitle}</div>}
-    </button>
+    <div style={{ position: "relative" }}>
+      <button type="button" className="dashboard-metric" onClick={onClick}>
+        <div>{title}</div>
+        <div className={`dashboard-metric-value${valueColorClass ? ` ${valueColorClass}` : ""}`}>
+          {value}
+          {status && <span className={`dashboard-status-dot dashboard-status-${status}`} />}
+        </div>
+        {subtitle && <div className="dashboard-metric-subtitle">{subtitle}</div>}
+      </button>
+      {onAskAI && (
+        <button
+          type="button"
+          className="dashboard-scroll-top"
+          style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, fontSize: 12 }}
+          aria-label={`Ask AI about ${title}`}
+          title={`Ask AI about ${title}`}
+          onClick={(e) => { e.stopPropagation(); onAskAI(); }}
+        >
+          💬
+        </button>
+      )}
+    </div>
   );
 }
 
