@@ -69,6 +69,12 @@ test('Email Button header work', async ({ home, page }) => {
   await expect(emailBtn).toBeEnabled();
   await expect(emailBtn).toHaveAttribute('href', /^mailto:/i);
 });
+test('nav "AI Dashboard" navigates to "#/dashboard"', async ({ home, page }) => {
+  await home.goto();
+  await home.navItem("AI Dashboard").first().click();
+  await expect(page).toHaveURL(/#\/dashboard/);
+});
+
 test("Home page external buttons work", async ({ home, page }) => {
   await home.goto();
     const btnLinkedInHeader = home.externalLink(/^LinkedIn$/i, 0);

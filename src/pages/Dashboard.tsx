@@ -7,6 +7,8 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,7 +18,7 @@ import {
 // ─── Domain types ────────────────────────────────────────────────────────────
 
 type MetricKey = "Latency" | "Reliability" | "Confidence" | "Rate";
-type SlaStatus = "green" | "yellow" | "red" | null;
+type SlaStatus = "green" | "yellow" | "orange" | "red" | null;
 type SlaMetric = "latency" | "confidence" | "reliability" | "flakiness";
 
 type Run = {
@@ -85,13 +87,16 @@ type FlakinessTrend = {
 type MetricProps = {
   title: string;
   value: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   status?: SlaStatus;
   onClick: () => void;
 };
 
 type InsightProps = {
   metric: MetricKey;
+  run?: Run | null;
+  previousRun?: Run | null;
+  recentRuns?: Run[];
 };
 
 type LazyViewportProps = {
@@ -99,6 +104,30 @@ type LazyViewportProps = {
   minHeight: number;
   rootMargin?: string;
 };
+
+// ─── Latency baseline constants ──────────────────────────────────────────────
+// Derived from historical P95 values: [5171, 5113, 5625, 5820] → median ≈ 5400 ms
+const LATENCY_EXPECTED = 5400;
+const LATENCY_DEGRADED_THRESHOLD = 5800;
+
+// ─── Confidence baseline constants ───────────────────────────────────────────
+// Derived from historical avg_confidence: [81.3, 83.3, 80.0, 80.7] → median ≈ 81
+const CONFIDENCE_EXPECTED = 81;
+const CONFIDENCE_WARN_THRESHOLD = 75;
+
+// ─── Reliability baseline constants ──────────────────────────────────────────
+// Derived from historical reliability_score: [92, 91, 90, 89] → median ≈ 91
+const RELIABILITY_EXPECTED = 91;
+const RELIABILITY_WARN_THRESHOLD = 88;
+
+// ─── Rate limit constants ─────────────────────────────────────────────────────
+// limit=10 req/IP, warmup=1 pre-loop request; remaining before 429 = 10 - 1 = 9
+// Tracked loop = 13 requests → expected blocked = 13 - 9 = 4 → 30.8%
+const RATE_LIMIT = 10;
+const RATE_WARMUP = 1;
+const RATE_TOTAL_REQUESTS = 13;
+const RATE_EXPECTED_BLOCKED = RATE_TOTAL_REQUESTS - (RATE_LIMIT - RATE_WARMUP); // 4
+const RATE_EXPECTED = RATE_EXPECTED_BLOCKED / RATE_TOTAL_REQUESTS; // ≈ 0.3077
 
 // ─── Pure helpers (no component state) ───────────────────────────────────────
 
@@ -175,6 +204,80 @@ function getDeltaStatus(
   }
 }
 
+// Deviation-based latency signal vs historical baseline
+function getLatencyDeviationStatus(actual: number | null | undefined): {
+  deltaPct: number;
+  deltaMs: number;
+  status: SlaStatus;
+  label: string;
+} | null {
+  if (!isFiniteNumber(actual)) return null;
+  const deltaMs = actual - LATENCY_EXPECTED;
+  const deltaPct = deltaMs / LATENCY_EXPECTED;
+  let status: SlaStatus;
+  let label: string;
+  if (deltaPct <= -0.05) { status = "green"; label = "Strong performance"; }
+  else if (deltaPct <= 0) { status = "green"; label = "Healthy"; }
+  else if (deltaPct <= 0.09) { status = "yellow"; label = "Slight degradation"; }
+  else if (deltaPct <= 0.15) { status = "orange"; label = "Degraded"; }
+  else { status = "red"; label = "Severe"; }
+  return { deltaPct, deltaMs, status, label };
+}
+
+// Deviation-based confidence signal vs historical baseline
+function getConfidenceDeviationStatus(actual: number | null | undefined): {
+  deltaPct: number;
+  delta: number;
+  status: SlaStatus;
+  label: string;
+} | null {
+  if (!isFiniteNumber(actual)) return null;
+  const delta = actual - CONFIDENCE_EXPECTED;
+  const deltaPct = delta / CONFIDENCE_EXPECTED;
+  let status: SlaStatus;
+  let label: string;
+  if (deltaPct >= 0.03) { status = "green"; label = "Improved"; }
+  else if (deltaPct >= -0.03) { status = "green"; label = "Stable"; }
+  else if (deltaPct >= -0.08) { status = "yellow"; label = "Slight degradation"; }
+  else if (deltaPct >= -0.15) { status = "orange"; label = "Degraded"; }
+  else { status = "red"; label = "Severe regression"; }
+  return { deltaPct, delta, status, label };
+}
+
+// Deviation-based reliability signal vs historical baseline
+function getReliabilityDeviationStatus(actual: number | null | undefined): {
+  deltaPct: number;
+  delta: number;
+  status: SlaStatus;
+  label: string;
+} | null {
+  if (!isFiniteNumber(actual)) return null;
+  const delta = actual - RELIABILITY_EXPECTED;
+  const deltaPct = delta / RELIABILITY_EXPECTED;
+  let status: SlaStatus;
+  let label: string;
+  if (deltaPct >= 0.02) { status = "green"; label = "Improved"; }
+  else if (deltaPct >= -0.02) { status = "green"; label = "Stable"; }
+  else if (deltaPct >= -0.05) { status = "yellow"; label = "Slight degradation"; }
+  else if (deltaPct >= -0.10) { status = "orange"; label = "Degraded"; }
+  else { status = "red"; label = "Severe"; }
+  return { deltaPct, delta, status, label };
+}
+
+// Deviation-based rate limit correctness signal
+function getRateLimitSeverity(rate: number | null | undefined) {
+  if (!isFiniteNumber(rate)) return null;
+  const delta = rate - RATE_EXPECTED;
+  const absDelta = Math.abs(delta);
+  let status: SlaStatus;
+  let label: string;
+  if (absDelta <= 0.02) { status = "green"; label = "Healthy"; }
+  else if (absDelta <= 0.05) { status = "yellow"; label = "Slight drift"; }
+  else if (absDelta <= 0.10) { status = "orange"; label = "Degraded"; }
+  else { status = "red"; label = "Severe"; }
+  return { delta, absDelta, status, label };
+}
+
 function getSeverityClass(severity: string | null | undefined): string {
   if (severity === "high") return "dashboard-severity-high";
   if (severity === "medium") return "dashboard-severity-medium";
@@ -187,6 +290,14 @@ export default function Dashboard() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   const hasSupabaseConfig = Boolean(supabaseUrl && supabaseKey);
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 120);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const [trend, setTrend] = useState<Run[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
@@ -314,7 +425,7 @@ export default function Dashboard() {
       .catch((err) => console.error("Flaky tests error:", err));
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
-  // ── Test runs — for failure correlation + CI linkback ──────────────────────
+  // ── Test runs — for failure correlation ──────────────────────
   useEffect(() => {
     if (!hasSupabaseConfig) return;
 
@@ -336,12 +447,23 @@ export default function Dashboard() {
   const flakinessDelta =
     isFiniteNumber(latestFlaky) && isFiniteNumber(prevFlaky) ? latestFlaky - prevFlaky : null;
 
+  const formatDateTime = (ts: string) => {
+    const d = new Date(ts);
+    return d.toLocaleString(undefined, {
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   const flakinessChartData =
     flakinessTrend.length > 0
       ? [...flakinessTrend]
           .sort((a, b) => new Date(a.run_timestamp).getTime() - new Date(b.run_timestamp).getTime())
           .map((entry) => ({
-            date: new Date(entry.run_timestamp).toLocaleDateString(),
+            date: formatDateTime(entry.run_timestamp),
             flakiness: entry.flakiness_pct,
           }))
       : [];
@@ -360,13 +482,6 @@ export default function Dashboard() {
   };
 
   // ── Label helpers ───────────────────────────────────────────────────────────
-  const getRateLimitLabel = (rate: number | null | undefined) => {
-    if (!isFiniteNumber(rate)) return "No rate-limit data";
-    if (rate < 0.1) return "Low impact";
-    if (rate < 0.3) return "Moderate throttling";
-    return "High user impact";
-  };
-
   const getRankShiftLabel = (value: number | null | undefined) => {
     if (!isFiniteNumber(value)) return "No drift data";
     if (value < 0.2) return "Stable retrieval";
@@ -428,7 +543,18 @@ export default function Dashboard() {
   }
 
   if (isLoadingRuns) {
-    return <section className="dashboard-page">Loading dashboard…</section>;
+    return (
+      <section className="dashboard-page" id={sectionId("AI System Dashboard")}>
+        <HeaderDashboard />
+        <section className="bg bg-dark" aria-hidden="true" />
+        <section className="bg bg-light" aria-hidden="true" />
+        <main id="content" className="dashboard-main">
+          <section className="dashboard-card">
+            <p>Loading dashboard…</p>
+          </section>
+        </main>
+      </section>
+    );
   }
 
   if (!selectedRun) {
@@ -445,9 +571,9 @@ export default function Dashboard() {
   );
 
   const chartData = chronologicalTrend.map((entry) => ({
-    date: new Date(entry.run_timestamp).toLocaleDateString(),
+    date: formatDateTime(entry.run_timestamp),
     latency: entry.p95_latency,
-    confidence: entry.min_confidence,
+    confidence: entry.avg_confidence,
     reliability: entry.reliability_score,
     rate: entry.enforcement_rate,
   }));
@@ -464,7 +590,7 @@ export default function Dashboard() {
         ? (tr.failed / tr.total_tests) * 100
         : null;
     return {
-      date: new Date(entry.run_timestamp).toLocaleDateString(),
+      date: formatDateTime(entry.run_timestamp),
       latency: entry.p95_latency,
       failure_rate_pct,
     };
@@ -527,7 +653,7 @@ export default function Dashboard() {
           >
             {runs.map((run) => (
               <option key={run.run_id} value={run.run_id}>
-                Run {run.run_id} — {new Date(run.run_timestamp).toLocaleString()}
+                Run {run.run_id.split("-").pop()} — {formatDateTime(run.run_timestamp)}
               </option>
             ))}
           </select>
@@ -544,25 +670,97 @@ export default function Dashboard() {
             <Metric
               title="P95 Latency"
               value={isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}
-              status={getStatusColor(selectedRun.p95_latency, "latency")}
+              status={getLatencyDeviationStatus(selectedRun.p95_latency)?.status ?? null}
+              subtitle={(() => {
+                const dev = getLatencyDeviationStatus(selectedRun.p95_latency);
+                if (!dev) return "No latency data";
+                const sign = dev.deltaMs >= 0 ? "+" : "";
+                const prevLatency = previous?.p95_latency;
+                const trendPct =
+                  isFiniteNumber(prevLatency) && isFiniteNumber(selectedRun.p95_latency)
+                    ? ((selectedRun.p95_latency - prevLatency) / prevLatency * 100).toFixed(1)
+                    : null;
+                return (
+                  <>
+                    <div>Baseline: {LATENCY_EXPECTED} ms</div>
+                    <div>{sign}{dev.deltaMs} ms ({sign}{(dev.deltaPct * 100).toFixed(1)}%) vs baseline</div>
+                    {trendPct !== null && (
+                      <div>{Number(trendPct) >= 0 ? "+" : ""}{trendPct}% vs previous run</div>
+                    )}
+                  </>
+                );
+              })()}
               onClick={() => setSelectedMetric("Latency")}
             />
             <Metric
               title="Reliability"
-              value={formatPercentFromWhole(selectedRun.reliability_score)}
-              status={getStatusColor(selectedRun.reliability_score, "reliability")}
+              value={isFiniteNumber(selectedRun.reliability_score) ? `${selectedRun.reliability_score.toFixed(1)}` : "N/A"}
+              status={getReliabilityDeviationStatus(selectedRun.reliability_score)?.status ?? null}
+              subtitle={(() => {
+                const dev = getReliabilityDeviationStatus(selectedRun.reliability_score);
+                if (!dev) return "No reliability data";
+                const sign = dev.delta >= 0 ? "+" : "";
+                const prevRel = previous?.reliability_score;
+                const trendPct =
+                  isFiniteNumber(prevRel) && isFiniteNumber(selectedRun.reliability_score)
+                    ? ((selectedRun.reliability_score - prevRel) / prevRel * 100).toFixed(1)
+                    : null;
+                return (
+                  <>
+                    <div>Baseline: {RELIABILITY_EXPECTED}</div>
+                    <div>{sign}{dev.delta.toFixed(1)} ({sign}{(dev.deltaPct * 100).toFixed(1)}%) vs baseline</div>
+                    {trendPct !== null && (
+                      <div>{Number(trendPct) >= 0 ? "+" : ""}{trendPct}% vs previous run</div>
+                    )}
+                  </>
+                );
+              })()}
               onClick={() => setSelectedMetric("Reliability")}
             />
             <Metric
               title="Confidence"
-              value={formatPercentFromWhole(selectedRun.avg_confidence)}
-              status={getStatusColor(selectedRun.avg_confidence, "confidence")}
+              value={isFiniteNumber(selectedRun.avg_confidence) ? `${selectedRun.avg_confidence.toFixed(1)}` : "N/A"}
+              status={getConfidenceDeviationStatus(selectedRun.avg_confidence)?.status ?? null}
+              subtitle={(() => {
+                const dev = getConfidenceDeviationStatus(selectedRun.avg_confidence);
+                if (!dev) return "No confidence data";
+                const sign = dev.delta >= 0 ? "+" : "";
+                const prevConf = previous?.avg_confidence;
+                const trendPct =
+                  isFiniteNumber(prevConf) && isFiniteNumber(selectedRun.avg_confidence)
+                    ? ((selectedRun.avg_confidence - prevConf) / prevConf * 100).toFixed(1)
+                    : null;
+                return (
+                  <>
+                    <div>Baseline: {CONFIDENCE_EXPECTED}</div>
+                    <div>{sign}{dev.delta.toFixed(1)} ({sign}{(dev.deltaPct * 100).toFixed(1)}%) vs baseline</div>
+                    {trendPct !== null && (
+                      <div>{Number(trendPct) >= 0 ? "+" : ""}{trendPct}% vs previous run</div>
+                    )}
+                  </>
+                );
+              })()}
               onClick={() => setSelectedMetric("Confidence")}
             />
             <Metric
               title="Rate Limit"
-              value={formatPercentFromRatio(selectedRun.enforcement_rate)}
-              subtitle={getRateLimitLabel(selectedRun.enforcement_rate)}
+              value={isFiniteNumber(selectedRun.enforcement_rate)
+                ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%`
+                : "N/A"}
+              status={getRateLimitSeverity(selectedRun.enforcement_rate)?.status ?? null}
+              subtitle={(() => {
+                const dev = getRateLimitSeverity(selectedRun.enforcement_rate);
+                if (!dev) return "No rate-limit data";
+                const blocked = Math.round(selectedRun.enforcement_rate * RATE_TOTAL_REQUESTS);
+                const sign = dev.delta >= 0 ? "+" : "";
+                return (
+                  <>
+                    <div>{dev.label} — Expected: {(RATE_EXPECTED * 100).toFixed(1)}%</div>
+                    <div>{sign}{(dev.delta * 100).toFixed(1)}% vs baseline</div>
+                    <div>Blocked: {blocked} / {RATE_TOTAL_REQUESTS} requests</div>
+                  </>
+                );
+              })()}
               onClick={() => setSelectedMetric("Rate")}
             />
           </section>
@@ -578,19 +776,100 @@ export default function Dashboard() {
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={chartData}>
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  {selectedMetric === "Latency" && <Line type="monotone" dataKey="latency" />}
-                  {selectedMetric === "Confidence" && <Line type="monotone" dataKey="confidence" />}
-                  {selectedMetric === "Reliability" && <Line type="monotone" dataKey="reliability" />}
-                  {selectedMetric === "Rate" && <Line type="monotone" dataKey="rate" />}
+                  <XAxis dataKey="date" tickMargin={8} />
+                  <YAxis
+                    tickFormatter={selectedMetric === "Rate" ? (v: number) => `${(v * 100).toFixed(0)}%` : undefined}
+                    domain={
+                      selectedMetric === "Rate" ? [0, 0.6]
+                      : selectedMetric === "Confidence" ? [50, 100]
+                      : selectedMetric === "Reliability" ? [70, 100]
+                      : undefined
+                    }
+                  />
+                  <Tooltip content={<MetricDrillTooltip metric={selectedMetric} />} />
+                  {selectedMetric === "Latency" && <CartesianGrid strokeDasharray="3 3" />}
+                  {selectedMetric === "Latency" && (
+                    <ReferenceArea y1={0} y2={LATENCY_EXPECTED} fill="rgba(34,197,94,0.08)" />
+                  )}
+                  {selectedMetric === "Latency" && (
+                    <ReferenceArea y1={LATENCY_EXPECTED} y2={LATENCY_DEGRADED_THRESHOLD} fill="rgba(234,179,8,0.08)" />
+                  )}
+                  {selectedMetric === "Latency" && (
+                    <ReferenceArea y1={LATENCY_DEGRADED_THRESHOLD} y2={12000} fill="rgba(239,68,68,0.08)" />
+                  )}
+                  {selectedMetric === "Latency" && (
+                    <ReferenceLine
+                      y={LATENCY_EXPECTED}
+                      stroke="#22c55e"
+                      strokeDasharray="5 3"
+                      label={{ value: `Baseline ${LATENCY_EXPECTED} ms`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
+                    />
+                  )}
+                  {selectedMetric === "Latency" && <Line type="monotone" dataKey="latency" dot />}
+                  {selectedMetric === "Confidence" && <CartesianGrid strokeDasharray="3 3" />}
+                  {selectedMetric === "Confidence" && (
+                    <ReferenceArea y1={CONFIDENCE_EXPECTED} y2={100} fill="rgba(34,197,94,0.08)" />
+                  )}
+                  {selectedMetric === "Confidence" && (
+                    <ReferenceArea y1={CONFIDENCE_WARN_THRESHOLD} y2={CONFIDENCE_EXPECTED} fill="rgba(234,179,8,0.08)" />
+                  )}
+                  {selectedMetric === "Confidence" && (
+                    <ReferenceArea y1={0} y2={CONFIDENCE_WARN_THRESHOLD} fill="rgba(239,68,68,0.08)" />
+                  )}
+                  {selectedMetric === "Confidence" && (
+                    <ReferenceLine
+                      y={CONFIDENCE_EXPECTED}
+                      stroke="#22c55e"
+                      strokeDasharray="5 3"
+                      label={{ value: `Baseline ${CONFIDENCE_EXPECTED}`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
+                    />
+                  )}
+                  {selectedMetric === "Confidence" && <Line type="monotone" dataKey="confidence" dot />}
+                  {selectedMetric === "Reliability" && <CartesianGrid strokeDasharray="3 3" />}
+                  {selectedMetric === "Reliability" && (
+                    <ReferenceArea y1={RELIABILITY_EXPECTED} y2={100} fill="rgba(34,197,94,0.08)" />
+                  )}
+                  {selectedMetric === "Reliability" && (
+                    <ReferenceArea y1={RELIABILITY_WARN_THRESHOLD} y2={RELIABILITY_EXPECTED} fill="rgba(234,179,8,0.08)" />
+                  )}
+                  {selectedMetric === "Reliability" && (
+                    <ReferenceArea y1={0} y2={RELIABILITY_WARN_THRESHOLD} fill="rgba(239,68,68,0.08)" />
+                  )}
+                  {selectedMetric === "Reliability" && (
+                    <ReferenceLine
+                      y={RELIABILITY_EXPECTED}
+                      stroke="#22c55e"
+                      strokeDasharray="5 3"
+                      label={{ value: `Baseline ${RELIABILITY_EXPECTED}`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
+                    />
+                  )}
+                  {selectedMetric === "Reliability" && <Line type="monotone" dataKey="reliability" dot />}
+                  {selectedMetric === "Rate" && <CartesianGrid strokeDasharray="3 3" />}
+                  {selectedMetric === "Rate" && (
+                    <ReferenceArea
+                      y1={RATE_EXPECTED - 0.02}
+                      y2={RATE_EXPECTED + 0.02}
+                      fill="rgba(34,197,94,0.12)"
+                    />
+                  )}
+                  {selectedMetric === "Rate" && (
+                    <ReferenceLine
+                      y={RATE_EXPECTED}
+                      stroke="#22c55e"
+                      strokeDasharray="5 3"
+                      label={{ value: `Expected ${(RATE_EXPECTED * 100).toFixed(1)}%`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
+                    />
+                  )}
+                  {selectedMetric === "Rate" && (
+                    <Line type="monotone" dataKey="rate" name="Enforcement Rate" stroke="var(--accent)" dot />
+                  )}
+                  {selectedMetric === "Rate" && <Legend />}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
               <p>No trend data available yet. Run a CI pipeline to populate metrics.</p>
             )}
-            <Insight metric={selectedMetric} />
+            <Insight metric={selectedMetric} run={selectedRun} previousRun={previous} recentRuns={last5} />
           </section>
         )}
 
@@ -602,7 +881,7 @@ export default function Dashboard() {
               Side-by-side delta vs the prior run. Investigate immediately if latency is rising or
               confidence is dropping.
             </p>
-            <section className="dashboard-row dashboard-row--3col">
+            <section className="dashboard-row dashboard-row-3-col">
               <span>Latency</span>
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.latency_pct)}</span>
               <span className="dashboard-col-right">
@@ -612,7 +891,7 @@ export default function Dashboard() {
                 )}
               </span>
             </section>
-            <section className="dashboard-row dashboard-row--3col">
+            <section className="dashboard-row dashboard-row-3-col">
               <span>Confidence</span>
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.confidence_pct)}</span>
               <span className="dashboard-col-right">
@@ -622,7 +901,7 @@ export default function Dashboard() {
                 )}
               </span>
             </section>
-            <section className="dashboard-row dashboard-row--3col">
+            <section className="dashboard-row dashboard-row-3-col">
               <span>Reliability</span>
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.reliability_delta)}</span>
               <span className="dashboard-col-right">
@@ -651,9 +930,9 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" label={{ value: "Run Date", position: "insideBottom", offset: -5 }} />
-                  <YAxis label={{ value: "Metrics", angle: -90, position: "insideLeft" }} />
-                  <Tooltip />
+                  <XAxis dataKey="date" tickMargin={8} label={{ value: "Run Date", position: "insideBottom", offset: -5 }} />
+                  <YAxis width={60} />
+                  <Tooltip content={<PerformanceTrendTooltip />} />
                   <Legend />
                   <Line type="monotone" name="Latency (ms)" dataKey="latency" />
                   <Line type="monotone" name="Confidence Score" dataKey="confidence" />
@@ -686,10 +965,10 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={correlationData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis yAxisId="left" label={{ value: "Latency (ms)", angle: -90, position: "insideLeft", offset: 10 }} />
+                    <XAxis dataKey="date" tickMargin={8} />
+                    <YAxis yAxisId="left" label={{ value: "Latency (ms)", angle: -90, position: "insideLeft", offset: 1 }} />
                     <YAxis yAxisId="right" orientation="right" tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-                    <Tooltip />
+                    <Tooltip content={<CorrelationTooltip />} />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="latency" name="P95 Latency (ms)" stroke="var(--accent)" dot={false} />
                     <Line yAxisId="right" type="monotone" dataKey="failure_rate_pct" name="Failure Rate (%)" stroke="var(--warn)" dot={false} connectNulls={false} />
@@ -771,7 +1050,7 @@ export default function Dashboard() {
               const driftStatus = getDriftStatus(label);
 
               return (
-                <section key={language.language ?? i} className="dashboard-row dashboard-row--3col">
+                <section key={language.language ?? i} className="dashboard-row dashboard-row-3-col">
                   <span>{getLanguageName(language.language)}</span>
                   <span className="dashboard-col-center">{formatFixed(delta, 1)}</span>
                   <span className="dashboard-col-right">
@@ -872,12 +1151,12 @@ export default function Dashboard() {
 
               <h3>Historical Trend</h3>
               {flakinessChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
+                <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={flakinessChartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
+                    <XAxis dataKey="date" tickMargin={8} height={50} tick={<TwoLineTick />} />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip content={<FlakinessTooltip />} />
                     <Line type="monotone" dataKey="flakiness" name="Flakiness %" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -900,7 +1179,7 @@ export default function Dashboard() {
             <p>No flaky tests detected. All tests are currently stable.</p>
           ) : (
             <>
-              <section className="dashboard-row dashboard-row-header dashboard-row--flaky">
+              <section className="dashboard-row dashboard-row-header dashboard-row-flaky">
                 <span>Test Name</span>
                 <span className="dashboard-col-center">Flakiness %</span>
                 <span className="dashboard-col-center">Flaky / Total</span>
@@ -908,7 +1187,7 @@ export default function Dashboard() {
                 <span className="dashboard-col-center">Recency</span>
               </section>
               {flakyTests.map((test, i) => (
-                <section key={test.test_name ?? i} className="dashboard-row dashboard-row--flaky">
+                <section key={test.test_name ?? i} className="dashboard-row dashboard-row-flaky">
                   <span className="dashboard-test-name" title={test.test_name}>
                     {test.test_name}
                   </span>
@@ -950,7 +1229,21 @@ export default function Dashboard() {
             </b>
           </p>
         </section>
+        <div style={{ height: "2rem" }} aria-hidden="true" />
       </main>
+
+      {showScrollTop && (
+        <button
+          type="button"
+          className="dashboard-scroll-top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Scroll to top"
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24">
+            <path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
     </section>
   );
 }
@@ -958,10 +1251,11 @@ export default function Dashboard() {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Metric({ title, value, subtitle, status, onClick }: MetricProps) {
+  const valueColorClass = status ? `dashboard-metric-value-${status}` : "";
   return (
     <button type="button" className="dashboard-metric" onClick={onClick}>
       <div>{title}</div>
-      <div className="dashboard-metric-value">
+      <div className={`dashboard-metric-value${valueColorClass ? ` ${valueColorClass}` : ""}`}>
         {value}
         {status && <span className={`dashboard-status-dot dashboard-status-${status}`} />}
       </div>
@@ -970,13 +1264,227 @@ function Metric({ title, value, subtitle, status, onClick }: MetricProps) {
   );
 }
 
-function Insight({ metric }: InsightProps) {
-  let message = "";
-  if (metric === "Latency") message = "Increased latency may degrade LLM response quality.";
-  if (metric === "Reliability") message = "Reliability drop indicates regression risk.";
-  if (metric === "Confidence") message = "Lower confidence suggests retrieval degradation.";
-  if (metric === "Rate") message = "Rate limit issues may block users.";
-  return <p className="dashboard-insight-text">{message}</p>;
+function Insight({ metric, run, previousRun, recentRuns }: InsightProps) {
+  if (metric === "Rate") {
+    const dev = getRateLimitSeverity(run?.enforcement_rate);
+    const desc = (
+      <>
+        Validates rate limit enforcement accuracy.
+        <br />
+        Deviations from expected behavior may indicate incorrect throttling or user impact.
+        <br />
+        
+      </>
+    );
+    
+    if (!dev) return <p className="dashboard-insight-text">{desc}</p>;
+    const blocked = Math.round((run?.enforcement_rate ?? 0) * RATE_TOTAL_REQUESTS);
+    const sign = dev.delta >= 0 ? "+" : "";
+    return (
+      <p className="dashboard-insight-text">
+        {desc}{" "}
+        Current enforcement is <b>{dev.label}</b> — {sign}{(dev.delta * 100).toFixed(1)}% vs {(RATE_EXPECTED * 100).toFixed(1)}% baseline ({blocked}/{RATE_TOTAL_REQUESTS} requests blocked).
+      </p>
+    );
+  }
+  if (metric === "Latency") {
+    const actual = run?.p95_latency;
+    const prev = previousRun?.p95_latency;
+    if (!isFiniteNumber(actual)) {
+      return <p className="dashboard-insight-text">No latency data available.</p>;
+    }
+    const dev = getLatencyDeviationStatus(actual);
+    if (!dev) return <p className="dashboard-insight-text">No latency data available.</p>;
+
+    // Degraded range override takes priority
+    if (actual > LATENCY_DEGRADED_THRESHOLD) {
+      return (
+        <p className="dashboard-insight-text dashboard-warning-text">
+          ⚠️ Latency entering degraded range — may impact response quality
+        </p>
+      );
+    }
+
+    // No previous run
+    if (!isFiniteNumber(prev)) {
+      return <p className="dashboard-insight-text">Latency within expected baseline.</p>;
+    }
+
+    const trendPct = (actual - prev) / prev;
+    let message: string;
+    if (trendPct > 0.15) {
+      message = "🚨 Significant latency regression — investigate backend or model performance";
+    } else if (trendPct > 0.05) {
+      message = `⚠️ Latency increasing — early regression signal (+${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    } else if (trendPct <= 0) {
+      message = "Latency improving — system performance trending positively";
+    } else {
+      message = `Latency stable and within expected performance range (+${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    }
+    return <p className="dashboard-insight-text">{message}</p>;
+  }
+  if (metric === "Confidence") {
+    const actual = run?.avg_confidence;
+    const prev = previousRun?.avg_confidence;
+    if (!isFiniteNumber(actual)) {
+      return <p className="dashboard-insight-text">No confidence data available.</p>;
+    }
+    if (!isFiniteNumber(prev)) {
+      return <p className="dashboard-insight-text">Confidence within expected baseline.</p>;
+    }
+    const trendPct = (actual - prev) / prev;
+    let message: string;
+    if (trendPct > 0.05) {
+      message = `Confidence improving — retrieval quality increasing (+${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    } else if (trendPct > 0) {
+      message = `Stable confidence (+${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    } else if (trendPct < -0.10) {
+      message = `🚨 Significant confidence drop (${(trendPct * 100).toFixed(1)}%) — likely retrieval regression`;
+    } else if (trendPct < -0.05) {
+      message = `⚠️ Confidence decreasing (${(trendPct * 100).toFixed(1)}%) — early quality degradation`;
+    } else {
+      message = `Minor variation within expected range (${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    }
+    return <p className="dashboard-insight-text">{message}</p>;
+  }
+  if (metric === "Reliability") {
+    const actual = run?.reliability_score;
+    const prev = previousRun?.reliability_score;
+    if (!isFiniteNumber(actual)) {
+      return <p className="dashboard-insight-text">No reliability data available.</p>;
+    }
+    // Detect consistent downward trend across last 3+ runs
+    const isDownwardTrend =
+      Array.isArray(recentRuns) &&
+      recentRuns.length >= 3 &&
+      recentRuns
+        .slice(0, 3)
+        .every((r, i, arr) =>
+          i === 0 || (isFiniteNumber(r.reliability_score) && isFiniteNumber(arr[i - 1].reliability_score) && r.reliability_score < arr[i - 1].reliability_score)
+        );
+    if (isDownwardTrend) {
+      return (
+        <p className="dashboard-insight-text dashboard-warning-text">
+          ⚠️ Reliability trending downward across runs — investigate latency and retrieval performance
+        </p>
+      );
+    }
+    if (!isFiniteNumber(prev)) {
+      return <p className="dashboard-insight-text">Reliability aligned with expected baseline.</p>;
+    }
+    const trendPct = (actual - prev) / prev;
+    let message: string;
+    if (trendPct > 0) {
+      message = `Reliability improving — system stability trending positively (+${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    } else if (trendPct < -0.05) {
+      message = `🚨 Reliability dropping (${(trendPct * 100).toFixed(1)}%) — system stability degrading`;
+    } else if (trendPct < -0.02) {
+      message = `⚠️ Reliability decreasing (${(trendPct * 100).toFixed(1)}%) — early degradation signal`;
+    } else {
+      message = `Minor variation within expected range (${(trendPct * 100).toFixed(1)}% vs previous run)`;
+    }
+    return <p className="dashboard-insight-text">{message}</p>;
+  }
+  return null;
+}
+
+type TooltipPayloadEntry = {
+  name: string;
+  value: number;
+  color?: string;
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+};
+
+function TooltipShell({ label, children, footer }: { label?: string; children: ReactNode; footer?: ReactNode }) {
+  return (
+    <div className="dashboard-trend-tooltip">
+      {label && <div className="dashboard-trend-tooltip-label">{label}</div>}
+      {children}
+      {footer && <div className="dashboard-trend-tooltip-total">{footer}</div>}
+    </div>
+  );
+}
+
+function PerformanceTrendTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const latency = payload.find((p) => p.name === "Latency (ms)")?.value;
+  const confidence = payload.find((p) => p.name === "Confidence Score")?.value;
+  const reliability = payload.find((p) => p.name === "Reliability Score")?.value;
+  const total =
+    isFiniteNumber(latency) && isFiniteNumber(confidence) && isFiniteNumber(reliability)
+      ? latency + confidence + reliability
+      : null;
+  return (
+    <TooltipShell
+      label={label}
+      footer={isFiniteNumber(total) ? <>Total: <b>{total.toFixed(1)}</b></> : undefined}
+    >
+      {isFiniteNumber(confidence) && <div>Confidence Score: <b>{confidence.toFixed(1)}</b></div>}
+      {isFiniteNumber(latency) && <div>Latency: <b>{latency} ms</b></div>}
+      {isFiniteNumber(reliability) && <div>Reliability Score: <b>{reliability.toFixed(1)}</b></div>}
+    </TooltipShell>
+  );
+}
+
+function MetricDrillTooltip({ active, payload, label, metric }: ChartTooltipProps & { metric: MetricKey | null }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const entry = payload[0];
+  if (!isFiniteNumber(entry?.value)) return null;
+  let display: string;
+  if (metric === "Rate") display = `${(entry.value * 100).toFixed(1)}%`;
+  else if (metric === "Latency") display = `${entry.value} ms`;
+  else display = entry.value.toFixed(1);
+  return (
+    <TooltipShell label={label}>
+      <div>{entry.name}: <b>{display}</b></div>
+    </TooltipShell>
+  );
+}
+
+function CorrelationTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const latency = payload.find((p) => p.name === "P95 Latency (ms)")?.value;
+  const failureRate = payload.find((p) => p.name === "Failure Rate (%)")?.value;
+  return (
+    <TooltipShell label={label}>
+      {isFiniteNumber(latency) && <div>P95 Latency: <b>{latency} ms</b></div>}
+      {isFiniteNumber(failureRate) && <div>Failure Rate: <b>{failureRate.toFixed(1)}%</b></div>}
+    </TooltipShell>
+  );
+}
+
+function FlakinessTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const value = payload[0]?.value;
+  return (
+    <TooltipShell label={label}>
+      {isFiniteNumber(value) && <div>Flakiness: <b>{value.toFixed(2)}%</b></div>}
+    </TooltipShell>
+  );
+}
+
+function TwoLineTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
+  if (!payload?.value) return null;
+  const parts = payload.value.split(", ");
+  const datePart = parts[0] ?? payload.value;
+  const timePart = parts[1] ?? "";
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fontSize={11} fill="#888">
+        {datePart}
+      </text>
+      {timePart && (
+        <text x={0} y={0} dy={26} textAnchor="middle" fontSize={11} fill="#888">
+          {timePart}
+        </text>
+      )}
+    </g>
+  );
 }
 
 function LazyViewport({ children, minHeight, rootMargin = "160px" }: LazyViewportProps) {
