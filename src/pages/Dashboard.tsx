@@ -360,6 +360,19 @@ function buildRunSnapshotContext(current: Run, previous: Run | null): string {
   return lines.join("\n");
 }
 
+// ─── Helpers (outside component to avoid recreation on every render) ─────────
+
+function formatDateTime(ts: string) {
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -387,6 +400,7 @@ export default function Dashboard() {
   const [flakyTests, setFlakyTests] = useState<FlakyTest[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [chatQuery, setChatQuery] = useState<string | undefined>(undefined);
 
   const runContext = useMemo(() => {
@@ -402,133 +416,74 @@ export default function Dashboard() {
     return `I have access to Run ${runShort} — Reliability ${isFiniteNumber(selectedRun.reliability_score) ? selectedRun.reliability_score.toFixed(1) : "N/A"}, P95 ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}, Confidence avg ${isFiniteNumber(selectedRun.avg_confidence) ? selectedRun.avg_confidence.toFixed(1) : "N/A"}. What do you want to investigate?\n\nConversations may be logged, but no personal information is stored.`;
   }, [selectedRun, runContext]);
 
-  // ── Regression comparison ───────────────────────────────────────────────────
+  // ── Mount-time fetches — all fire in parallel ───────────────────────────────
   useEffect(() => {
     if (!hasSupabaseConfig) return;
 
-    fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Comparison API error");
-        return res.json();
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, { headers }),
+    ])
+      .then((responses) => {
+        for (const res of responses) {
+          if (!res.ok) throw new Error(`API error: ${res.status}`);
+        }
+        return Promise.all(responses.map((r) => r.json()));
       })
-      .then((data) => setComparison(data?.[0] ?? null))
-      .catch((err) => console.error("Comparison fetch error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Regression story ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Story API error");
-        return res.json();
-      })
-      .then((data) => setStory(data?.[0] ?? null))
-      .catch((err) => console.error("Story fetch error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Runs — single fetch; trend derived via slice ────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Runs API error");
-        return res.json();
-      })
-      .then((data) => {
-        const normalized = Array.isArray(data) ? data : [];
+      .then(([compData, storyData, runsData, flakyTrendData, flakyTestsData, testRunsData]) => {
+        setComparison(compData?.[0] ?? null);
+        setStory(storyData?.[0] ?? null);
+        const normalized = Array.isArray(runsData) ? runsData : [];
         setRuns(normalized);
         setTrend(normalized.slice(0, 10));
         if (normalized.length > 0) setSelectedRun(normalized[0]);
+        setFlakinessTrend(Array.isArray(flakyTrendData) ? flakyTrendData : []);
+        setFlakyTests(Array.isArray(flakyTestsData) ? flakyTestsData : []);
+        setTestRuns(Array.isArray(testRunsData) ? testRunsData : []);
       })
-      .catch((err) => console.error("Runs fetch error:", err))
+      .catch((err) => {
+        console.error("Dashboard fetch error:", err);
+        setFetchError("Failed to load dashboard data. Please refresh the page.");
+      })
       .finally(() => setIsLoadingRuns(false));
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
-  // ── Language metrics (per selected run) ────────────────────────────────────
+  // ── Per-run fetches — cancelled when run changes or component unmounts ───────
   useEffect(() => {
     if (!hasSupabaseConfig || !selectedRun) return;
 
+    const controller = new AbortController();
     const safeRunId = encodeURIComponent(selectedRun.run_id);
-    fetch(`${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${safeRunId}`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Language summary fetch error");
-        return res.json();
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/retrieval_language_summary?run_id=eq.${safeRunId}`, { headers, signal: controller.signal }),
+      fetch(`${supabaseUrl}/rest/v1/flakiness_run_summary?run_id=eq.${safeRunId}`, { headers, signal: controller.signal }),
+    ])
+      .then((responses) => {
+        for (const res of responses) {
+          if (!res.ok) throw new Error(`Per-run API error: ${res.status}`);
+        }
+        return Promise.all(responses.map((r) => r.json()));
       })
-      .then((data) => setLanguageMetrics(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Language metrics error:", err));
+      .then(([langData, flakinessData]) => {
+        setLanguageMetrics(Array.isArray(langData) ? langData : []);
+        setFlakiness(Array.isArray(flakinessData) ? (flakinessData[0] ?? null) : null);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Per-run fetch error:", err);
+        }
+      });
+
+    return () => controller.abort();
   }, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Flakiness (per selected run) ───────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig || !selectedRun) return;
-
-    const safeRunId = encodeURIComponent(selectedRun.run_id);
-    fetch(`${supabaseUrl}/rest/v1/flakiness_run_summary?run_id=eq.${safeRunId}`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flakiness fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakiness(Array.isArray(data) ? (data[0] ?? null) : null))
-      .catch((err) => console.error("Flakiness error:", err));
-  }, [selectedRun, hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Flakiness trend (global) ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flakiness trend fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakinessTrend(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Flakiness trend error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Per-test flakiness breakdown ───────────────────────────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Flaky tests fetch error");
-        return res.json();
-      })
-      .then((data) => setFlakyTests(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Flaky tests error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
-
-  // ── Test runs — for failure correlation ──────────────────────
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Test runs fetch error");
-        return res.json();
-      })
-      .then((data) => setTestRuns(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Test runs error:", err));
-  }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
   // ── Derived flakiness values ────────────────────────────────────────────────
   const hasFlakinessTrend = flakinessTrend.length > 0;
@@ -536,17 +491,6 @@ export default function Dashboard() {
   const prevFlaky = flakinessTrend.length > 1 ? flakinessTrend[1]?.flakiness_pct : null;
   const flakinessDelta =
     isFiniteNumber(latestFlaky) && isFiniteNumber(prevFlaky) ? latestFlaky - prevFlaky : null;
-
-  const formatDateTime = (ts: string) => {
-    const d = new Date(ts);
-    return d.toLocaleString(undefined, {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
 
   const flakinessChartData =
     flakinessTrend.length > 0
@@ -727,6 +671,12 @@ export default function Dashboard() {
       <section className="bg bg-light" aria-hidden="true" />
 
       <main id="content" className="dashboard-main">
+
+        {fetchError && (
+          <section className="dashboard-card" role="alert">
+            <p style={{ color: "var(--color-red, #e53e3e)" }}>{fetchError}</p>
+          </section>
+        )}
 
         {/* ── Run Selector ──────────────────────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Run Selector")}>

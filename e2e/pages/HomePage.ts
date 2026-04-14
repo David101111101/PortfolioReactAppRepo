@@ -139,7 +139,7 @@ chatWindow() {
   return this.page.locator("#chat-window-section");
 }
 chatInput() {
-  return this.page.locator("#chat-window-section input");
+  return this.page.locator("#chat-window-section textarea");
 }
 assistantMessages() {
   return this.page.locator(".chat-assistant");
