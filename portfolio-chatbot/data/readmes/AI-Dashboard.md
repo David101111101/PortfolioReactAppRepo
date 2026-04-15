@@ -1,10 +1,12 @@
 # AI Observability Dashboard — System Overview
 
-The AI Observability Dashboard is a real-time intelligence layer built on top of a Retrieval-Augmented Generation (RAG) system. It transforms raw QA metrics into actionable signals that answer:
+The AI Observability Dashboard is a historical intelligence layer built on top of a Retrieval-Augmented Generation (RAG) system. It transforms raw QA metrics into actionable signals that answer:
 
 > Is the system healthy, why not, and who is impacted?
 
 Unlike traditional dashboards that display static metrics, this system uses **baseline vs drift analysis**, **multi-signal correlation**, and **historical trend evaluation** to surface meaningful insights.
+
+Every section has a 💬 "Debug with AI" button that injects real metric data directly into the chatbot context — turning this dashboard into an interactive debugging session.
 
 ---
 
@@ -35,8 +37,10 @@ It combines:
 - Retrieval Confidence (quality)
 - Rate Limit Enforcement (correctness)
 - Concurrency Degradation (stability)
+- Flakiness (test reliability)
+- Language Drift (multilingual quality)
 
-These signals are aggregated into higher-level indicators such as **Reliability Score** and **Release Confidence**.
+These signals are aggregated into higher-level indicators such as **Reliability Score**, **Release Confidence**, and **System Risk Assessment**.
 
 ---
 
@@ -57,201 +61,226 @@ This enables answering:
 
 ---
 
-# Dashboard Metrics
+## 4. AI-Powered Debug Buttons
 
-## 1. P95 Latency
-
-### What it measures
-System response time under load (95th percentile).
-
-### How it works
-- Baseline derived from historical runs (~5400 ms)
-- Compared using % deviation
-
-### Interpretation
-
-- Below baseline → healthy
-- Slightly above → early degradation
-- Significantly above → performance issue
-
-### Insight examples
-
-- "Latency stable within expected range"
-- "Latency increased +8% — early regression signal"
-- "Latency exceeds expected range — user experience may degrade"
+Every major section has a 💬 button that pre-fills the chatbot with the actual metric snapshot for that section. The chatbot receives real numbers — not just the question — so it can reason about root causes, correlations, and recommended actions without the user needing to copy data manually.
 
 ---
 
-## 2. Retrieval Confidence
+# Dashboard Sections
 
-### What it measures
-Average quality of retrieved context across languages.
+## 1. System Health Overview (Key Metrics)
 
-### Key design decision
-- Uses **avg_confidence** for system-level view
-- Worst-case (min_confidence) handled separately
+Four metric cards at the top of the dashboard, each with an AI debug button:
 
-### Baseline
-~81 (derived from historical runs)
-
-### Interpretation
-
-- Stable → system retrieval quality consistent
-- Drop → retrieval degradation
-- Increase → improvement or model tuning impact
-
-### Insight examples
-
-- "Confidence aligned with baseline"
-- "Confidence decreased -6% — potential retrieval regression"
-- "Confidence improving — system quality trending positively"
+- **P95 Latency** — response time under load vs baseline
+- **Reliability Score** — composite health (latency 35%, confidence 30%, rate limit 20%, degradation 15%)
+- **Retrieval Confidence** — average quality of retrieved context
+- **Rate Limit Enforcement** — correctness of rate limiting vs expected ~30.8%
 
 ---
 
-## 3. Reliability Score
+## 2. Regression Impact (vs Previous Run)
 
-### What it measures
-Overall system health as a composite signal.
+Side-by-side delta table comparing the current run to the previous run.
 
-### Computation
+### Rows shown
 
-Reliability is dynamically calculated using weighted normalized metrics:
+- **Latency** — % change (lower-is-better; red if >+20%)
+- **Avg Confidence** — % change (higher-is-better; red if <-10%)
+- **Reliability** — absolute point change (e.g. +3 pts, -2 pts) — NOT a percentage
+- **Min Confidence** — absolute point change (worst-case signal; surfaces edge-language regressions hidden by the average)
 
-- Latency performance (35%)
-- Confidence (30%)
-- Rate limit correctness (20%)
-- Concurrency degradation (15%)
+### Data source
 
-Normalized into a 0–100 score.
+`regression_run_comparison` Supabase view.
 
-### Why it matters
+Fields used: `latency_pct`, `confidence_pct`, `reliability_delta`, `min_confidence_delta`.
 
-It provides a **single health signal** while still reflecting underlying behavior.
+### Why Min Confidence matters
 
-### Interpretation
+`avg_confidence` can look stable while a specific language collapses. `min_confidence_delta` reveals that hidden worst-case regression.
 
-- Stable → system behaving consistently
-- Downward trend → early system degradation
-- Upward trend → improvement
+### AI button
 
-### Insight examples
-
-- "Reliability stable and aligned with baseline"
-- "Reliability decreasing — early degradation signal"
-- "Reliability trending downward across runs — investigate"
+Sends % latency and confidence deltas. AI identifies likely root causes and what to investigate.
 
 ---
 
-## 4. Release Confidence
+## 3. Performance Trends
 
-### What it measures
-Readiness to safely release the system.
+Line chart showing latency, confidence, and reliability across the last 10 runs.
 
-### Key difference from reliability
-
-- Reliability → continuous health signal
-- Release Confidence → **decision signal**
-
-### Computation
-
-Starts at 100 and subtracts penalties:
-
-- High latency
-- Low confidence
-- Rate limit drift
-- Concurrency degradation
-
-### Interpretation
-
-- High → safe to release
-- Medium → caution
-- Low → block release
-
-### Example states
-
-- "Release confidence high — system ready"
-- "Release confidence reduced due to latency and confidence drift"
-- "Release confidence low — investigate before deploying"
+Sustained downward trends indicate systemic regression risk rather than noise.
 
 ---
 
-## 5. Rate Limit Enforcement
+## 4. Failure vs Latency Correlation
 
-### What it measures
-Correctness of rate limiting behavior.
+Dual-axis line chart comparing P95 latency (left axis) vs test failure rate % (right axis) over time.
 
-### Expected behavior
+Correlated spikes — both rising together — suggest infrastructure or backend issues are causing test failures, not flaky code.
 
-- Known baseline: ~30.8% blocked requests
-- Derived from test design (limit + warmup)
-
-### Interpretation
-
-- Matches baseline → correct enforcement
-- Deviates → incorrect throttling
-
-### Insight examples
-
-- "Rate limiting behaves as expected"
-- "Over-enforcement detected — users may be blocked prematurely"
+Join strategy: regression runs and test runs are matched by closest timestamp since they use different key types (UUID vs numeric).
 
 ---
 
-## 6. Flakiness
+## 5. Multilingual Retrieval Quality
 
-### What it measures
-Test instability over time.
+Per-language retrieval confidence table for the currently selected run.
 
-### Why it matters
+### Columns
 
-Flaky tests reduce trust in results and can hide regressions.
+- Language name
+- avg confidence | min confidence
+- Δ vs previous run (from `retrieval_language_trend` DB view — true per-language historical delta)
+- Risk classification (Healthy / Risk / Critical) + status dot
 
-### Interpretation
+### Stability signals
 
-- Low → reliable test suite
-- High → unreliable signals
+- **Unstable flag**: if `avg_confidence - min_confidence > 15` for a language → the retrieval results are inconsistent within that language
+- **Highest Risk**: the language with the lowest `min_confidence`
+- **Retrieval Stability**: global `avg_rank_shift` — how much document ranking is changing between runs
 
----
+### Data source
 
-# Trend Graphs
+`retrieval_language_summary` (per-run) + `retrieval_language_trend` (delta column).
 
-All trend graphs follow the same pattern:
+### AI button
 
-- Actual metric line
-- Baseline reference line
-- Optional zones (healthy / degraded)
-
-## Purpose
-
-Make deviations visually obvious and allow quick detection of:
-
-- regressions
-- improvements
-- anomalies
+Asks which languages are at risk and what may be causing low confidence for non-English queries.
 
 ---
 
-# Insight Engine
+## 6. Language Drift
 
-Each metric includes a dynamic interpretation layer.
+Per-language confidence change vs the previous run — using actual per-language historical deltas from the `retrieval_language_trend` DB view.
 
-Instead of static text, the dashboard generates:
+### Why this is different from Multilingual Quality
 
-- trend-aware explanations
-- severity classification
-- actionable recommendations
+- **Multilingual Quality** = current run absolute values (avg, min)
+- **Language Drift** = change from prior run per language
+
+Each language gets its own true delta. All languages showing the same value would indicate a data problem.
+
+### Classification
+
+- delta > +3 → Improvement (green)
+- delta -3 to +3 → Stable (green)
+- delta -10 to -3 → Drop (yellow)
+- delta < -10 → Regression (red)
+
+### AI button
+
+Asks which languages are regressing and whether it's likely an embedding, chunking, or data coverage issue.
 
 ---
 
-## Example
+## 7. AI System Intelligence
 
-Instead of:
+Automated narrative generated from the `regression_story` DB view.
 
-"Increased latency may degrade performance"
+Shows:
+- Trend direction (improving / degrading / stable)
+- Regression severity (stable / minor / moderate / critical)
+- Primary signal (what is the dominant cause)
+- User impact classification
+- Analysis confidence (low / medium / high — based on number of runs available)
 
-The dashboard outputs:
+### AI button
 
-"Latency increased +7.8% vs baseline and is approaching degraded range — monitor closely"
+Sends severity and primary signal. AI explains likely root causes and recommended investigation order.
+
+---
+
+## 8. Last 5 Runs Trend
+
+Clickable table of recent runs. Click a row to switch the selected run, then use 💬 on any section to ask the AI about that specific run.
+
+---
+
+## 9. Test Suites Reliability
+
+Tracks test instability across all CI workflows.
+
+### Current State
+
+Shows the highest flakiness signal across all sources:
+1. Weekly regression run's own flakiness (from `flakiness_run_summary`)
+2. Latest flakiness trend value (from `flakiness_trend`)
+3. Max avg_flakiness_pct across E2E workflows (from `e2e_workflow_stability`)
+
+This ensures that if E2E pipelines show degrading flakiness, Current State reflects it — even when the weekly regression run itself reports 0%.
+
+### Workflow Breakdown
+
+Per-workflow table from `e2e_workflow_stability`:
+- **PR E2E** — flakiness during pull request validation (pr_e2e)
+- **Deploy E2E** — flakiness during deployment verification (deploy_e2e)
+
+Each row shows: current %, previous %, delta, trend direction (improving / stable / degrading).
+
+### Historical Trend chart
+
+Line chart of overall flakiness % across runs.
+
+### AI button
+
+Injects the full snapshot as text: overall flakiness, workflow-by-workflow breakdown with current/prev/delta/trend, and top flaky test names with severity. The AI reasons about root causes from real numbers.
+
+---
+
+## 10. Flaky Tests Breakdown
+
+Ranked table of individual flaky tests from `test_flakiness_enriched`:
+- Test name
+- Flakiness % (flaky runs / total runs)
+- Flaky / Total ratio
+- Severity (high / medium / low)
+- Recency (recent = within 7 days / stale)
+
+High-severity + recent = active problem to prioritize.
+
+---
+
+## 11. System Risk Assessment
+
+Aggregated risk scorecard combining retrieval and test stability signals.
+
+### Rows
+
+- **Regression Severity** — from `regression_story.regression_severity` (stable / minor / moderate / critical)
+- **User Impact** — human-readable classification from `regression_story.user_impact`
+  - Critical — users severely affected
+  - Moderate — degraded experience
+  - Performance — latency noticeable
+  - None detected
+- **Primary Signal** — dominant root cause from `regression_story.primary_signal`
+  - System-wide degradation (latency + confidence both moving)
+  - Retrieval regression (min confidence critical)
+  - Latency regression (response time spike)
+  - No regression signal
+- **Analysis Confidence** — low / medium / high (based on number of historical runs available for statistical comparison)
+- **Worst-case Confidence** — the min_confidence of the worst-performing language
+- **Retrieval Stability** — aggregate status: Stable / Retrieval instability detected / Test instability (flaky suite)
+
+### AI button
+
+Sends severity, primary signal, and user impact as text. AI explains what this means for end users and what to prioritize.
+
+---
+
+# Metric Baselines
+
+All baselines are derived from historical production runs:
+
+| Metric | Baseline | Degraded | Severe |
+|---|---|---|---|
+| P95 Latency | 5400 ms | >5400 ms | >5800 ms |
+| Avg Confidence | 81 | <75 | <60 |
+| Reliability Score | 91 | <88 | <85 |
+| Rate Limit | 30.8% | ±5% deviation | ±10% deviation |
+| Flakiness | <1% | 1–3% | >3% |
 
 ---
 
@@ -267,10 +296,11 @@ into:
 
 It enables:
 
-- early detection of AI degradation
-- visibility into user impact
+- early detection of AI behavioral regressions
+- per-language retrieval quality monitoring
+- multi-workflow test stability tracking
 - data-driven release decisions
-- automated quality monitoring
+- AI-powered root cause reasoning on real production data
 
 ---
 
@@ -284,3 +314,5 @@ It is a **decision system** that continuously answers:
 - What changed?
 - Does it matter?
 - Should we act?
+
+The embedded RAG chatbot turns that question into a conversation — grounded in the actual metrics shown on screen.

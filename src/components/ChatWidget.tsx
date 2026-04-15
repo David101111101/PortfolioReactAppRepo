@@ -32,6 +32,8 @@ export default function ChatWidget({
   greeting,
   externalQuery,
   onExternalQueryConsumed,
+  externalContext,
+  onExternalContextConsumed,
   conversationKey,
 }: {
   disableBackdrop?: boolean;
@@ -39,6 +41,8 @@ export default function ChatWidget({
   greeting?: string;
   externalQuery?: string;
   onExternalQueryConsumed?: () => void;
+  externalContext?: string;
+  onExternalContextConsumed?: () => void;
   conversationKey?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -48,8 +52,10 @@ export default function ChatWidget({
   const [isStreaming, setIsStreaming] = useState(false);
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const greetingText = greeting ?? INITIAL_GREETING;
+  const pendingContextRef = useRef<string | null>(null);
 
   const TYPING_SPEED = 13;
   const savedScrollTopRef = useRef(0);
@@ -180,17 +186,23 @@ export default function ChatWidget({
     return () => clearTimeout(timeout);
   }, [greetingIndex, isTypingGreeting, greetingText]);
 
-  // External query: open chat and pre-fill input
+  // External query: open chat and pre-fill input.
+  // If an externalContext was provided alongside the query, capture it into the
+  // pending ref so sendMessage can attach it as hidden backend context.
   useEffect(() => {
     if (!externalQuery) return;
     setInput(externalQuery);
     onExternalQueryConsumed?.();
+    if (externalContext) {
+      pendingContextRef.current = externalContext;
+      onExternalContextConsumed?.();
+    }
     if (!isOpenRef.current) {
       setIsOpen(true);
       setTimeout(() => setVisible(true), 10);
     }
     requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
-  }, [externalQuery, onExternalQueryConsumed]);
+  }, [externalQuery, onExternalQueryConsumed, externalContext, onExternalContextConsumed]);
 
   // Append a new context greeting when the selected run changes
   const prevConversationKeyRef = useRef<string | undefined>(conversationKey);
@@ -212,6 +224,28 @@ export default function ChatWidget({
     pendingAnchorScrollRef.current = null;
     requestAnimationFrame(() => scrollUserToTop(el));
   }, [messages, scrollUserToTop]);
+
+  // Track visual viewport to keep chat above the software keyboard on mobile
+  useEffect(() => {
+    if (!isOpen) { setKeyboardOffset(0); return; }
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(offset);
+    };
+
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setKeyboardOffset(0);
+    };
+  }, [isOpen]);
 
   // Auto-resize textarea whenever input changes
   useEffect(() => {
@@ -281,7 +315,10 @@ export default function ChatWidget({
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
 
     try {
-      const response = await sendChatQuestion(question, runContext);
+      const sectionContext = pendingContextRef.current;
+      pendingContextRef.current = null;
+      const combinedContext = [runContext, sectionContext].filter(Boolean).join("\n\n") || undefined;
+      const response = await sendChatQuestion(question, combinedContext);
       await streamAssistantResponse(response, (chunk) => {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -352,7 +389,10 @@ export default function ChatWidget({
             onPointerDown={(e) => e.stopPropagation()}
             id="chat-window-section"
             className={`chat-widget ${visible ? "open" : "close"}`}
-            style={disableBackdrop ? { pointerEvents: "auto" } : undefined}
+            style={{
+              ...(keyboardOffset > 0 ? { bottom: `${keyboardOffset + 10}px` } : {}),
+              ...(disableBackdrop ? { pointerEvents: "auto" } : {}),
+            }}
           >
             <div id="chat-title">
               Welcome to Dave's Interactive Portfolio

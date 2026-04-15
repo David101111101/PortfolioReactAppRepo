@@ -63,6 +63,8 @@ Where:
 - confidence_scores come from retrieval evaluation
 - N = number of retrieval samples
 
+min_confidence = lowest individual confidence score in the run
+
 ---
 
 ## Baseline
@@ -84,6 +86,18 @@ delta_pct = delta / baseline_confidence
 - -3% to -8% → slight degradation
 - -8% to -15% → degraded
 - < -15% → severe regression
+
+---
+
+## Min Confidence — Why It Matters
+
+avg_confidence can hide localized regressions. A single language collapsing to 30 confidence while others hold at 85 still produces a healthy-looking average.
+
+min_confidence is tracked separately and shown in:
+- System Health metric card (subtitle)
+- Regression Impact table (4th row: Min Confidence delta in absolute points)
+- Multilingual Retrieval Quality table (per-language)
+- System Risk Assessment (worst-case confidence row)
 
 ---
 
@@ -137,6 +151,12 @@ degradation_score = 1 - degradation_ratio
 - stable → system behaving normally
 - decreasing → early degradation
 - sustained drop → system-level issue
+
+## Important: Reliability Delta Is In Points, Not Percent
+
+The Regression Impact section shows `reliability_delta` as absolute point change (e.g. +3 pts, -2 pts).
+
+This is NOT a percentage. A delta of 3 means the score moved from 88 to 91 — a 3-point improvement.
 
 ---
 
@@ -238,13 +258,41 @@ delta = actual_rate - expected_rate
 
 ## Definition
 
-Percentage of tests that pass/fail inconsistently.
+Percentage of tests that produce inconsistent results (pass/fail non-deterministically) across runs.
 
 ---
 
 ## Formula
 
-flakiness_pct = flaky_tests / total_tests
+flakiness_pct = flaky_tests / total_tests * 100
+
+This is computed at multiple levels:
+
+- **Per-run**: `flakiness_run_summary` view → uses the `flaky` and `total_tests` columns from a specific test_runs row
+- **Per-workflow trend**: `e2e_workflow_stability` view → separate rows for pr_e2e and deploy_e2e workflows
+- **Per-test**: `test_flakiness_enriched` view → individual test flakiness across all runs
+
+---
+
+## Effective Flakiness — How Current State Is Computed
+
+The dashboard resolves flakiness with a priority fallback:
+
+1. Per-run summary for the selected weekly regression run (if > 0%)
+2. Latest value from flakiness trend (if > 0%)
+3. Max avg_flakiness_pct across E2E workflows (pr_e2e / deploy_e2e)
+
+This ensures that when E2E workflows show degrading flakiness, the Current State signal reflects it — even when the weekly regression run itself has 0 flaky tests.
+
+---
+
+## Workflow Flakiness vs Aggregate Flakiness
+
+The weekly regression suite and E2E pipelines are separate `workflow_type` values in `test_runs`. Their flakiness is tracked independently.
+
+- `e2e_workflow_stability` shows pr_e2e and deploy_e2e workflows — these reflect browser-level instability
+- `flakiness_trend` shows aggregate flakiness across runs
+- Both are shown in the Test Suites Reliability section
 
 ---
 
@@ -252,7 +300,89 @@ flakiness_pct = flaky_tests / total_tests
 
 - <1% → reliable
 - 1–3% → moderate instability
-- >3% → unreliable test suite
+- >3% → unreliable test suite — signals may not be trustworthy
+
+---
+
+# 7. Language Drift
+
+## Definition
+
+Per-language confidence change between runs.
+
+## Formula
+
+language_delta = current_run_avg_confidence[language] - prev_run_avg_confidence[language]
+
+Each language is computed independently.
+
+---
+
+## Data Source
+
+`retrieval_language_trend` Supabase view:
+
+- Groups retrieval_metrics by run_id and language
+- Uses a window function to compute the previous run's avg_confidence per language
+- Produces a true per-language delta
+
+---
+
+## Why Not Global Delta
+
+The previous version compared each language's confidence against the **global** previous run average. This caused every language to show the same delta — which was meaningless.
+
+The correct approach fetches `retrieval_language_trend` and uses its `delta` field per language code.
+
+---
+
+## Classification
+
+- delta > +3 → Improvement
+- delta -3 to +3 → Stable
+- delta -10 to -3 → Drop
+- delta < -10 → Regression
+
+---
+
+# 8. System Risk Assessment Signals
+
+## Regression Severity
+
+Computed in `regression_story` DB view:
+
+severity = "critical" if |latency_pct| + |confidence_pct| > 1.0  
+severity = "moderate" if > 0.5  
+severity = "minor" if > 0.2  
+severity = "stable" otherwise
+
+---
+
+## User Impact
+
+- critical_user_impact → min_confidence < 25
+- moderate_user_impact → min_confidence < 40
+- performance_user_impact → latency_pct > 0.3
+- no_user_impact → otherwise
+
+---
+
+## Primary Signal
+
+- system_degradation → latency_pct > 0.2 AND confidence_pct < -0.2
+- retrieval_regression → min_confidence < 40
+- latency_regression → latency_pct > 0.3
+- no_signal → otherwise
+
+---
+
+## Analysis Confidence
+
+Based on number of historical runs in the comparison set:
+
+- low → fewer than 3 runs
+- medium → 3–5 runs
+- high → 6+ runs
 
 ---
 
@@ -265,3 +395,5 @@ All metrics follow:
 → interpretation  
 
 This enables consistent reasoning across the system.
+
+Metrics should never be read in isolation — the System Risk Assessment and AI Debug buttons are designed to surface cross-metric correlations automatically.

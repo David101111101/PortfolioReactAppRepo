@@ -63,6 +63,16 @@ type RegressionComparison = {
   latency_pct: number;
   confidence_pct: number;
   reliability_delta: number;
+  min_confidence_delta?: number;
+};
+
+type E2eWorkflowStability = {
+  workflow_type: string;
+  avg_flakiness_pct: number;
+  prev_flakiness_pct: number | null;
+  flakiness_delta: number | null;
+  trend_direction: string;
+  run_count: number;
 };
 
 type RegressionStory = {
@@ -399,9 +409,13 @@ export default function Dashboard() {
   const [flakinessTrend, setFlakinessTrend] = useState<FlakinessTrend[]>([]);
   const [flakyTests, setFlakyTests] = useState<FlakyTest[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
+  const [languageTrend, setLanguageTrend] = useState<{ language: string; delta: number | null }[]>([]);
+  const [e2eStability, setE2eStability] = useState<E2eWorkflowStability[]>([]);
+  const [e2eChartRuns, setE2eChartRuns] = useState<Array<{ workflow_type: string; failed: number; total_tests: number; run_timestamp: string }>>([]);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [chatQuery, setChatQuery] = useState<string | undefined>(undefined);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
 
   const runContext = useMemo(() => {
     if (!selectedRun) return undefined;
@@ -416,42 +430,107 @@ export default function Dashboard() {
     return `I have access to Run ${runShort} — Reliability ${isFiniteNumber(selectedRun.reliability_score) ? selectedRun.reliability_score.toFixed(1) : "N/A"}, P95 ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"}, Confidence avg ${isFiniteNumber(selectedRun.avg_confidence) ? selectedRun.avg_confidence.toFixed(1) : "N/A"}. What do you want to investigate?\n\nConversations may be logged, but no personal information is stored.`;
   }, [selectedRun, runContext]);
 
-  // ── Mount-time fetches — all fire in parallel ───────────────────────────────
+  // ── Mount-time fetches ────────────────────────────────────────────────────────
+  // Critical fetches run together — any failure shows an error banner.
+  // Non-critical fetches (language trend, e2e stability, e2e chart data) run
+  // independently and fail silently so they cannot break the main data load.
   useEffect(() => {
     if (!hasSupabaseConfig) return;
 
     const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
 
-    Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_timestamp.desc&limit=1`, { headers }),
-      fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, { headers }),
-      fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, { headers }),
-      fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, { headers }),
-      fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, { headers }),
-      fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, { headers }),
-    ])
-      .then((responses) => {
-        for (const res of responses) {
-          if (!res.ok) throw new Error(`API error: ${res.status}`);
+    // ── Critical: core dashboard data ─────────────────────────────────────────
+    // regression_run_comparison has no run_timestamp column — order by run_id desc.
+    // Each individual fetch swallows its own network errors; only missing run data
+    // triggers the error state so one bad view cannot blank the whole dashboard.
+    const safeJson = (res: Response | null) => {
+      if (!res || !res.ok) return Promise.resolve(null);
+      return res.json().catch(() => null);
+    };
+
+    const loadCritical = async () => {
+      const [compRes, storyRes, runsRes, flakyTrendRes, flakyTestsRes, testRunsRes] =
+        await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_id.desc&limit=1`, { headers }).catch(() => null),
+          fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, { headers }).catch(() => null),
+          fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, { headers }).catch(() => null),
+          fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, { headers }).catch(() => null),
+          fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, { headers }).catch(() => null),
+          fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, { headers }).catch(() => null),
+        ]);
+
+      const [compData, storyData, runsData, flakyTrendData, flakyTestsData, testRunsData] =
+        await Promise.all([
+          safeJson(compRes),
+          safeJson(storyRes),
+          safeJson(runsRes),
+          safeJson(flakyTrendRes),
+          safeJson(flakyTestsRes),
+          safeJson(testRunsRes),
+        ]);
+
+      // DEV-only: log what columns each view returns to catch field-name mismatches
+      if (import.meta.env.DEV) {
+        console.log("[Dashboard] regression_run_comparison row:", compData?.[0]);
+        console.log("[Dashboard] regression_run_summary row:", Array.isArray(runsData) ? runsData[0] : runsData);
+        console.log("[Dashboard] regression_story row:", storyData?.[0]);
+      }
+
+      if (!Array.isArray(runsData) || runsData.length === 0) {
+        setFetchError("No run data found. Run a CI pipeline to populate metrics.");
+        setIsLoadingRuns(false);
+        return;
+      }
+
+      setComparison(compData?.[0] ?? null);
+      setStory(storyData?.[0] ?? null);
+      const normalized = runsData as Run[];
+      setRuns(normalized);
+      setTrend(normalized.slice(0, 10));
+      setSelectedRun(normalized[0]);
+      setFlakinessTrend(Array.isArray(flakyTrendData) ? flakyTrendData : []);
+      setFlakyTests(Array.isArray(flakyTestsData) ? flakyTestsData : []);
+      setTestRuns(Array.isArray(testRunsData) ? testRunsData : []);
+      setIsLoadingRuns(false);
+    };
+
+    loadCritical().catch((err) => {
+      console.error("Dashboard critical fetch error:", err);
+      setFetchError("Failed to load dashboard data. Please refresh the page.");
+      setIsLoadingRuns(false);
+    });
+
+    // ── Non-critical: per-language drift ──────────────────────────────────────
+    fetch(`${supabaseUrl}/rest/v1/retrieval_language_trend?order=run_id.desc&limit=30`, { headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((langTrendData) => {
+        if (!Array.isArray(langTrendData)) return;
+        const seen = new Set<string>();
+        const mapped: { language: string; delta: number | null }[] = [];
+        for (const row of langTrendData) {
+          if (!seen.has(row.language)) {
+            seen.add(row.language);
+            mapped.push({ language: row.language, delta: isFiniteNumber(row.delta) ? row.delta : null });
+          }
         }
-        return Promise.all(responses.map((r) => r.json()));
+        setLanguageTrend(mapped);
       })
-      .then(([compData, storyData, runsData, flakyTrendData, flakyTestsData, testRunsData]) => {
-        setComparison(compData?.[0] ?? null);
-        setStory(storyData?.[0] ?? null);
-        const normalized = Array.isArray(runsData) ? runsData : [];
-        setRuns(normalized);
-        setTrend(normalized.slice(0, 10));
-        if (normalized.length > 0) setSelectedRun(normalized[0]);
-        setFlakinessTrend(Array.isArray(flakyTrendData) ? flakyTrendData : []);
-        setFlakyTests(Array.isArray(flakyTestsData) ? flakyTestsData : []);
-        setTestRuns(Array.isArray(testRunsData) ? testRunsData : []);
-      })
-      .catch((err) => {
-        console.error("Dashboard fetch error:", err);
-        setFetchError("Failed to load dashboard data. Please refresh the page.");
-      })
-      .finally(() => setIsLoadingRuns(false));
+      .catch(() => {});
+
+    // ── Non-critical: e2e workflow stability (current/prev summary) ───────────
+    fetch(`${supabaseUrl}/rest/v1/e2e_workflow_stability`, { headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((e2eData) => { if (Array.isArray(e2eData)) setE2eStability(e2eData); })
+      .catch(() => {});
+
+    // ── Non-critical: e2e test runs for dual-line historical chart ─────────────
+    fetch(
+      `${supabaseUrl}/rest/v1/test_runs?workflow_type=in.(pr_e2e,deploy_e2e)&order=run_timestamp.asc&limit=30`,
+      { headers }
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data) => { if (Array.isArray(data)) setE2eChartRuns(data); })
+      .catch(() => {});
   }, [hasSupabaseConfig, supabaseKey, supabaseUrl]);
 
   // ── Per-run fetches — cancelled when run changes or component unmounts ───────
@@ -489,6 +568,23 @@ export default function Dashboard() {
   const hasFlakinessTrend = flakinessTrend.length > 0;
   const latestFlaky = hasFlakinessTrend ? flakinessTrend[0]?.flakiness_pct : null;
   const prevFlaky = flakinessTrend.length > 1 ? flakinessTrend[1]?.flakiness_pct : null;
+
+  // Per-run flakiness_run_summary is authoritative; fall back to latest trend value,
+  // then to the max avg_flakiness_pct across E2E workflows.
+  // The weekly regression run may have flaky=0 while separate pr_e2e/deploy_e2e runs
+  // show real instability — the E2E max ensures Current State reflects the worst signal.
+  const effectiveFlakinessPct = (() => {
+    if (isFiniteNumber(flakiness?.flakiness_pct) && flakiness!.flakiness_pct > 0)
+      return flakiness!.flakiness_pct;
+    if (isFiniteNumber(latestFlaky) && latestFlaky > 0)
+      return latestFlaky;
+    const maxE2e = e2eStability.reduce<number | null>((acc, w) => {
+      if (!isFiniteNumber(w.avg_flakiness_pct)) return acc;
+      return acc === null ? w.avg_flakiness_pct : Math.max(acc, w.avg_flakiness_pct);
+    }, null);
+    if (isFiniteNumber(maxE2e) && maxE2e > 0) return maxE2e;
+    return flakiness?.flakiness_pct ?? null;
+  })();
   const flakinessDelta =
     isFiniteNumber(latestFlaky) && isFiniteNumber(prevFlaky) ? latestFlaky - prevFlaky : null;
 
@@ -564,6 +660,53 @@ export default function Dashboard() {
     isFiniteNumber(language.min_confidence) &&
     language.avg_confidence - language.min_confidence > 15;
 
+  // ── Derived language trend map (language code → delta) ─────────────────────
+  const languageTrendMap = useMemo(
+    () => new Map(languageTrend.map((e) => [e.language, e.delta])),
+    [languageTrend]
+  );
+
+  // ── Dual-line E2E chart data (pr_e2e vs deploy_e2e failure rate over time) ──
+  const e2eDualChartData = useMemo(() => {
+    if (e2eChartRuns.length === 0) return [];
+    const prMap = new Map<string, number>();
+    const deployMap = new Map<string, number>();
+    for (const r of e2eChartRuns) {
+      const rate = isFiniteNumber(r.failed) && isFiniteNumber(r.total_tests) && r.total_tests > 0
+        ? (r.failed / r.total_tests) * 100
+        : 0;
+      if (r.workflow_type === "pr_e2e") prMap.set(r.run_timestamp, rate);
+      else if (r.workflow_type === "deploy_e2e") deployMap.set(r.run_timestamp, rate);
+    }
+    const allTs = Array.from(new Set([...prMap.keys(), ...deployMap.keys()])).sort();
+    return allTs.map((ts) => ({
+      date: formatDateTime(ts),
+      pr_e2e: prMap.get(ts) ?? null,
+      deploy_e2e: deployMap.get(ts) ?? null,
+    }));
+  }, [e2eChartRuns]);
+
+  // ── System Risk helpers ──────────────────────────────────────────────────────
+  const getUserImpactLabel = (impact: string | null | undefined): { label: string; status: SlaStatus } => {
+    switch (impact) {
+      case "critical_user_impact": return { label: "Critical — users severely affected", status: "red" };
+      case "moderate_user_impact": return { label: "Moderate — degraded experience", status: "orange" };
+      case "performance_user_impact": return { label: "Performance — latency noticeable", status: "yellow" };
+      case "no_user_impact": return { label: "None detected", status: "green" };
+      default: return { label: "Unknown", status: null };
+    }
+  };
+
+  const getPrimarySignalLabel = (signal: string | null | undefined): string => {
+    switch (signal) {
+      case "system_degradation": return "System-wide degradation (latency + confidence)";
+      case "retrieval_regression": return "Retrieval regression (min confidence critical)";
+      case "latency_regression": return "Latency regression (response time spike)";
+      case "no_signal": return "No regression signal";
+      default: return signal ?? "Unknown";
+    }
+  };
+
   // ── Guard: missing config ───────────────────────────────────────────────────
   if (!hasSupabaseConfig) {
     return (
@@ -613,15 +756,19 @@ export default function Dashboard() {
   }));
 
   // ── Failure correlation data ────────────────────────────────────────────────
-  const testRunMap = new Map<string, TestRun>(
-    testRuns.map((tr) => [String(tr.id), tr])
-  );
-
+  // Join by closest timestamp since regression runs (UUID run_id) and test_runs
+  // (numeric id) share no common key — timestamp is the best available signal.
   const correlationData = chronologicalTrend.map((entry) => {
-    const tr = testRunMap.get(entry.run_id);
+    const entryTime = new Date(entry.run_timestamp).getTime();
+    let closestTr: TestRun | null = null;
+    let minDiff = Infinity;
+    for (const tr of testRuns) {
+      const diff = Math.abs(new Date(tr.run_timestamp).getTime() - entryTime);
+      if (diff < minDiff) { minDiff = diff; closestTr = tr; }
+    }
     const failure_rate_pct =
-      tr && isFiniteNumber(tr.failed) && isFiniteNumber(tr.total_tests) && tr.total_tests > 0
-        ? (tr.failed / tr.total_tests) * 100
+      closestTr && isFiniteNumber(closestTr.failed) && isFiniteNumber(closestTr.total_tests) && closestTr.total_tests > 0
+        ? (closestTr.failed / closestTr.total_tests) * 100
         : null;
     return {
       date: formatDateTime(entry.run_timestamp),
@@ -630,9 +777,7 @@ export default function Dashboard() {
     };
   });
 
-  const hasCorrelationData = correlationData.some(
-    (d) => isFiniteNumber(d.latency) && isFiniteNumber(d.failure_rate_pct)
-  );
+  const hasCorrelationData = correlationData.some((d) => isFiniteNumber(d.latency));
 
   const correlationInsight = (() => {
     const valid = correlationData.filter(
@@ -680,13 +825,28 @@ export default function Dashboard() {
 
         {/* ── Run Selector ──────────────────────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Run Selector")}>
-          <h2>Select Evaluation Run</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <h2>Select Evaluation Run</h2>
+              {runContext && (
+                <button
+                  type="button"
+                  className="dashboard-scroll-top"
+                  style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                  aria-label="Ask AI about this run"
+                  title="Ask AI about this run"
+                  onClick={() => setChatQuery("Summarize the current run and highlight anything that needs attention.")}
+                >
+                  💬
+                </button>
+              )}
+          </div>
           <p className="dashboard-section-desc">
-            Choose a CI pipeline run to inspect.
-            Each run reflects a fully automated test suite
-            execution and AI regression analysis.
+            Historical intelligence layer built on top of a <strong>Multilingual Retrieval-Augmented Generation (RAG) system</strong>. <br />
+            It transforms raw QA metrics into actionable signals that answer:<br />
+            -Is the system accurate, by how much, why, and who is impacted?<br />
+
+            Sections with 💬 "Debug with AI" button inject real metric data directly into the chatbot context, turning this dashboard into an interactive debugging session.
           </p>
-          <p className="dashboard-section-desc">Click 💬 on each section to ask the AI about it.</p>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <label htmlFor="run-selector">Select Run:</label>
             <select
@@ -701,19 +861,11 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
-            {runContext && (
-              <button
-                type="button"
-                className="dashboard-scroll-top"
-                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
-                aria-label="Ask AI about this run"
-                title="Ask AI about this run"
-                onClick={() => setChatQuery("Summarize the current run and highlight anything that needs attention.")}
-              >
-                💬
-              </button>
-            )}
           </div>
+          <p className="dashboard-section-desc">
+            Each run reflects a fully automated test suite
+            execution and AI regression analysis.
+          </p>
         </section>
 
         {/* ── System Health Overview ─────────────────────────────────────────── */}
@@ -937,11 +1089,39 @@ export default function Dashboard() {
         {/* ── Regression Impact ─────────────────────────────────────────────── */}
         {comparison && (
           <section className="dashboard-card" id={sectionId("Regression Impact vs Previous Run")}>
-            <h2>Regression Impact (vs Previous Run)</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+              <h2 style={{ margin: 0 }}>Regression Impact (vs Previous Run)</h2>
+              {runContext && (
+                <button
+                  type="button"
+                  className="dashboard-scroll-top"
+                  style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                  aria-label="Debug with AI"
+                  title="Debug with AI"
+                  onClick={() => {
+                    setChatContext(
+                      `Regression Impact snapshot:\n` +
+                      `  Latency change: ${formatPercentFromRatio(comparison.latency_pct)}\n` +
+                      `  Avg confidence change: ${formatPercentFromRatio(comparison.confidence_pct)}\n` +
+                      `  Reliability delta: ${isFiniteNumber(comparison.reliability_delta) ? `${comparison.reliability_delta >= 0 ? "+" : ""}${formatFixed(comparison.reliability_delta, 1, " pts")}` : "N/A"}\n` +
+                      `  Min confidence delta: ${isFiniteNumber(comparison.min_confidence_delta) ? `${comparison.min_confidence_delta >= 0 ? "+" : ""}${formatFixed(comparison.min_confidence_delta, 1, " pts")}` : "N/A"}`
+                    );
+                    setChatQuery("What does the regression impact show for this run? Identify likely root causes and what to investigate first.");
+                  }}
+                >
+                  💬
+                </button>
+              )}
+            </div>
             <p className="dashboard-section-desc">
               Side-by-side delta vs the prior run. Investigate immediately if latency is rising or
               confidence is dropping.
             </p>
+            <section className="dashboard-row dashboard-row-3-col dashboard-row-header">
+              <span>Metric</span>
+              <span className="dashboard-col-center">Change</span>
+              <span className="dashboard-col-right">Signal</span>
+            </section>
             <section className="dashboard-row dashboard-row-3-col">
               <span>Latency</span>
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.latency_pct)}</span>
@@ -953,7 +1133,7 @@ export default function Dashboard() {
               </span>
             </section>
             <section className="dashboard-row dashboard-row-3-col">
-              <span>Confidence</span>
+              <span>Avg Confidence</span>
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.confidence_pct)}</span>
               <span className="dashboard-col-right">
                 {getConfidenceDeltaLabel(comparison.confidence_pct)}
@@ -964,7 +1144,12 @@ export default function Dashboard() {
             </section>
             <section className="dashboard-row dashboard-row-3-col">
               <span>Reliability</span>
-              <span className="dashboard-col-center">{formatPercentFromRatio(comparison.reliability_delta)}</span>
+              {/* reliability_delta is absolute points (e.g. 88→91 = +3 pts), NOT a ratio */}
+              <span className="dashboard-col-center">
+                {isFiniteNumber(comparison.reliability_delta)
+                  ? `${comparison.reliability_delta >= 0 ? "+" : ""}${formatFixed(comparison.reliability_delta, 1, " pts")}`
+                  : "N/A"}
+              </span>
               <span className="dashboard-col-right">
                 {isFiniteNumber(comparison.reliability_delta)
                   ? comparison.reliability_delta < 0
@@ -976,6 +1161,22 @@ export default function Dashboard() {
                 )}
               </span>
             </section>
+            {isFiniteNumber(comparison.min_confidence_delta) && (
+              <section className="dashboard-row dashboard-row-3-col">
+                <span>Min Confidence</span>
+                <span className="dashboard-col-center">
+                  {`${comparison.min_confidence_delta >= 0 ? "+" : ""}${formatFixed(comparison.min_confidence_delta, 1, " pts")}`}
+                </span>
+                <span className="dashboard-col-right">
+                  {comparison.min_confidence_delta < -5
+                    ? "Edge-case regression"
+                    : comparison.min_confidence_delta < 0
+                      ? "Slight drop"
+                      : "Stable or improved"}
+                  <span className={`dashboard-status-dot dashboard-status-${comparison.min_confidence_delta < -5 ? "red" : comparison.min_confidence_delta < 0 ? "yellow" : "green"}`} />
+                </span>
+              </section>
+            )}
           </section>
         )}
 
@@ -1044,25 +1245,62 @@ export default function Dashboard() {
 
         {/* ── Multilingual Retrieval Quality ────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Multilingual Retrieval Intelligence")}>
-          <h2>Multilingual Retrieval Quality</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>Multilingual Retrieval Quality</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  const langLines = sortedLanguages.map((l) => {
+                    const drift = languageTrendMap.get(l.language);
+                    return `  ${getLanguageName(l.language)}: avg=${formatFixed(l.avg_confidence, 1)}, min=${formatFixed(l.min_confidence, 1)}, Δ=${isFiniteNumber(drift) ? `${drift >= 0 ? "+" : ""}${drift.toFixed(1)}` : "N/A"}, risk=${getLanguageRisk(l)}${isUnstable(l) ? " (unstable)" : ""}`;
+                  }).join("\n");
+                  setChatContext(`Multilingual Retrieval Quality snapshot:\n${langLines}\nRetrieval stability: ${formatFixed(selectedRun.avg_rank_shift, 3)} avg rank shift`);
+                  setChatQuery("Which languages are at risk and what might be causing low confidence scores for non-English queries?");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
           <p className="dashboard-section-desc">
             Measures retrieval quality across supported languages. Low confidence highlights
             potential user experience gaps for non-English speakers.
           </p>
           <h3>Current State</h3>
           {hasLanguageMetrics ? (
-            sortedLanguages.map((language, i) => (
-              <section key={language.language ?? i} className="dashboard-row">
-                <span>{getLanguageName(language.language)}</span>
-                <span>
-                  avg={formatFixed(language.avg_confidence, 1)} | min={formatFixed(language.min_confidence, 1)}
-                </span>
-                <span>
-                  {getLanguageRisk(language)} {isUnstable(language) ? "— Unstable" : ""}
-                  <span className={`dashboard-status-dot dashboard-status-${getLanguageConfidenceStatus(language.min_confidence) ?? "green"}`} />
-                </span>
+            <>
+              <section className="dashboard-row dashboard-row-header dashboard-row-language" style={{ fontSize: "12px", opacity: 0.65 }}>
+                <span>Language</span>
+                <span className="dashboard-col-center">avg | min confidence</span>
+                <span className="dashboard-col-center">Δ vs prev run</span>
+                <span>Risk</span>
               </section>
-            ))
+              {sortedLanguages.map((language, i) => {
+                const drift = languageTrendMap.get(language.language);
+                return (
+                  <section key={language.language ?? i} className="dashboard-row dashboard-row-language">
+                    <span>{getLanguageName(language.language)}</span>
+                    <span className="dashboard-col-center">
+                      avg={formatFixed(language.avg_confidence, 1)} | min={formatFixed(language.min_confidence, 1)}
+                    </span>
+                    <span className="dashboard-col-center">
+                      {isFiniteNumber(drift)
+                        ? `${drift >= 0 ? "+" : ""}${drift.toFixed(1)}`
+                        : "—"}
+                    </span>
+                    <span>
+                      {getLanguageRisk(language)}{isUnstable(language) ? " — Unstable" : ""}
+                      <span className={`dashboard-status-dot dashboard-status-${getLanguageConfidenceStatus(language.min_confidence) ?? "green"}`} />
+                    </span>
+                  </section>
+                );
+              })}
+            </>
           ) : (
             <p>No language metrics available for this run.</p>
           )}
@@ -1085,44 +1323,73 @@ export default function Dashboard() {
         </section>
 
         {/* ── Language Drift ────────────────────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("Language Drift Approx")}>
-          <h2>Language Drift (Approx)</h2>
+        <section className="dashboard-card" id={sectionId("Language Drift")}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>Language Drift</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  const driftLines = languageMetrics.map((l) => {
+                    const delta = languageTrendMap.get(l.language) ?? null;
+                    const label = !isFiniteNumber(delta) ? "No data" : delta < -10 ? "Regression" : delta < -3 ? "Drop" : delta > 3 ? "Improvement" : "Stable";
+                    return `  ${getLanguageName(l.language)}: Δ=${isFiniteNumber(delta) ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}` : "N/A"} — ${label}`;
+                  }).join("\n");
+                  setChatContext(`Language Drift snapshot:\n${driftLines}`);
+                  setChatQuery("Which languages are regressing the most and does it suggest an embedding, chunking, or data coverage issue?");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
           <p className="dashboard-section-desc">
-            Per-language confidence shift relative to the previous run. Regressions in specific
-            languages may point to embedding or chunking issues.
+            Per-language confidence shift relative to the previous run, sourced from historical
+            retrieval data. Regressions in specific languages may point to embedding or chunking issues.
           </p>
           {hasLanguageMetrics ? (
-            languageMetrics.map((language, i) => {
-              const delta =
-                isFiniteNumber(language.avg_confidence) && isFiniteNumber(previous?.avg_confidence)
-                  ? language.avg_confidence - previous.avg_confidence
-                  : null;
+            <>
+              <section className="dashboard-row dashboard-row-3-col dashboard-row-header">
+                <span>Language</span>
+                <span className="dashboard-col-center">Delta</span>
+                <span className="dashboard-col-right">Signal</span>
+              </section>
+              {languageMetrics.map((language, i) => {
+                // Use actual per-language delta from retrieval_language_trend DB view
+                const delta = languageTrendMap.get(language.language) ?? null;
 
-              const label = !isFiniteNumber(delta)
-                ? "No drift data"
-                : delta < -10
-                  ? "Regression"
-                  : delta < -3
-                    ? "Drop"
-                    : delta > 3
-                      ? "Improvement"
-                      : "Stable";
+                const label = !isFiniteNumber(delta)
+                  ? "No drift data"
+                  : delta < -10
+                    ? "Regression"
+                    : delta < -3
+                      ? "Drop"
+                      : delta > 3
+                        ? "Improvement"
+                        : "Stable";
 
-              const driftStatus = getDriftStatus(label);
+                const driftStatus = getDriftStatus(label);
 
-              return (
-                <section key={language.language ?? i} className="dashboard-row dashboard-row-3-col">
-                  <span>{getLanguageName(language.language)}</span>
-                  <span className="dashboard-col-center">{formatFixed(delta, 1)}</span>
-                  <span className="dashboard-col-right">
-                    {label}
-                    {driftStatus && (
-                      <span className={`dashboard-status-dot dashboard-status-${driftStatus}`} />
-                    )}
-                  </span>
-                </section>
-              );
-            })
+                return (
+                  <section key={language.language ?? i} className="dashboard-row dashboard-row-3-col">
+                    <span>{getLanguageName(language.language)}</span>
+                    <span className="dashboard-col-center">
+                      {isFiniteNumber(delta) ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}` : "—"}
+                    </span>
+                    <span className="dashboard-col-right">
+                      {label}
+                      {driftStatus && (
+                        <span className={`dashboard-status-dot dashboard-status-${driftStatus}`} />
+                      )}
+                    </span>
+                  </section>
+                );
+              })}
+            </>
           ) : (
             <p>No drift data available for this run.</p>
           )}
@@ -1140,7 +1407,17 @@ export default function Dashboard() {
                   style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
                   aria-label="Debug with AI"
                   title="Debug with AI"
-                  onClick={() => setChatQuery(`The system is showing ${story.regression_severity} severity with ${story.primary_signal} as the primary signal. What's likely causing this and what should I investigate first?`)}
+                  onClick={() => {
+                    setChatContext(
+                      `AI System Intelligence snapshot:\n` +
+                      `  Severity: ${story.regression_severity}\n` +
+                      `  Primary signal: ${story.primary_signal}\n` +
+                      `  Trend direction: ${story.trend_direction}\n` +
+                      `  User impact: ${story.user_impact}\n` +
+                      `  Analysis confidence: ${story.analysis_confidence}`
+                    );
+                    setChatQuery("What does the current regression story tell us about system health and what should I do next?");
+                  }}
                 >
                   💬
                 </button>
@@ -1202,10 +1479,45 @@ export default function Dashboard() {
 
         {/* ── Test Reliability — Flakiness aggregate ───────────────────────── */}
         <section className="dashboard-card" id={sectionId("Test Reliability - Flakiness")}>
-          <h2>Test Reliability — Flakiness</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>Test Suites Reliability</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  const workflowLines = e2eStability.length > 0
+                    ? e2eStability.map((w) =>
+                        `  • ${w.workflow_type === "pr_e2e" ? "PR E2E" : w.workflow_type === "deploy_e2e" ? "Deploy E2E" : w.workflow_type}: ` +
+                        `current=${formatPercentFromWhole(w.avg_flakiness_pct)}, ` +
+                        `prev=${isFiniteNumber(w.prev_flakiness_pct) ? formatPercentFromWhole(w.prev_flakiness_pct) : "N/A"}, ` +
+                        `delta=${isFiniteNumber(w.flakiness_delta) ? `${w.flakiness_delta >= 0 ? "+" : ""}${w.flakiness_delta.toFixed(2)}%` : "N/A"}, ` +
+                        `trend=${w.trend_direction}`
+                      ).join("\n")
+                    : "  No E2E workflow data available.";
+                  const topFlaky = flakyTests.slice(0, 5).map((t) =>
+                    `  • ${t.test_name ?? "unknown"}: ${formatPercentFromWhole(t.flakiness_pct)} flaky (${t.severity ?? "?"} severity, ${t.recency ?? "?"})`
+                  ).join("\n") || "  No individual flaky tests recorded.";
+                  setChatContext(
+                    `Test Suite Reliability snapshot:\n` +
+                    `Overall flakiness: ${formatPercentFromWhole(effectiveFlakinessPct)} — ${getFlakinessRisk(effectiveFlakinessPct)}\n` +
+                    `Change vs previous run: ${isFiniteNumber(flakinessDelta) ? `${flakinessDelta > 0 ? "+" : ""}${flakinessDelta.toFixed(2)}%` : "not enough data"}\n\n` +
+                    `E2E Workflow Breakdown:\n${workflowLines}\n\n` +
+                    `Top Flaky Tests:\n${topFlaky}`
+                  );
+                  setChatQuery("Analyze test suite stability and identify the biggest concerns across workflows and individual tests.");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
           <p className="dashboard-section-desc">
-            Tracks test instability over time. High flakiness reduces confidence in results and
-            may mask real regressions.
+            Tracks test instability over time across CI workflows. High flakiness reduces
+            confidence in results and may mask real regressions.
           </p>
 
           {!flakiness && flakinessTrend.length === 0 ? (
@@ -1215,12 +1527,12 @@ export default function Dashboard() {
               <h3>Current State</h3>
               <p>
                 Flakiness:{" "}
-                <b>{formatPercentFromWhole(flakiness?.flakiness_pct)}</b>
+                <b>{formatPercentFromWhole(effectiveFlakinessPct)}</b>
                 {" — "}
-                <b>{getFlakinessRisk(flakiness?.flakiness_pct)}</b>
-                {isFiniteNumber(flakiness?.flakiness_pct) && (
+                <b>{getFlakinessRisk(effectiveFlakinessPct)}</b>
+                {isFiniteNumber(effectiveFlakinessPct) && (
                   <span
-                    className={`dashboard-status-dot dashboard-status-${getStatusColor(flakiness.flakiness_pct, "flakiness") ?? "green"}`}
+                    className={`dashboard-status-dot dashboard-status-${getStatusColor(effectiveFlakinessPct, "flakiness") ?? "green"}`}
                   />
                 )}
               </p>
@@ -1238,8 +1550,71 @@ export default function Dashboard() {
                   : "Not enough historical data"}
               </p>
 
-              <h3>Historical Trend</h3>
-              {flakinessChartData.length > 0 ? (
+              {e2eStability.length > 0 && (
+                <>
+                  <h3>Workflow Breakdown</h3>
+                  <p className="dashboard-section-desc" style={{ marginBottom: "8px" }}>
+                    Per-workflow flakiness for E2E suites — reflects instability across browser pipelines.
+                  </p>
+                  <section className="dashboard-row dashboard-row-header dashboard-row-flaky" style={{ fontSize: "12px", opacity: 0.65 }}>
+                    <span>Workflow</span>
+                    <span className="dashboard-col-center">Current</span>
+                    <span className="dashboard-col-center">Prev</span>
+                    <span className="dashboard-col-center">Δ</span>
+                    <span className="dashboard-col-center">Trend</span>
+                  </section>
+                  {e2eStability.map((w) => (
+                    <section key={w.workflow_type} className="dashboard-row dashboard-row-flaky">
+                      <span>{w.workflow_type === "pr_e2e" ? "PR E2E" : w.workflow_type === "deploy_e2e" ? "Deploy E2E" : w.workflow_type}</span>
+                      <span className="dashboard-col-center">{formatPercentFromWhole(w.avg_flakiness_pct)}</span>
+                      <span className="dashboard-col-center">{isFiniteNumber(w.prev_flakiness_pct) ? formatPercentFromWhole(w.prev_flakiness_pct) : "—"}</span>
+                      <span className="dashboard-col-center">
+                        {isFiniteNumber(w.flakiness_delta)
+                          ? `${w.flakiness_delta >= 0 ? "+" : ""}${w.flakiness_delta.toFixed(2)}`
+                          : "—"}
+                      </span>
+                      <span className="dashboard-col-center">
+                        {w.trend_direction}
+                        <span className={`dashboard-status-dot dashboard-status-${w.trend_direction === "improving" ? "green" : w.trend_direction === "degrading" ? "red" : "yellow"}`} />
+                      </span>
+                    </section>
+                  ))}
+                </>
+              )}
+
+              <h3>Historical Trend — E2E Workflows</h3>
+              <p className="dashboard-section-desc" style={{ marginBottom: "8px" }}>
+                Failure rate (%) over time for each CI workflow pipeline.
+              </p>
+              {e2eDualChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={e2eDualChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickMargin={8} height={50} tick={<TwoLineTick />} />
+                    <YAxis tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+                    <Tooltip content={<E2eWorkflowTooltip />} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="pr_e2e"
+                      name="PR E2E"
+                      stroke="var(--accent, #6366f1)"
+                      strokeWidth={2}
+                      dot
+                      connectNulls
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="deploy_e2e"
+                      name="Deploy E2E"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : flakinessChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={flakinessChartData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -1298,25 +1673,96 @@ export default function Dashboard() {
 
         {/* ── System Risk Assessment ────────────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("AI Risk Summary")}>
-          <h2>System Risk Assessment</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>System Risk Assessment</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  setChatContext(
+                    `System Risk Assessment snapshot:\n` +
+                    `  Regression severity: ${story?.regression_severity ?? "unknown"}\n` +
+                    `  Primary signal: ${story?.primary_signal ?? "none"}\n` +
+                    `  User impact: ${story?.user_impact ?? "unknown"}\n` +
+                    `  Analysis confidence: ${story?.analysis_confidence ?? "unknown"}\n` +
+                    `  Trend direction: ${story?.trend_direction ?? "unknown"}`
+                  );
+                  setChatQuery("What does the system risk assessment mean for end users and what should I prioritize?");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
           <p className="dashboard-section-desc">
-            Aggregated risk summary across retrieval quality and test stability. Immediate action
-            recommended when both stability signals are degraded.
+            Aggregated risk summary across retrieval quality, test stability, and regression signals.
+            Immediate action recommended when severity is critical or user impact is detected.
           </p>
-          <p>
-            Worst-case confidence:{" "}
-            <b>{worstLanguage ? formatFixed(worstLanguage.min_confidence, 1) : "N/A"}</b>
-          </p>
-          <p>
-            Stability:{" "}
-            <b>
-              {languageMetrics.some(isUnstable)
-                ? "Retrieval instability detected"
-                : isFiniteNumber(flakiness?.flakiness_pct) && flakiness.flakiness_pct > 2
-                  ? "Test instability (flaky suite)"
-                  : "Stable system"}
-            </b>
-          </p>
+
+          {story && (
+            <>
+              <section className="dashboard-row dashboard-row-2-col dashboard-row-header" style={{ marginBottom: "4px" }}>
+                <span>Metric</span>
+                <span className="dashboard-col-right">Signal</span>
+              </section>
+              <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
+                <span>Regression Severity</span>
+                <span className="dashboard-col-right">
+                  <b style={{ textTransform: "capitalize" }}>{story.regression_severity}</b>
+                  <span className={`dashboard-status-dot dashboard-status-${story.regression_severity === "critical" ? "red" : story.regression_severity === "moderate" ? "orange" : story.regression_severity === "minor" ? "yellow" : "green"}`} />
+                </span>
+              </section>
+              <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
+                <span>User Impact</span>
+                <span className="dashboard-col-right">
+                  <b>{getUserImpactLabel(story.user_impact).label}</b>
+                  {getUserImpactLabel(story.user_impact).status && (
+                    <span className={`dashboard-status-dot dashboard-status-${getUserImpactLabel(story.user_impact).status}`} />
+                  )}
+                </span>
+              </section>
+              <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
+                <span>Primary Signal</span>
+                <span className="dashboard-col-right">
+                  <b>{getPrimarySignalLabel(story.primary_signal)}</b>
+                </span>
+              </section>
+              <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
+                <span>Analysis Confidence</span>
+                <span className="dashboard-col-right">
+                  <b style={{ textTransform: "capitalize" }}>{story.analysis_confidence}</b>
+                  <span className={`dashboard-status-dot dashboard-status-${story.analysis_confidence === "high" ? "green" : story.analysis_confidence === "medium" ? "yellow" : "orange"}`} />
+                </span>
+              </section>
+            </>
+          )}
+
+          <section className="dashboard-row dashboard-row-2-col" style={{ marginTop: story ? "12px" : undefined }}>
+            <span>Worst-case Confidence</span>
+            <span className="dashboard-col-right">
+              <b>{worstLanguage ? `${formatFixed(worstLanguage.min_confidence, 1)} (${getLanguageName(worstLanguage.language)})` : "N/A"}</b>
+              {worstLanguage && (
+                <span className={`dashboard-status-dot dashboard-status-${getLanguageConfidenceStatus(worstLanguage.min_confidence) ?? "green"}`} />
+              )}
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-2-col">
+            <span>Retrieval Stability</span>
+            <span className="dashboard-col-right">
+              <b>
+                {languageMetrics.some(isUnstable)
+                  ? "Retrieval instability detected"
+                  : isFiniteNumber(effectiveFlakinessPct) && effectiveFlakinessPct > 2
+                    ? "Test instability (flaky suite)"
+                    : "Stable system"}
+              </b>
+              <span className={`dashboard-status-dot dashboard-status-${languageMetrics.some(isUnstable) || (isFiniteNumber(effectiveFlakinessPct) && effectiveFlakinessPct > 2) ? "red" : "green"}`} />
+            </span>
+          </section>
         </section>
         <div style={{ height: "2rem" }} aria-hidden="true" />
       </main>
@@ -1327,6 +1773,8 @@ export default function Dashboard() {
         greeting={chatGreeting}
         externalQuery={chatQuery}
         onExternalQueryConsumed={() => setChatQuery(undefined)}
+        externalContext={chatContext}
+        onExternalContextConsumed={() => setChatContext(undefined)}
         conversationKey={selectedRun.run_id}
       />
       {showScrollTop && (
@@ -1575,6 +2023,23 @@ function FlakinessTooltip({ active, payload, label }: ChartTooltipProps) {
   return (
     <TooltipShell label={label}>
       {isFiniteNumber(value) && <div>Flakiness: <b>{value.toFixed(2)}%</b></div>}
+    </TooltipShell>
+  );
+}
+
+function E2eWorkflowTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <TooltipShell label={label}>
+      {payload.map((entry) => {
+        const v = entry.value;
+        if (!isFiniteNumber(v)) return null;
+        return (
+          <div key={entry.name} style={{ color: entry.color }}>
+            {entry.name}: <b>{v.toFixed(1)}%</b>
+          </div>
+        );
+      })}
     </TooltipShell>
   );
 }
