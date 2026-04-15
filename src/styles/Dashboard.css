@@ -163,6 +163,20 @@ h2 {
 }
 
 /* 3-column aligned rows: label | centered value | right-aligned status */
+.dashboard-row-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+}
+
+.dashboard-col-right {
+  text-align: right;
+}
+
+.dashboard-row-2-col .dashboard-col-right {
+  justify-self: end;
+}
+
 .dashboard-row-3-col {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -176,12 +190,14 @@ h2 {
   align-items: center;
 }
 
-.dashboard-col-center {
-  text-align: center;
+.dashboard-row-language {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 0.9fr 1.2fr;
+  align-items: center;
 }
 
-.dashboard-col-right {
-  text-align: right;
+.dashboard-col-center {
+  text-align: center;
 }
 
 .dashboard-test-name {

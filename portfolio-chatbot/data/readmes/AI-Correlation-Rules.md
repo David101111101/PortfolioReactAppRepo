@@ -21,6 +21,8 @@ Every regression must be evaluated as:
 → relative to baseline  
 → over time  
 
+The dashboard surfaces these correlations automatically. The AI Debug buttons inject the actual metric snapshot so the chatbot can reason across signals without the user needing to manually gather data.
+
 ---
 
 # 1. Latency + Confidence Correlation
@@ -141,7 +143,9 @@ Composite degradation across one or more signals.
 
 ## Action
 
-Identify the dominant degrading metric.
+Identify the dominant degrading metric. Reliability is a weighted composite — check which component is pulling it down.
+
+Note: reliability_delta in the Regression Impact section is in **absolute points** (e.g. -3 pts), not a percentage.
 
 ---
 
@@ -161,8 +165,8 @@ System is crossing defined risk thresholds.
 
 ## Likely Causes
 
-- latency above threshold
-- confidence below threshold
+- latency above threshold (>5400 ms → -8 pts, >5800 ms → -15 pts)
+- confidence below threshold (<81 → -8 pts, <78 → -15 pts)
 - combined penalties
 
 ---
@@ -225,7 +229,7 @@ Flakiness ↑ AND metric changes
 
 ## Interpretation
 
-Signals may be unreliable.
+Signals may be unreliable. Do not act on other regressions until flakiness is resolved — flaky tests can fabricate or suppress real signals.
 
 ---
 
@@ -237,10 +241,23 @@ Signals may be unreliable.
 
 ---
 
+## Important: Flakiness Source Matters
+
+The dashboard tracks flakiness at three levels:
+
+- **Weekly regression run** — the selected run's own flaky/total_tests ratio
+- **E2E Workflow Breakdown** — separate pr_e2e and deploy_e2e workflow flakiness (may be degrading even when weekly run shows 0%)
+- **Per-test flakiness** — individual tests ranked by instability rate
+
+When E2E workflows show "degrading" trend, the Current State now reflects the max across all sources — not just the weekly run.
+
+---
+
 ## Action
 
-- identify flaky tests
-- stabilize before trusting regression
+- identify flaky tests in the Flaky Tests Breakdown section
+- check which workflow (pr_e2e or deploy_e2e) is most unstable
+- stabilize before trusting regression signals
 
 ---
 
@@ -263,6 +280,14 @@ Localized degradation affecting specific user groups.
 - language-specific retrieval gaps
 - uneven dataset coverage
 - embedding bias
+
+---
+
+## How to Detect
+
+The Multilingual Retrieval Quality section shows per-language avg/min confidence plus the **Δ vs prev run** column sourced from `retrieval_language_trend`.
+
+The Language Drift section shows each language's true per-language confidence change — not a global approximation. All languages showing different deltas is expected and correct.
 
 ---
 
@@ -315,7 +340,7 @@ Other metrics changing
 
 ## Interpretation
 
-Reliability scoring is too insensitive.
+Reliability scoring is too insensitive to capture the change.
 
 ---
 
@@ -349,6 +374,62 @@ System-level drift (not noise)
 
 ---
 
+# 12. Min Confidence vs Avg Confidence Divergence
+
+## Pattern
+
+avg_confidence healthy  
+min_confidence critically low (or min_confidence_delta strongly negative)
+
+---
+
+## Interpretation
+
+A specific language or query type is collapsing while the aggregate looks fine. This is a hidden localized regression.
+
+---
+
+## Where to Look
+
+- Regression Impact section: min_confidence_delta row (absolute point change)
+- Multilingual Retrieval Quality: per-language min column and status dot
+- System Risk Assessment: worst-case confidence row showing which language is lowest
+
+---
+
+## Action
+
+- identify which language has the lowest min_confidence
+- inspect Language Drift section for that language's trend
+- check retrieval data for that language in the vector store
+
+---
+
+# 13. E2E Workflow Degrading + Weekly Run Healthy
+
+## Pattern
+
+pr_e2e or deploy_e2e shows "degrading" trend in Workflow Breakdown  
+Weekly regression run flakiness = 0%
+
+---
+
+## Interpretation
+
+These are separate test_runs entries tracked independently. The weekly regression suite may not execute the same tests as E2E browser pipelines.
+
+This is not a contradiction — it means browser-level instability exists in CI but is not captured by the weekly AI regression suite.
+
+---
+
+## Action
+
+- check which workflow is degrading (PR validation vs deploy verification)
+- look at top flaky tests in the Flaky Tests Breakdown — filter by recency "recent"
+- investigate timing, browser-specific behavior, or environment differences
+
+---
+
 # Correlation Priority Rules
 
 When multiple signals change:
@@ -357,6 +438,7 @@ When multiple signals change:
 2. Latency increase is secondary (performance)
 3. Reliability summarizes combined effects
 4. Flakiness can invalidate all signals
+5. Min confidence can reveal hidden language regressions masked by the average
 
 ---
 
@@ -394,6 +476,14 @@ Flakiness ↑
 
 ---
 
+## Hidden Language Regression
+
+min_confidence << avg_confidence
+
+→ inspect per-language metrics in Multilingual Quality and Language Drift
+
+---
+
 # Decision Framework
 
 When a regression is detected:
@@ -401,9 +491,10 @@ When a regression is detected:
 1. Identify which metric deviated from baseline
 2. Check if deviation is sustained across runs
 3. Correlate with other metrics
-4. Determine dominant signal
-5. Map to likely root cause
-6. Suggest action
+4. Check flakiness — if high, treat signals with caution
+5. Determine dominant signal
+6. Map to likely root cause
+7. Use the AI Debug button on the relevant section — it sends the real metric snapshot so the chatbot can reason from actual data
 
 ---
 
@@ -411,8 +502,8 @@ When a regression is detected:
 
 Transform monitoring into reasoning:
 
-→ from “what happened”  
-→ to “why it happened”  
-→ to “what to do next”  
+→ from "what happened"  
+→ to "why it happened"  
+→ to "what to do next"  
 
 This enables intelligent debugging and decision-making.

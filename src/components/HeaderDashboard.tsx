@@ -51,7 +51,7 @@ export function HeaderDashboard() {
         zIndex: 50,
         backdropFilter: "blur(10px)",
         background: "rgb(0,0,0,0.02)",
-        boxShadow: "rgb(0, 0, 0, 0.4) 15px 5px 5px 1px",
+        boxShadow: "rgb(0, 0, 0, 0.4) 0px 5px 5px 1px",
       }}
     >
       <div
@@ -64,7 +64,7 @@ export function HeaderDashboard() {
         }}
       >
         <h1>
-          Dave's RAG Quality Intelligence Dashboard
+          Dave's Quality Intelligence Dashboard
         </h1>
 
         <nav style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
