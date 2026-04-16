@@ -100,9 +100,9 @@ jobs:
       - name: Install deps
         run: npm ci --prefer-offline
 
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v5
+      - name: Restore Playwright browser cache
+        id: playwright-cache-restore
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ matrix.browser }}-v1
@@ -115,7 +115,7 @@ jobs:
 
       # Keep browser download/cache behavior
       - name: Install browser
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.playwright-cache-restore.outputs.cache-hit != 'true'
         run: |
           for i in 1 2 3; do
             npx playwright install ${{ matrix.browser }} && break
@@ -137,33 +137,46 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
 
+      - name: Save Playwright browser cache
+        if: ${{ always() && steps.playwright-cache-restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-v1
+
       - name: Generate E2E summary
         if: always()
-        run: |
-          mkdir -p summaries
+        run: node scripts/playwright-summary.mjs ${{ matrix.browser }} || true
 
-          node scripts/playwright-summary.mjs ${{ matrix.browser }} summaries/${{ matrix.browser }}.md || true
-
-          if [ -f summaries/${{ matrix.browser }}.md ]; then
-            cat summaries/${{ matrix.browser }}.md >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### 🌍 E2E (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Summary unavailable" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Generate flaky summary
+        if: always()
+        run: node scripts/flaky-summary.mjs >> $GITHUB_STEP_SUMMARY || true
       
       # Enforce flaky budget (No more than 3 flaky tests allowed)
       - name: Enforce flaky budget
+        id: flaky_budget
         if: always()
         run: |
-          if [ -f metrics/flaky.json ]; then
-            FLAKY=$(jq .flaky metrics/flaky.json)
-            if [ "$FLAKY" -gt 3 ]; then
-              echo "Too many flaky tests"
-              exit 1
-            fi
+          if [ ! -f metrics/flaky.json ]; then
+            echo "::error::Flaky metric unavailable (metrics/flaky.json missing)"
+            exit 1
+          fi
+
+          FLAKY=$(jq -r '.flaky // empty' metrics/flaky.json)
+          if [ -z "$FLAKY" ]; then
+            echo "::error::Invalid flaky metric value in metrics/flaky.json"
+            exit 1
+          fi
+
+          if [ "$FLAKY" -gt 1 ]; then
+            echo "flaky_gt_one=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Flaky metric unavailable"
+            echo "flaky_gt_one=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$FLAKY" -gt 3 ]; then
+            echo "Too many flaky tests"
+            exit 1
           fi
 
       - name: Ingest E2E metrics to Supabase
@@ -186,7 +199,7 @@ jobs:
       # Upload artifacts
       # ===============================
       - name: Upload Playwright artifacts
-        if: failure()
+        if: ${{ failure() && steps.flaky_budget.outputs.flaky_gt_one == 'true' }}
         uses: actions/upload-artifact@v5
         with:
           name: playwright-${{ matrix.browser }}

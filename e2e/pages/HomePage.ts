@@ -147,6 +147,36 @@ assistantMessages() {
 userMessages() {
   return this.page.locator(".chat-user");
 }
+private async waitForStableText(locator: Locator, stableChecks = 3, timeoutMs = 20000) {
+  // Poll message content until it stops changing for several consecutive checks.
+  let last = "";
+  let stableCount = 0;
+
+  await expect
+    .poll(
+      async () => {
+        const current = (await locator.textContent())?.trim() ?? "";
+        if (!current) {
+          stableCount = 0;
+          last = current;
+          return false;
+        }
+        if (current === last) {
+          stableCount += 1;
+        } else {
+          stableCount = 1;
+          last = current;
+        }
+        return stableCount >= stableChecks;
+      },
+      {
+        timeout: timeoutMs,
+        intervals: [150, 300, 500],
+        message: "Assistant message did not stabilize before timeout",
+      }
+    )
+    .toBe(true);
+}
 async openChat() {
   const bubble = this.chatBubble();
   await expect(bubble).toBeVisible();
@@ -158,16 +188,16 @@ async closeChat() {
   await expect(this.chatWindow()).not.toBeVisible();
 }
 async waitForGreeting() {
-  // Wait until assistant message is non-empty
-  await expect(this.assistantMessages().first()).not.toHaveText("");
+  const firstAssistant = this.assistantMessages().first();
+  await firstAssistant.waitFor({ state: "visible" });
+  await this.waitForStableText(firstAssistant);
 }
 async sendChatMessage(text: string) {
   await this.chatInput().fill(text);
   await this.chatInput().press("Enter");
 }
 async waitForAssistantReply() {
-  // Wait until last assistant message stabilizes (stream finished)
-  await expect(this.assistantMessages().last()).not.toHaveText("");
+  await this.waitForStableText(this.assistantMessages().last());
 }
 
 

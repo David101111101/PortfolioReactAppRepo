@@ -25,8 +25,11 @@ function weightedScore(c) {
 function pageLabel(url) {
   try {
     const u = new URL(url);
-    const hash = u.hash || "/";
-    return hash === "/" || hash === "" ? "Home (`/`)" : `Dashboard (\`${hash}\`)`;
+    const hash = (u.hash || "").trim();
+    if (!hash || hash === "#" || hash === "#/") return "Home";
+    if (hash.startsWith("#/dashboard")) return "Dashboard";
+    const generic = hash.replace(/^#\/?/, "");
+    return generic || "Home";
   } catch {
     return url;
   }
