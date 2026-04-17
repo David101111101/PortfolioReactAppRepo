@@ -270,6 +270,7 @@ nav .badge {
     transition: none !important;
   }
 }
+
 @media (prefers-reduced-motion: no-preference) {
   .btn:hover {
     animation: float-idle-small 2s ease-in-out infinite;

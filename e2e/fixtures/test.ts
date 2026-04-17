@@ -100,7 +100,7 @@ export const test = base.extend<Fixtures>({
   page: async ({ page }, use) => {
     // Inject BEFORE navigation / app init
     await page.addInitScript(() => {
-      (window as any).__TEST__ = true;
+      (window as Window & { __TEST__?: boolean }).__TEST__ = true;
     });
 
     await use(page);

@@ -62,7 +62,7 @@ export default function ChatWidget({
   const TYPING_SPEED = 13;
   const isTestRuntime =
   typeof window !== "undefined" &&
-  (window as any).__TEST__ === true;
+  (window as Window & { __TEST__?: boolean }).__TEST__ === true;
   const savedScrollTopRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bubbleRef = useRef<HTMLButtonElement | null>(null);
@@ -229,7 +229,7 @@ useEffect(() => {
   }, TYPING_SPEED);
 
   return () => clearTimeout(timeout);
-}, [greetingIndex, isTypingGreeting, greetingText]);
+}, [greetingIndex, isTypingGreeting, greetingText, isTestRuntime]);
 
   // External query: open chat and pre-fill input.
   // If an externalContext was provided alongside the query, capture it into the
