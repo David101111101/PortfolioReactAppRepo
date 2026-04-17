@@ -48,6 +48,7 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting (Artifact-Based)",
       headers: testHeaders(testIP),
       body: JSON.stringify({
         question: "warm up request sent to start test",
+        source: "home",
       }),
     });
     /**
@@ -61,6 +62,7 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting (Artifact-Based)",
         headers: testHeaders(testIP),
         body: JSON.stringify({
           question: "Testing rate limiting behavior",
+          source: "home",
         }),
       });
       statuses.push(res.status);
@@ -81,6 +83,7 @@ describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting (Artifact-Based)",
       headers: testHeaders(testIP), // Simulate same IP for testing
       body: JSON.stringify({
         question: "This should exceed the limit",
+        source: "home",
       }),
     });
     expect(blockedResponse.status).toBe(429);

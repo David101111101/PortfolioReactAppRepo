@@ -136,7 +136,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
       const res = await fetch(BASE_URL, {
         method: "POST",
         headers: testHeaders("203.0.113.13"),
-        body: JSON.stringify({ question })
+        body: JSON.stringify({ question, source: "home" })
       });
 
       const latency = Date.now() - start;

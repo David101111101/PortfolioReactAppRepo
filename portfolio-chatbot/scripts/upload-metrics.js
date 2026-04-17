@@ -142,7 +142,7 @@ async function uploadTestResult(suite, metrics) {
     if (minConfidence < 40) failureType = "low_confidence";
   }
 
-  if (suite === "performance_regression") {
+  if (suite === "performance_regression" && metrics.length > 0) {
     const m = metrics[0];
     if (m.degradation_ratio > 1.5) failureType = "latency_degradation";
   }
@@ -180,7 +180,7 @@ function computeReliability(artifacts) {
       if (minConfidence < 40) retrievalScore -= 20;
     }
 
-    if (a.suite === "performance_regression") {
+    if (a.suite === "performance_regression" && a.metrics.length > 0) {
       const m = a.metrics[0];
       if (m.degradation_ratio > 1.2) performanceScore -= 10;
       if (m.degradation_ratio > 1.5) performanceScore -= 10;

@@ -1,0 +1,16 @@
+{
+  "run_id": "6c817191-faf4-4454-b6c0-caad596e6b1b",
+  "suite": "rate_limit_regression",
+  "metrics": [
+    {
+      "run_id": "6c817191-faf4-4454-b6c0-caad596e6b1b",
+      "test_id": "rate_limit_regression",
+      "test_name": "should block requests exceeding the per-IP limit",
+      "total_requests": 13,
+      "total_429": 4,
+      "enforcement_rate": 0.3076923076923077,
+      "first_429_index": 9,
+      "threshold_drift": 1
+    }
+  ]
+}

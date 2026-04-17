@@ -42,8 +42,6 @@ Navigation testing across internal routing and external links
 
 Accessibility validation using axe-core integration
 
-Verification of functional features such as resume download
-
 Parallel cross-browser execution on Chromium, Firefox, and WebKit
 
 To support scalability, the framework uses:

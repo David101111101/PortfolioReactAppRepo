@@ -77,9 +77,6 @@ export class HomePage {
     return this.page.getByRole("heading", { name });
   }
 
-  resumeLink(): Locator {
-    return this.page.getByRole('link', { name: 'Resume' });
-  }
 
   async expectUrlHasSlug(slug: string) { 
     await expect(this.page).toHaveURL(new RegExp(`#${slug}$`)); 

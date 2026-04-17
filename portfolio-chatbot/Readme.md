@@ -105,7 +105,7 @@ Key components:
 ---
 
 ## Retrieval System Design
-Portfolio documents such as project READMEs, resume data, and technical documentation are processed through a custom ingestion pipeline.
+Portfolio documents such as project READMEs, data, and technical documentation are processed through a custom ingestion pipeline.
 
 During ingestion Dave implemented:
 - Document normalization

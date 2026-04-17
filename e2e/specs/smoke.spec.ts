@@ -125,7 +125,7 @@ test.describe("Responsive hamburger menu", () => {
     await home.openMobileMenu();
 
     const panel = home.mobilePanel();
-    for (const label of ["Resume", "Projects", "Diplomas", "Experience", "Contact", "AI Dashboard"]) {
+    for (const label of ["Projects", "Diplomas", "Experience", "Contact", "AI Dashboard"]) {
       await expect(panel.getByRole("link", { name: label })).toBeVisible();
     }
   });

@@ -159,11 +159,11 @@ nav .badge {
 }
 
 .btn:hover, nav .badge:hover { 
- transform: translateY(-1px);
-    background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
-    background-position: right center;
-     background-size: 200% 200%; 
-    transition: background-position 0.7s ease-in-out;
+  transform: translateY(-1px);
+  background: linear-gradient(45deg, #131e406e, rgb(255 255 255 / 30%));
+  background-position: right center;
+  background-size: 200% 200%; 
+  transition: background-position 0.7s ease-in-out;
 }
 
 .container-of-btn {
@@ -268,6 +268,11 @@ nav .badge {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn:hover {
+    animation: float-idle-small 2s ease-in-out infinite;
   }
 }
 

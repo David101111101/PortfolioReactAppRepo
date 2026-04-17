@@ -3,7 +3,7 @@ import { Header } from "../components/Header";
 import { Section } from "../components/Section";
 import { DiplomaGrid } from "../components/DiplomaGrid";
 import { ProjectCard } from "../components/ProjectCard";
-import { diplomas, experiences, otherExperience, profile, projects, skills, stats } from "../data/portfolio";
+import { aiDashboardOverview, diplomas, experiences, otherExperience, profile, projects, skills } from "../data/portfolio";
 import ChatWidget from "../components/ChatWidget";
 import { useEffect } from "react";
 
@@ -90,8 +90,8 @@ export default function App() {
                 </div>
                 }
 
-                <h1 style={{ margin: 0, fontSize: 44, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-                  Automation engineered for reliability
+                <h1 style={{ margin: 0, fontSize: 33, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+                  Automation engineered for reliability in modern times
                 </h1>
 
                 <p>
@@ -105,28 +105,36 @@ export default function App() {
               {/* TRUST PANEL */}
               <div className="card" style={{ padding: 18 }}>
                 <div className="nda-badge-container">
-                  <h2 style={{ margin: 0, fontSize: 18 }}>Overview of my Last Automation</h2>
-                  <span className="badge" >NDA</span>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Latest System Run Overview</h2>
+                  <a
+                    className="home-view-live-link btn"
+                    href="/#/dashboard"
+                    aria-label="View Live AI Dashboard"
+                    style={{ marginLeft: "1rem" }}
+                  >
+                    View Live →
+                  </a>
                 </div>
-                
-                <p style={{ margin: "10px 0 0", color: "var(--muted)" }}>
-                  A backlog of 300 websites, each one requiring 30 Minutes of Manual & repetitive set up workflows.
 
-                </p>
-
-                <section id="main-section-mini-cards" className="grid cols-2" style={{ marginTop: 14 }}>
-                  {stats.map((s) => (
-                    <div key={s.label} className="card">
-                      <div className="flex-row">
-                          <div style={{ fontSize: 22, fontWeight: 800 }}>{s.value}</div>
-                          <div style={{ color: "var(--muted)" }}>{s.label}</div>
-                      </div>  
-                          {s.note ? <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{s.note}</div> : null}     
+                <section id="main-section-mini-cards" className="grid cols-1" style={{ marginTop: 14 }}>
+                  <div className="card">
+                    <div className="flex-row">
+                      <div style={{ fontSize: 18, fontWeight: 700 }}>{aiDashboardOverview.headline}</div>
                     </div>
-                  ))}
-                </section>
+                    <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{aiDashboardOverview.subtitle}<br />{aiDashboardOverview.subtitle1}</div>
 
-                
+                    <div className="grid cols-2" style={{ marginTop: 14 }}>
+                      {aiDashboardOverview.features.map((f) => (
+                        <div key={f.title} className="card">
+                          <div className="flex-row">
+                            <div style={{ fontSize: 14, fontWeight: 800 }}>{f.title}</div>
+                          </div>
+                          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>{f.description}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
 
@@ -219,7 +227,7 @@ export default function App() {
             </div>
           </div>
         </Section>
-        <ChatWidget />
+        <ChatWidget pageSource="home" />
         <footer style={{ padding: "28px 0 40px", borderTop: "1px solid var(--soft)" }}>
           <div className="container" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <span style={{ color: "var(--muted)" }}>
