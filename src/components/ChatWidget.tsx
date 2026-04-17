@@ -35,6 +35,7 @@ export default function ChatWidget({
   externalContext,
   onExternalContextConsumed,
   conversationKey,
+  pageSource,
 }: {
   disableBackdrop?: boolean;
   runContext?: string;
@@ -44,6 +45,7 @@ export default function ChatWidget({
   externalContext?: string;
   onExternalContextConsumed?: () => void;
   conversationKey?: string;
+  pageSource?: "home" | "dashboard";
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -318,7 +320,7 @@ export default function ChatWidget({
       const sectionContext = pendingContextRef.current;
       pendingContextRef.current = null;
       const combinedContext = [runContext, sectionContext].filter(Boolean).join("\n\n") || undefined;
-      const response = await sendChatQuestion(question, combinedContext);
+      const response = await sendChatQuestion(question, combinedContext, pageSource);
       await streamAssistantResponse(response, (chunk) => {
         setMessages((prev) =>
           prev.map((msg) =>

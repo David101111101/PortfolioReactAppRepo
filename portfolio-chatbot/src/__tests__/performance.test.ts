@@ -58,7 +58,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
           "x-test-ip": "203.0.113.100",
           "x-test-mode": "true"
         }, 
-        body: JSON.stringify({ question: "Warm up request for performance baseline." }),
+        body: JSON.stringify({ question: "Warm up request for performance baseline.", source: "home" }),
       });
       expect(warmup.status).toBe(200);
       /**
@@ -73,6 +73,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
           headers: testHeaders(fakeIP(100 + 1)), // Simulate same IP for testing},
           body: JSON.stringify({
             question: "Explain the RAG architecture decisions.",
+            source: "home",
           }),
         });
         expect(response.status).toBe(200);
@@ -119,6 +120,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
             headers: testHeaders(fakeIP(150 + i)), // Simulate same IP for testing
             body: JSON.stringify({
               question: "Describe your system architecture briefly.",
+              source: "home",
             }),
           });
           const duration = Date.now() - start;

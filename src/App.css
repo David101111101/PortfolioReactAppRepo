@@ -341,9 +341,40 @@ html[data-test-mode="true"] * {
   }
 }
 
+/* Animation for small AI chatbot widget buttons */
+
+@keyframes float-idle-small {
+  0% {
+    box-shadow:
+      0 0 0 0 rgb(100 150 255 / 1%),
+      0 10px 10px rgb(36 52 84 / 30%),
+      inset 0 0 0 1px rgb(255 255 255 / 5%);
+  }
+
+  50% {
+    transform: translateY(-3px);
+    box-shadow:
+      0 0 0 25px rgb(100 150 255 / 1%),
+      0 5px 20px rgb(52 74 100 / 100%),
+      inset 0 0 0 1px rgb(255 255 255 / 15%);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(100 150 255 / 0%),
+      0 10px 10px rgb(36 52 84 / 30%),
+      inset 0 0 0 1px rgb(255 255 255 / 5%);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   #chat-bubble-widget {
     animation: float-idle 3s ease-in-out infinite;
+  }
+  
+  .btn:hover {
+    animation: float-idle-small 2s ease-in-out infinite;
+    transition: 3s;
   }
 }
 

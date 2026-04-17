@@ -45,15 +45,6 @@ for (const c of cases) {
   });
 }
 
-test("Resume PDF is accessible", async ({ page, home }) => {
-  await home.goto();
-  const href = await home.resumeLink().getAttribute("href");
-  expect(href).toBeTruthy();
-  const url = new URL(href!, page.url()).toString();
-  const response = await page.request.get(url);
-  expect(response.ok()).toBeTruthy();
-  expect(response.headers()["content-type"]).toContain("pdf");
-});
 test('Email Button header work', async ({ home, page }) => {
   await home.goto();
   // Target only the button group in the main hero section (id='section')

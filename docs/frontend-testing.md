@@ -143,7 +143,6 @@ Tests validate:
 - Smoke (page loads, critical paths work)
 - Navigation (header, routing, external links)
 - Accessibility (axe-core: WCAG compliance)
-- Resume download functionality
 - AI Dashboard navigation (`/#/dashboard` URL confirmed in `navigation.spec.ts`)
 - Chatbot: mocked responses, greeting, send/receive, close
 

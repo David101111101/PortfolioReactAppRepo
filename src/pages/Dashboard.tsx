@@ -1776,6 +1776,7 @@ export default function Dashboard() {
         externalContext={chatContext}
         onExternalContextConsumed={() => setChatContext(undefined)}
         conversationKey={selectedRun.run_id}
+        pageSource="dashboard"
       />
       {showScrollTop && (
         <button

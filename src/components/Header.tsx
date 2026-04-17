@@ -146,12 +146,11 @@ export function Header() {
 
         {/* Desktop nav — hidden on mobile via CSS */}
         <nav className="nav-desktop" style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <a className="badge" href={`${import.meta.env.BASE_URL}${profile.resume}`} target="_blank" rel="noreferrer">Resume</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("projects"); }}>Projects</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("diplomas"); }}>Diplomas</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("experience"); }}>Experience</a>
-          <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("contact"); }}>Contact</a>
-          <a className="badge" href="/#/dashboard">AI Dashboard</a>
+          <a className="badge btn" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("projects"); }}>Projects</a>
+          <a className="badge btn" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("diplomas"); }}>Diplomas</a>
+          <a className="badge btn" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("experience"); }}>Experience</a>
+          <a className="badge btn" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("contact"); }}>Contact</a>
+          <a className="badge btn" href="/#/dashboard">AI Dashboard</a>
 
           <button id="theme-toggle" className="btn" onClick={toggleTheme} aria-label="Toggle theme">
             {themeIcon}
@@ -191,7 +190,6 @@ export function Header() {
       {/* Mobile nav dropdown */}
       {menuOpen && (
         <nav id="nav-mobile-panel" className="nav-mobile-panel">
-          <a className="badge" href={`${import.meta.env.BASE_URL}${profile.resume}`} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>Resume</a>
           <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("projects"); }}>Projects</a>
           <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("diplomas"); }}>Diplomas</a>
           <a className="badge" href="#/" onClick={(e) => { e.preventDefault(); scrollToSection("experience"); }}>Experience</a>

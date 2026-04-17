@@ -34,12 +34,11 @@ export const profile = {
   location: "Remote",
   languages: "English (C2) Certified",
   summary:
-    "QA Engineer specializing in automation, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning, I am looking forward to expanding my engineering expertise. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
+    "QA Engineer specializing in automation, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
 
   email: "davidstevenabril@gmail.com",
   linkedin: "https://www.linkedin.com/in/david-abril-189099138",
-  github: "https://github.com/David101111101",
-  resume: "DavidAbrilQaAutomationEngineerCV.pdf"
+  github: "https://github.com/David101111101"
 };
 
 export const stats: Stat[] = [
@@ -48,6 +47,32 @@ export const stats: Stat[] = [
   { label: "Lines Of Code", value: "1038", note: "Advanced dynamic framework" },
   { label: "DOM interactions", value: "140K", note: "UI automation load" }
 ];
+
+export type OverviewFeature = { title: string; description: string };
+
+export const aiDashboardOverview = {
+  headline: "AI observability system that detects, tracks and explains behavioral changes",
+  subtitle: "A RAG-powered system trained on its own architecture and metrics to provide contextual debugging and system insights",
+  subtitle1: "CI → Metrics → DB → Intelligence → Dashboard",
+  features: [
+    {
+      title: "Self-aware debugging assistant",
+      description: "Explains system architecture, baseline drift and its impact using contextual insights"
+    },
+    {
+      title: "Statistical anomaly detection",
+      description: "Detects behavioral regressions using historical baselines instead of pass/fail static thresholds"
+    },
+    {
+      title: "Automated regression intelligence pipeline",
+      description: "CI-driven multi-browser quality gates that detect degradation across performance, retrieval, and system reliability "
+    },
+    {
+      title: "Multi-signal health modeling",
+      description: "Trend analysis and graph representation combined into a single interactive AI assisted platform"
+    }
+  ] as OverviewFeature[]
+};
 
 export const skills: { group: string; items: string[] }[] = [
   {
