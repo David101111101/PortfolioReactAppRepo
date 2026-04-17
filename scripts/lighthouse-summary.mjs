@@ -39,7 +39,7 @@ const reports = files.map(f => {
   const lhr = JSON.parse(fs.readFileSync(`.lighthouseci/${f}`, "utf8"));
   const c = lhr.categories ?? {};
   return {
-    url: lhr.finalUrl ?? lhr.requestedUrl ?? f,
+    url: lhr.requestedUrl ?? lhr.finalUrl ?? f,
     perf: pct(c.performance?.score),
     a11y: pct(c.accessibility?.score),
     bp: pct(c["best-practices"]?.score),

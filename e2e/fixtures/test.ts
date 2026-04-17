@@ -94,32 +94,42 @@ const e2eMetrics: E2ETestMetric[] = [];
 
 export const test = base.extend<Fixtures>({
   /**
-   * Fixture: consoleErrors
-   * Captures all console errors and page errors that occur during test execution
-   * Filters out known benign errors using the ALLOWLIST
+   * Fixture: page (override)
+   * Injects test flag BEFORE any page loads
    */
-  consoleErrors: async ({ page }, provideFixture) => {
-    const errors: string[] = [];
-
-    // Listen for uncaught JavaScript errors on the page
-    page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
-
-    // Listen for console.error() messages
-    page.on("console", (msg) => {
-      if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
+  page: async ({ page }, use) => {
+    // Inject BEFORE navigation / app init
+    await page.addInitScript(() => {
+      (window as Window & { __TEST__?: boolean }).__TEST__ = true;
     });
 
-    // Provide errors array to test, then clean up listeners
-    await provideFixture(errors);
+    await use(page);
+  },
+
+  /**
+   * Fixture: consoleErrors
+   */
+  consoleErrors: async ({ page }, use) => {
+    const errors: string[] = [];
+
+    page.on("pageerror", (err) =>
+      errors.push(`pageerror: ${err.message}`)
+    );
+
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        errors.push(`console: ${msg.text()}`);
+      }
+    });
+
+    await use(errors);
   },
 
   /**
    * Fixture: home
-   * Provides a HomePage POM instance for test to use
-   * Attached to page context, reusable across multiple test steps
    */
-  home: async ({ page }, provideFixture) => {
-    await provideFixture(new HomePage(page));
+  home: async ({ page }, use) => {
+    await use(new HomePage(page));
   },
 });
 

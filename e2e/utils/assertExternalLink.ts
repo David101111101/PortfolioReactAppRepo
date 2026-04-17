@@ -19,14 +19,10 @@ export async function assertExternalLinkOpensCorrectly(
 
   expect(href).toBeTruthy();
 
-  const context = page.context();
-  const knownPages = new Set(context.pages());
-  const newPagePromise = context
-    .waitForEvent("page", { predicate: (p) => !knownPages.has(p), timeout: 5000 })
-    .catch(() => null);
+  const popupPromise = page.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
 
   await link.click();
-  const popup = await newPagePromise;
+  const popup = await popupPromise;
 
   const url = popup
     ? (await popup.waitForLoadState("domcontentloaded", { timeout: 10000 }), new URL(popup.url()))

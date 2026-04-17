@@ -60,6 +60,9 @@ export default function ChatWidget({
   const pendingContextRef = useRef<string | null>(null);
 
   const TYPING_SPEED = 13;
+  const isTestRuntime =
+  typeof window !== "undefined" &&
+  (window as Window & { __TEST__?: boolean }).__TEST__ === true;
   const savedScrollTopRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bubbleRef = useRef<HTMLButtonElement | null>(null);
@@ -159,34 +162,74 @@ export default function ChatWidget({
     }
   }, [isStreaming, handleStreamingFinishedScroll]);
 
-  // Typewriter effect for greeting
-  useEffect(() => {
-    if (!isTypingGreeting) return;
-    if (greetingIndex >= greetingText.length) {
-      setIsTypingGreeting(false);
-      requestAnimationFrame(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-      });
-      return;
-    }
+ // Typewriter effect for greeting
+useEffect(() => {
+  if (!isTypingGreeting) return;
 
-    const timeout = setTimeout(() => {
-      const nextChar = greetingText[greetingIndex];
-      setMessages((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last && last.role === "assistant") {
-          updated[updated.length - 1] = { ...last, content: last.content + nextChar };
-        }
-        return updated;
-      });
-      setGreetingIndex((prev) => prev + 1);
-    }, TYPING_SPEED);
+  // ✅ TEST MODE: render instantly (no streaming)
+  if (isTestRuntime) {
+    setMessages((prev) => {
+      const updated = [...prev];
+      const last = updated[updated.length - 1];
 
-    return () => clearTimeout(timeout);
-  }, [greetingIndex, isTypingGreeting, greetingText]);
+      if (last && last.role === "assistant") {
+        updated[updated.length - 1] = {
+          ...last,
+          content: greetingText,
+        };
+      }
+
+      return updated;
+    });
+
+    setIsTypingGreeting(false);
+
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop =
+          scrollContainerRef.current.scrollHeight;
+      }
+    });
+
+    return;
+  }
+
+  // ✅ NORMAL MODE: typewriter effect
+  if (greetingIndex >= greetingText.length) {
+    setIsTypingGreeting(false);
+
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop =
+          scrollContainerRef.current.scrollHeight;
+      }
+    });
+
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    const nextChar = greetingText[greetingIndex];
+
+    setMessages((prev) => {
+      const updated = [...prev];
+      const last = updated[updated.length - 1];
+
+      if (last && last.role === "assistant") {
+        updated[updated.length - 1] = {
+          ...last,
+          content: last.content + nextChar,
+        };
+      }
+
+      return updated;
+    });
+
+    setGreetingIndex((prev) => prev + 1);
+  }, TYPING_SPEED);
+
+  return () => clearTimeout(timeout);
+}, [greetingIndex, isTypingGreeting, greetingText, isTestRuntime]);
 
   // External query: open chat and pre-fill input.
   // If an externalContext was provided alongside the query, capture it into the

@@ -242,6 +242,7 @@ html[data-test-mode="true"] *::after {
   animation: none !important;
   transition: none !important;
   transform: none !important;
+  backdrop-filter: none !important;
 }
 
 /* disable smooth scrolling */
