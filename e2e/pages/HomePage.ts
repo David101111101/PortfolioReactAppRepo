@@ -50,6 +50,8 @@ export class HomePage {
         *, *::before, *::after {
           animation: none !important;
           transition: none !important;
+          transform: none !important;
+          backdrop-filter: none !important;
         }
         html, body {
           scroll-behavior: auto !important;
@@ -144,36 +146,7 @@ assistantMessages() {
 userMessages() {
   return this.page.locator(".chat-user");
 }
-private async waitForStableText(locator: Locator, stableChecks = 3, timeoutMs = 20000) {
-  // Poll message content until it stops changing for several consecutive checks.
-  let last = "";
-  let stableCount = 0;
 
-  await expect
-    .poll(
-      async () => {
-        const current = (await locator.textContent())?.trim() ?? "";
-        if (!current) {
-          stableCount = 0;
-          last = current;
-          return false;
-        }
-        if (current === last) {
-          stableCount += 1;
-        } else {
-          stableCount = 1;
-          last = current;
-        }
-        return stableCount >= stableChecks;
-      },
-      {
-        timeout: timeoutMs,
-        intervals: [150, 300, 500],
-        message: "Assistant message did not stabilize before timeout",
-      }
-    )
-    .toBe(true);
-}
 async openChat() {
   const bubble = this.chatBubble();
   await expect(bubble).toBeVisible();
@@ -187,14 +160,16 @@ async closeChat() {
 async waitForGreeting() {
   const firstAssistant = this.assistantMessages().first();
   await firstAssistant.waitFor({ state: "visible" });
-  await this.waitForStableText(firstAssistant);
+  await expect(firstAssistant).toContainText(" no personal information is stored");
 }
 async sendChatMessage(text: string) {
   await this.chatInput().fill(text);
   await this.chatInput().press("Enter");
 }
 async waitForAssistantReply() {
-  await this.waitForStableText(this.assistantMessages().last());
+  const lastAssistant = this.assistantMessages().last();
+  await lastAssistant.waitFor({ state: "visible" });
+  await expect(lastAssistant).toContainText("Mocked assistant response");
 }
 
 
