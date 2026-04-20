@@ -293,13 +293,15 @@ useEffect(() => {
     };
   }, [isOpen]);
 
-  // Auto-resize textarea whenever input changes
+  // Auto-resize textarea whenever input changes or the chat window reopens.
+  // isOpen is included because the textarea unmounts when the chat closes —
+  // on reopen the value is already set but the height hasn't been recalculated.
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [input]);
+  }, [input, isOpen]);
 
   const goPrevQuestion = useCallback(() => {
     const navMessages = messages.filter((m) => m.role === "user" || m.isAnchor);
