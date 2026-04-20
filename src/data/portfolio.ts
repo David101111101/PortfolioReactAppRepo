@@ -34,7 +34,7 @@ export const profile = {
   location: "Remote",
   languages: "English (C2) Certified",
   summary:
-    "QA Engineer specializing in automation, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
+    "Quality Assurance Automation Engineer specializing in non-deterministic software testing, with backend development and team leadership experience.   Motivated by challenges and a passion for continuous learning. I thrive in dynamic environments solving complex problems and contributing to high quality software delivery.",
 
   email: "davidstevenabril@gmail.com",
   linkedin: "https://www.linkedin.com/in/david-abril-189099138",
@@ -223,6 +223,17 @@ export const projects: Project[] = [
 ];
 
 export const experiences: Experience[] = [
+   {
+    role: "QA Automation Engineer",
+    company: "Nuaav",
+    period: "April 26 - Present",
+    bullets: [
+       "Own end-to-end quality validation for web platforms, combining manual, exploratory, and automated testing to ensure reliable feature delivery across the SDLC.",
+        "Develop and maintain Playwright-based automation frameworks for UI and API testing, increasing regression coverage and enabling faster, more stable releases.",
+        "Integrate automated tests into CI/CD pipelines and contribute to quality strategies that prevent regressions and improve system reliability over time.",
+        "Analyze defects, identify root causes, and collaborate cross-functionally with engineering and product teams to drive resolution and improve overall product quality."
+    ]
+  },
   {
     role: "Team Lead & Process Automator",
     company: "Nationwide Marketing Group",
@@ -248,7 +259,10 @@ export const experiences: Experience[] = [
     company: "Credencial Business Magazine",
     period: "Jan 14 - Aug 14",
     bullets: [
-      "Developed a Java + SQL desktop tool to decrypt/transform/re-encrypt banking data with layered security and role-based visibility."
+          "Developed a Java + SQL desktop application to securely decrypt, transform, and re-encrypt sensitive banking data, ensuring data integrity across processing pipelines.",
+    "Implemented role-based access control and layered security mechanisms to restrict data visibility and enforce secure handling of financial information.",
+    "Collaborated with IT manager to translate business requirements into technical solutions, improving reliability and accuracy in data processing workflows.",
+    "Assisted with the front-end improvement of their landing page using HTML/CSS/JS, enhancing user experience and engagement."
     ]
   }
 ];
@@ -356,7 +370,7 @@ export const diplomas: Diploma[] = [
     issuer: "EF SET", 
     category: "Other", 
     proof: { label: "View Certificate", 
-    href: "https://cert.efset.org/dbRhNU" }, 
+    href: "https://cert.efset.org/en/dbRhNU" }, 
     image: "diplomas/EfSetEnglish.webp" 
   },
   { 
