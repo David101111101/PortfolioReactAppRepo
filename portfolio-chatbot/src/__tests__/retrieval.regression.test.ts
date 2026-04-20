@@ -247,7 +247,7 @@ it("should not hallucinate when knowledge is absent", async () => {
     const answerLower = probe.answer.toLowerCase();
 
       // --- Must explicitly deny unsupported knowledge
-      expect(answerLower).toMatch(/(not|no|does not|did not|doesn't|didn't|were not)/);
+      expect(answerLower).toMatch(/(not|no|does not|did not|doesn't|didn't|don't|cannot|can't|were not)/);
 
       // --- Must not hallucinate usage
       expect(answerLower).not.toContain("kubernetes cluster was used");

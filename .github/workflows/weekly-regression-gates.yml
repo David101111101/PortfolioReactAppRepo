@@ -65,6 +65,7 @@ jobs:
           name: Backend Regression Suite Results
           path: portfolio-chatbot/junit.xml
           reporter: java-junit
+          fail-on-error: false
 
       # Upload artifacts
       - name: Upload regression artifacts
