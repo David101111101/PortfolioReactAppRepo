@@ -118,10 +118,18 @@ type LazyViewportProps = {
   rootMargin?: string;
 };
 
+// ─── Chart animation config ───────────────────────────────────────────────────
+// Single source of truth for all <Line> animation — spread onto every instance.
+const LINE_ANIMATION = {
+  animationDuration: 2500,
+  animationEasing: "ease-in-out",
+} as const;
+
 // ─── Latency baseline constants ──────────────────────────────────────────────
-// Derived from historical P95 values: [5171, 5113, 5625, 5820] → median ≈ 5400 ms
-const LATENCY_EXPECTED = 5400;
-const LATENCY_DEGRADED_THRESHOLD = 5800;
+// Recalibrated for TTFC (time-to-first-chunk) measurement.
+// Observed TTFC P95: 1836 ms (clean run), 3268 ms (with spikes) → target ≈ 2500 ms
+const LATENCY_EXPECTED = 2500;
+const LATENCY_DEGRADED_THRESHOLD = 4000;
 
 // ─── Confidence baseline constants ───────────────────────────────────────────
 // Derived from historical avg_confidence: [81.3, 83.3, 80.0, 80.7] → median ≈ 81
@@ -171,7 +179,7 @@ function getStatusColor(value: number | null | undefined, metric: SlaMetric): Sl
   if (!isFiniteNumber(value)) return null;
   switch (metric) {
     case "latency":
-      return value < 5400 ? "green" : value < 5800 ? "yellow" : "red";
+      return value < 2500 ? "green" : value < 4000 ? "yellow" : "red";
     case "confidence":
       return value < 40 ? "red" : value < 70 ? "yellow" : "green";
     case "reliability":
@@ -987,6 +995,7 @@ export default function Dashboard() {
               <p className="dashboard-warning-text">⚠️ Latency increased more than 20% vs previous run — investigate regression</p>
             )}
             {chartData.length > 0 ? (
+              <div aria-hidden="true">
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={chartData}>
                   <XAxis dataKey="date" tickMargin={8} />
@@ -1018,7 +1027,7 @@ export default function Dashboard() {
                       label={{ value: `Baseline ${LATENCY_EXPECTED} ms`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
                     />
                   )}
-                  {selectedMetric === "Latency" && <Line type="monotone" dataKey="latency" dot />}
+                  {selectedMetric === "Latency" && <Line {...LINE_ANIMATION} type="monotone" dataKey="latency" dot />}
                   {selectedMetric === "Confidence" && <CartesianGrid strokeDasharray="3 3" />}
                   {selectedMetric === "Confidence" && (
                     <ReferenceArea y1={CONFIDENCE_EXPECTED} y2={100} fill="rgba(34,197,94,0.08)" />
@@ -1037,7 +1046,7 @@ export default function Dashboard() {
                       label={{ value: `Baseline ${CONFIDENCE_EXPECTED}`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
                     />
                   )}
-                  {selectedMetric === "Confidence" && <Line type="monotone" dataKey="confidence" dot />}
+                  {selectedMetric === "Confidence" && <Line {...LINE_ANIMATION} type="monotone" dataKey="confidence" dot />}
                   {selectedMetric === "Reliability" && <CartesianGrid strokeDasharray="3 3" />}
                   {selectedMetric === "Reliability" && (
                     <ReferenceArea y1={RELIABILITY_EXPECTED} y2={100} fill="rgba(34,197,94,0.08)" />
@@ -1056,7 +1065,7 @@ export default function Dashboard() {
                       label={{ value: `Baseline ${RELIABILITY_EXPECTED}`, fill: "#22c55e", fontSize: 11, position: "insideTopLeft" }}
                     />
                   )}
-                  {selectedMetric === "Reliability" && <Line type="monotone" dataKey="reliability" dot />}
+                  {selectedMetric === "Reliability" && <Line {...LINE_ANIMATION} type="monotone" dataKey="reliability" dot />}
                   {selectedMetric === "Rate" && <CartesianGrid strokeDasharray="3 3" />}
                   {selectedMetric === "Rate" && (
                     <ReferenceArea
@@ -1074,11 +1083,12 @@ export default function Dashboard() {
                     />
                   )}
                   {selectedMetric === "Rate" && (
-                    <Line type="monotone" dataKey="rate" name="Enforcement Rate" stroke="var(--accent)" dot />
+                    <Line {...LINE_ANIMATION} type="monotone" dataKey="rate" name="Enforcement Rate" stroke="var(--accent)" dot />
                   )}
                   {selectedMetric === "Rate" && <Legend />}
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             ) : (
               <p>No trend data available yet. Run a CI pipeline to populate metrics.</p>
             )}
@@ -1127,9 +1137,7 @@ export default function Dashboard() {
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.latency_pct)}</span>
               <span className="dashboard-col-right">
                 {getLatencyDeltaLabel(comparison.latency_pct)}
-                {getDeltaStatus(comparison.latency_pct, "lower-is-better") && (
-                  <span className={`dashboard-status-dot dashboard-status-${getDeltaStatus(comparison.latency_pct, "lower-is-better")}`} />
-                )}
+                <StatusDot status={getDeltaStatus(comparison.latency_pct, "lower-is-better")} />
               </span>
             </section>
             <section className="dashboard-row dashboard-row-3-col">
@@ -1137,9 +1145,7 @@ export default function Dashboard() {
               <span className="dashboard-col-center">{formatPercentFromRatio(comparison.confidence_pct)}</span>
               <span className="dashboard-col-right">
                 {getConfidenceDeltaLabel(comparison.confidence_pct)}
-                {getDeltaStatus(comparison.confidence_pct, "higher-is-better") && (
-                  <span className={`dashboard-status-dot dashboard-status-${getDeltaStatus(comparison.confidence_pct, "higher-is-better")}`} />
-                )}
+                <StatusDot status={getDeltaStatus(comparison.confidence_pct, "higher-is-better")} />
               </span>
             </section>
             <section className="dashboard-row dashboard-row-3-col">
@@ -1156,9 +1162,7 @@ export default function Dashboard() {
                     ? "Degradation"
                     : "Improvement"
                   : "No comparison data"}
-                {getDeltaStatus(comparison.reliability_delta, "higher-is-better") && (
-                  <span className={`dashboard-status-dot dashboard-status-${getDeltaStatus(comparison.reliability_delta, "higher-is-better")}`} />
-                )}
+                <StatusDot status={getDeltaStatus(comparison.reliability_delta, "higher-is-better")} />
               </span>
             </section>
             {isFiniteNumber(comparison.min_confidence_delta) && (
@@ -1173,7 +1177,7 @@ export default function Dashboard() {
                     : comparison.min_confidence_delta < 0
                       ? "Slight drop"
                       : "Stable or improved"}
-                  <span className={`dashboard-status-dot dashboard-status-${comparison.min_confidence_delta < -5 ? "red" : comparison.min_confidence_delta < 0 ? "yellow" : "green"}`} />
+                  <StatusDot status={comparison.min_confidence_delta < -5 ? "red" : comparison.min_confidence_delta < 0 ? "yellow" : "green"} />
                 </span>
               </section>
             )}
@@ -1189,6 +1193,7 @@ export default function Dashboard() {
           </p>
           {chartData.length > 0 ? (
             <LazyViewport minHeight={300} rootMargin="200px">
+              <div aria-hidden="true">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -1196,11 +1201,12 @@ export default function Dashboard() {
                   <YAxis width={60} />
                   <Tooltip content={<PerformanceTrendTooltip />} />
                   <Legend />
-                  <Line type="monotone" name="Latency (ms)" dataKey="latency" />
-                  <Line type="monotone" name="Confidence Score" dataKey="confidence" />
-                  <Line type="monotone" name="Reliability Score" dataKey="reliability" />
+                  <Line {...LINE_ANIMATION} type="monotone" name="Latency (ms)" dataKey="latency" />
+                  <Line {...LINE_ANIMATION} type="monotone" name="Confidence Score" dataKey="confidence" />
+                  <Line {...LINE_ANIMATION} type="monotone" name="Reliability Score" dataKey="reliability" />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             </LazyViewport>
           ) : (
             <p>No performance data available yet. Run a CI pipeline to populate metrics.</p>
@@ -1224,6 +1230,7 @@ export default function Dashboard() {
                 </p>
               )}
               <LazyViewport minHeight={280} rootMargin="200px">
+                <div aria-hidden="true">
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={correlationData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -1232,10 +1239,11 @@ export default function Dashboard() {
                     <YAxis yAxisId="right" orientation="right" tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
                     <Tooltip content={<CorrelationTooltip />} />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="latency" name="P95 Latency (ms)" stroke="var(--accent)" dot={false} />
-                    <Line yAxisId="right" type="monotone" dataKey="failure_rate_pct" name="Failure Rate (%)" stroke="var(--warn)" dot={false} connectNulls={false} />
+                    <Line {...LINE_ANIMATION} yAxisId="left" type="monotone" dataKey="latency" name="P95 Latency (ms)" stroke="var(--accent)" dot={false} />
+                    <Line {...LINE_ANIMATION} yAxisId="right" type="monotone" dataKey="failure_rate_pct" name="Failure Rate (%)" stroke="var(--warn)" dot={false} connectNulls={false} />
                   </LineChart>
                 </ResponsiveContainer>
+                </div>
               </LazyViewport>
             </>
           ) : (
@@ -1295,7 +1303,7 @@ export default function Dashboard() {
                     </span>
                     <span>
                       {getLanguageRisk(language)}{isUnstable(language) ? " — Unstable" : ""}
-                      <span className={`dashboard-status-dot dashboard-status-${getLanguageConfidenceStatus(language.min_confidence) ?? "green"}`} />
+                      <StatusDot status={getLanguageConfidenceStatus(language.min_confidence) ?? "green"} />
                     </span>
                   </section>
                 );
@@ -1382,9 +1390,7 @@ export default function Dashboard() {
                     </span>
                     <span className="dashboard-col-right">
                       {label}
-                      {driftStatus && (
-                        <span className={`dashboard-status-dot dashboard-status-${driftStatus}`} />
-                      )}
+                      <StatusDot status={driftStatus} />
                     </span>
                   </section>
                 );
@@ -1452,9 +1458,13 @@ export default function Dashboard() {
               {last5.map((run) => {
                 const isSelected = run.run_id === selectedRun.run_id;
                 return (
-                  <section
+                  <div
                     key={run.run_id}
+                    role="button"
+                    tabIndex={0}
                     className="dashboard-row"
+                    aria-current={isSelected ? "true" : undefined}
+                    aria-label={`Select run from ${new Date(run.run_timestamp).toLocaleDateString()}, latency ${isFiniteNumber(run.p95_latency) ? `${run.p95_latency} ms` : "N/A"}, confidence ${formatFixed(run.avg_confidence, 2)}, reliability ${formatFixed(run.reliability_score, 2)}${isSelected ? " — currently selected" : ""}`}
                     style={{
                       cursor: "pointer",
                       borderRadius: 6,
@@ -1463,12 +1473,13 @@ export default function Dashboard() {
                       outline: isSelected ? "1px solid var(--soft)" : undefined,
                     }}
                     onClick={() => handleRunChange(run.run_id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRunChange(run.run_id); } }}
                   >
                     <span>{new Date(run.run_timestamp).toLocaleDateString()}</span>
                     <span>{isFiniteNumber(run.p95_latency) ? `${run.p95_latency} ms` : "N/A"}</span>
                     <span>{formatFixed(run.avg_confidence, 2)}</span>
                     <span>{formatFixed(run.reliability_score, 2)}</span>
-                  </section>
+                  </div>
                 );
               })}
             </>
@@ -1531,9 +1542,7 @@ export default function Dashboard() {
                 {" — "}
                 <b>{getFlakinessRisk(effectiveFlakinessPct)}</b>
                 {isFiniteNumber(effectiveFlakinessPct) && (
-                  <span
-                    className={`dashboard-status-dot dashboard-status-${getStatusColor(effectiveFlakinessPct, "flakiness") ?? "green"}`}
-                  />
+                  <StatusDot status={getStatusColor(effectiveFlakinessPct, "flakiness") ?? "green"} />
                 )}
               </p>
 
@@ -1575,7 +1584,7 @@ export default function Dashboard() {
                       </span>
                       <span className="dashboard-col-center">
                         {w.trend_direction}
-                        <span className={`dashboard-status-dot dashboard-status-${w.trend_direction === "improving" ? "green" : w.trend_direction === "degrading" ? "red" : "yellow"}`} />
+                        <StatusDot status={w.trend_direction === "improving" ? "green" : w.trend_direction === "degrading" ? "red" : "yellow"} />
                       </span>
                     </section>
                   ))}
@@ -1586,6 +1595,7 @@ export default function Dashboard() {
               <p className="dashboard-section-desc" style={{ marginBottom: "8px" }}>
                 Failure rate (%) over time for each CI workflow pipeline.
               </p>
+              <div aria-hidden="true">
               {e2eDualChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={e2eDualChartData}>
@@ -1595,6 +1605,7 @@ export default function Dashboard() {
                     <Tooltip content={<E2eWorkflowTooltip />} />
                     <Legend />
                     <Line
+                      {...LINE_ANIMATION}
                       type="monotone"
                       dataKey="pr_e2e"
                       name="PR E2E"
@@ -1604,6 +1615,7 @@ export default function Dashboard() {
                       connectNulls
                     />
                     <Line
+                      {...LINE_ANIMATION}
                       type="monotone"
                       dataKey="deploy_e2e"
                       name="Deploy E2E"
@@ -1621,12 +1633,13 @@ export default function Dashboard() {
                     <XAxis dataKey="date" tickMargin={8} height={50} tick={<TwoLineTick />} />
                     <YAxis />
                     <Tooltip content={<FlakinessTooltip />} />
-                    <Line type="monotone" dataKey="flakiness" name="Flakiness %" />
+                    <Line {...LINE_ANIMATION} type="monotone" dataKey="flakiness" name="Flakiness %" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <p>No historical flakiness data available.</p>
               )}
+              </div>
             </>
           )}
         </section>
@@ -1713,16 +1726,14 @@ export default function Dashboard() {
                 <span>Regression Severity</span>
                 <span className="dashboard-col-right">
                   <b style={{ textTransform: "capitalize" }}>{story.regression_severity}</b>
-                  <span className={`dashboard-status-dot dashboard-status-${story.regression_severity === "critical" ? "red" : story.regression_severity === "moderate" ? "orange" : story.regression_severity === "minor" ? "yellow" : "green"}`} />
+                  <StatusDot status={story.regression_severity === "critical" ? "red" : story.regression_severity === "moderate" ? "orange" : story.regression_severity === "minor" ? "yellow" : "green"} />
                 </span>
               </section>
               <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
                 <span>User Impact</span>
                 <span className="dashboard-col-right">
                   <b>{getUserImpactLabel(story.user_impact).label}</b>
-                  {getUserImpactLabel(story.user_impact).status && (
-                    <span className={`dashboard-status-dot dashboard-status-${getUserImpactLabel(story.user_impact).status}`} />
-                  )}
+                  <StatusDot status={getUserImpactLabel(story.user_impact).status} />
                 </span>
               </section>
               <section className="dashboard-row dashboard-row-2-col" style={{ marginBottom: "4px" }}>
@@ -1735,7 +1746,7 @@ export default function Dashboard() {
                 <span>Analysis Confidence</span>
                 <span className="dashboard-col-right">
                   <b style={{ textTransform: "capitalize" }}>{story.analysis_confidence}</b>
-                  <span className={`dashboard-status-dot dashboard-status-${story.analysis_confidence === "high" ? "green" : story.analysis_confidence === "medium" ? "yellow" : "orange"}`} />
+                  <StatusDot status={story.analysis_confidence === "high" ? "green" : story.analysis_confidence === "medium" ? "yellow" : "orange"} />
                 </span>
               </section>
             </>
@@ -1745,9 +1756,7 @@ export default function Dashboard() {
             <span>Worst-case Confidence</span>
             <span className="dashboard-col-right">
               <b>{worstLanguage ? `${formatFixed(worstLanguage.min_confidence, 1)} (${getLanguageName(worstLanguage.language)})` : "N/A"}</b>
-              {worstLanguage && (
-                <span className={`dashboard-status-dot dashboard-status-${getLanguageConfidenceStatus(worstLanguage.min_confidence) ?? "green"}`} />
-              )}
+              <StatusDot status={worstLanguage ? getLanguageConfidenceStatus(worstLanguage.min_confidence) ?? "green" : null} />
             </span>
           </section>
           <section className="dashboard-row dashboard-row-2-col">
@@ -1760,7 +1769,7 @@ export default function Dashboard() {
                     ? "Test instability (flaky suite)"
                     : "Stable system"}
               </b>
-              <span className={`dashboard-status-dot dashboard-status-${languageMetrics.some(isUnstable) || (isFiniteNumber(effectiveFlakinessPct) && effectiveFlakinessPct > 2) ? "red" : "green"}`} />
+              <StatusDot status={languageMetrics.some(isUnstable) || (isFiniteNumber(effectiveFlakinessPct) && effectiveFlakinessPct > 2) ? "red" : "green"} />
             </span>
           </section>
         </section>
@@ -1796,15 +1805,38 @@ export default function Dashboard() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+const STATUS_LABELS: Record<NonNullable<SlaStatus>, string> = {
+  green: "Healthy",
+  yellow: "Warning",
+  orange: "Degraded",
+  red: "Critical",
+};
+
+function StatusDot({ status }: { status: SlaStatus | undefined }) {
+  if (!status) return null;
+  return (
+    <span
+      className={`dashboard-status-dot dashboard-status-${status}`}
+      role="img"
+      aria-label={STATUS_LABELS[status]}
+    />
+  );
+}
+
 function Metric({ title, value, subtitle, status, onClick, onAskAI }: MetricProps) {
   const valueColorClass = status ? `dashboard-metric-value-${status}` : "";
   return (
     <div style={{ position: "relative" }}>
-      <button type="button" className="dashboard-metric" onClick={onClick}>
-        <div>{title}</div>
+      <button
+        type="button"
+        className="dashboard-metric"
+        onClick={onClick}
+        aria-label={`${title}: ${value}${status ? `. Status: ${STATUS_LABELS[status]}` : ""}. Click to view historical trend.`}
+      >
+        <div aria-hidden="true">{title}</div>
         <div className={`dashboard-metric-value${valueColorClass ? ` ${valueColorClass}` : ""}`}>
-          {value}
-          {status && <span className={`dashboard-status-dot dashboard-status-${status}`} />}
+          <span aria-hidden="true">{value}</span>
+          <StatusDot status={status} />
         </div>
         {subtitle && <div className="dashboard-metric-subtitle">{subtitle}</div>}
       </button>

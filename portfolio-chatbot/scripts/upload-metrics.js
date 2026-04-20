@@ -43,7 +43,12 @@ async function insert(table, payload) {
 }
 
 /**
- * Read all artifact files
+ * Read all artifact files.
+ * For suites that are 1:1 with a test_run row (performance_regression,
+ * rate_limit_regression), keep only the newest artifact when duplicates
+ * exist — duplicates arise when a test retries or the workflow is triggered
+ * concurrently, which would otherwise insert multiple rows into the same
+ * table and cause duplicate entries in the regression_run_summary view.
  */
 function loadArtifacts() {
   if (!fs.existsSync(ARTIFACTS_DIR)) {
@@ -51,14 +56,32 @@ function loadArtifacts() {
   }
 
   const files = fs.readdirSync(ARTIFACTS_DIR);
-
-  return files
+  const parsed = files
     .filter(f => f.endsWith(".json"))
     .map(f => {
       const fullPath = path.join(ARTIFACTS_DIR, f);
       const content = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
-      return { file: f, ...content };
+      const { mtimeMs } = fs.statSync(fullPath);
+      return { file: f, mtimeMs, ...content };
     });
+
+  const SINGLE_ROW_SUITES = new Set(["performance_regression", "rate_limit_regression"]);
+  const suiteLatest = new Map();
+  for (const a of parsed) {
+    if (!SINGLE_ROW_SUITES.has(a.suite)) continue;
+    const existing = suiteLatest.get(a.suite);
+    if (!existing || a.mtimeMs > existing.mtimeMs) suiteLatest.set(a.suite, a);
+  }
+
+  return parsed.filter(a => {
+    if (!SINGLE_ROW_SUITES.has(a.suite)) return true;
+    const kept = suiteLatest.get(a.suite);
+    if (a.file !== kept.file) {
+      console.warn(`⚠️ Duplicate artifact for suite "${a.suite}" — skipping ${a.file} (keeping ${kept.file})`);
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
@@ -185,8 +208,10 @@ function computeReliability(artifacts) {
       if (m.degradation_ratio > 1.2) performanceScore -= 10;
       if (m.degradation_ratio > 1.5) performanceScore -= 10;
 
-      if (m.p95_latency > 6000) performanceScore -= 10;
-      if (m.p95_latency > 10000) performanceScore -= 10;
+      // Thresholds recalibrated for TTFC (time-to-first-chunk) measurement.
+      // Previous values (6000 / 10000 ms) were based on full-stream duration.
+      if (m.p95_latency > 3000) performanceScore -= 10;
+      if (m.p95_latency > 5000) performanceScore -= 10;
     }
 
     if (a.suite === "rate_limit_regression") {

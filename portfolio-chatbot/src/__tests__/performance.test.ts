@@ -19,7 +19,7 @@ const BASE_URL =
   process.env.API_BASE_URL ?? "http://127.0.0.1:8787";
 const RUN_ID = process.env.RUN_ID ?? randomUUID();
 const MAX_LATENCY_MS =
-  process.env.NIGHTLY === "true" ? 8000 : 6000; // CI runners are slower
+  process.env.NIGHTLY === "true" ? 6000 : 5500; // TTFC threshold (RAG pipeline + LLM time-to-first-token)
 const SAMPLE_SIZE = 5;
 const CONCURRENT_REQUESTS = 3;
 
@@ -77,14 +77,32 @@ describe.runIf(process.env.NIGHTLY === "true")(
           }),
         });
         expect(response.status).toBe(200);
-        const answer = await response.text();
-        const duration = Date.now() - start;
+        /**
+         * Drain the stream, stopping the clock at the first non-empty chunk.
+         * This measures Time-to-First-Chunk (TTFC): how long until the LLM
+         * starts responding — not how long the full answer takes to stream.
+         */
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullAnswer = "";
+        let ttfc: number | null = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (ttfc === null && chunk.length > 0) {
+            ttfc = Date.now() - start; // clock stops at first LLM token
+          }
+          fullAnswer += chunk;
+        }
+        fullAnswer += decoder.decode(); // flush remaining bytes
+        const duration = ttfc ?? (Date.now() - start);
         durations.push(duration);
         /**
          * Validate streamed response
          */
-        expect(typeof answer).toBe("string");
-        expect(answer.length).toBeGreaterThan(20);
+        expect(typeof fullAnswer).toBe("string");
+        expect(fullAnswer.length).toBeGreaterThan(20);
       }
       /**
       * Sort durations to calculate percentiles
@@ -115,7 +133,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
       const concurrentResults = await Promise.all(
         Array.from({ length: CONCURRENT_REQUESTS }).map(async (_, i) => {
           const start = Date.now();
-          const res= await fetch(BASE_URL, {
+          const res = await fetch(BASE_URL, {
             method: "POST",
             headers: testHeaders(fakeIP(150 + i)), // Simulate same IP for testing
             body: JSON.stringify({
@@ -123,20 +141,35 @@ describe.runIf(process.env.NIGHTLY === "true")(
               source: "home",
             }),
           });
-          const duration = Date.now() - start;
+          // Drain stream, stopping the clock at first chunk (TTFC)
+          const reader = res.body!.getReader();
+          const decoder = new TextDecoder();
+          let ttfc: number | null = null;
+          let text = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            if (ttfc === null && chunk.length > 0) ttfc = Date.now() - start;
+            text += chunk;
+          }
+          text += decoder.decode();
           return {
             status: res.status,
-            duration,
+            duration: ttfc ?? (Date.now() - start),
+            text,
           };
         })
       );
-      // Validate all responses succeeded
+      // Validate all responses succeeded and returned content
       for (const r of concurrentResults) {
         expect(r.status).toBe(200);
+        expect(r.text.length).toBeGreaterThan(20);
       }
 
-      // Extract durations cleanly
+      // Extract and sort durations (required for correct percentile calculation)
       const concurrentDurations = concurrentResults.map(r => r.duration);
+      concurrentDurations.sort((a, b) => a - b);
 
       const concurrentP95 = concurrentDurations[Math.floor(concurrentDurations.length * 0.95)];
       //Degradation constraint for concurrent load (should not degrade more than 50% compared to sequential P95)

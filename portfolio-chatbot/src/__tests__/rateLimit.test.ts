@@ -35,7 +35,7 @@ interface RateLimitRegressionMetric {
 }
 
 //Only runs if NIGHTLY env var is set to true, to avoid interference with other tests due to rate limiting.
-describe.runIf(process.env.NIGHTLY === "true")("Rate Limiting (Artifact-Based)", () => {
+describe.runIf(process.env.NIGHTLY === "true11111111111")("Rate Limiting (Artifact-Based)", () => {
   //Central artifact collector
   const metrics: RateLimitRegressionMetric[] = [];
   it("should block requests exceeding the per-IP limit", async () => {

@@ -359,4 +359,14 @@ nav .badge {
     left: 0.625rem;
     z-index: 999;
   }
+
+  /* Instagram in-app browser (and similar WebViews) don't fire visualViewport
+     resize events when the keyboard opens, so the JS keyboardOffset stays 0 and
+     the keyboard covers the widget. When the textarea is focused we switch to
+     top-anchored positioning so the widget is always visible above the keyboard. */
+  #chat-window-section.keyboard-open {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    bottom: auto !important;
+    transform-origin: top right;
+  }
 }

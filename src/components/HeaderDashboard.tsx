@@ -68,9 +68,15 @@ export function HeaderDashboard() {
         </h1>
 
         <nav style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <a className="badge" href="#/">Home</a>
+          <a className="btn" href="#/" aria-label="Go to home page">Home</a>
 
-          <button id="theme-toggle" className="btn" onClick={toggleTheme} aria-label="Toggle theme">
+          <button
+            id="theme-toggle"
+            className="btn"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-pressed={theme === "light"}
+          >
             {theme === "dark" ? (
               // Sun icon for switching to light mode
               <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>

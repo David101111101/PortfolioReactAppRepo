@@ -55,6 +55,7 @@ export default function ChatWidget({
   const [isTypingGreeting, setIsTypingGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const greetingText = greeting ?? INITIAL_GREETING;
   const pendingContextRef = useRef<string | null>(null);
@@ -433,7 +434,7 @@ useEffect(() => {
             aria-label="chat window section"
             onPointerDown={(e) => e.stopPropagation()}
             id="chat-window-section"
-            className={`chat-widget ${visible ? "open" : "close"}`}
+            className={`chat-widget ${visible ? "open" : "close"}${isInputFocused ? " keyboard-open" : ""}`}
             style={{
               ...(keyboardOffset > 0 ? { bottom: `${keyboardOffset + 10}px` } : {}),
               ...(disableBackdrop ? { pointerEvents: "auto" } : {}),
@@ -501,6 +502,8 @@ useEffect(() => {
                 ref={inputRef}
                 rows={1}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
