@@ -125,7 +125,7 @@ function rankShift(base: string[], other: string[]) {
   return count === 0 ? Infinity : totalShift / count;
 }
 
-describe.runIf(process.env.NIGHTLY === "true11111111")(
+describe.runIf(process.env.NIGHTLY === "true")(
   "Multilingual Retrieval Regression (Artifact Based AI Reliability)",
   () => {
     //Central artifact collector

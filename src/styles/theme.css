@@ -369,4 +369,9 @@ nav .badge {
     bottom: auto !important;
     transform-origin: top right;
   }
+
+  .home-view-live-link {
+    min-width: 10rem;
+    margin: 0.3rem 0 !important;
+  }
 }

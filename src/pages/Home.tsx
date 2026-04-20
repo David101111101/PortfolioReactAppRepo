@@ -214,8 +214,8 @@ export default function App() {
         {/* CONTACT */}
         <Section
           id="contact"
-          title="Let’s talk"
-          lead="Open to interviews and technical assessments"
+          title=""
+          lead=""
         >
           <div className="card" style={{ padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
