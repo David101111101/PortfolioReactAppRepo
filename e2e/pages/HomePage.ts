@@ -58,6 +58,12 @@ export class HomePage {
         }
       `
     });
+    // Wait 2 rAF frames so WebKit fully applies the injected styles before any click
+    await this.page.evaluate(() =>
+      new Promise<void>(resolve =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+    );
     // Wait for actual UI landmarks that proves app mounted
     await this.page.evaluate(() => document.fonts.ready);
     await expect(this.heading(/automation engineered for reliability/i)).toBeVisible();
