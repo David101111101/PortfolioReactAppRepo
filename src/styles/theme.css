@@ -46,6 +46,7 @@ html { height: 100%; }
 body {
   margin: 0;
   color: var(--text);
+  user-select: text;
 }
 
 a { text-decoration: none; }
@@ -148,6 +149,10 @@ nav .badge {
   max-height: 26px;
   background-size: 200% 200%; 
   transition: background-position 0.6s ease-in-out;
+}
+
+.btn-header-dashboard {
+min-width: 3rem;
 }
 
 .nav-mobile-panel .badge {

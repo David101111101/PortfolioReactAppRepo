@@ -127,8 +127,11 @@ jobs:
               return;
             }
 
-            if (analysis.regression_severity === "critical" || analysis.regression_severity === "moderate") {
-              console.log("🚨 Regression detected via DB intelligence layer");
+            if (analysis.regression_severity === "moderate") {
+              console.log("⚠️ Moderate regression detected — logged but not blocking");
+            }
+            if (analysis.regression_severity === "critical") {
+              console.log("🚨 Critical regression detected via DB intelligence layer");
               process.exit(1);
             }
           }

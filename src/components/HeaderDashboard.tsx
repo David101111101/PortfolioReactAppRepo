@@ -72,7 +72,7 @@ export function HeaderDashboard() {
 
           <button
             id="theme-toggle"
-            className="btn"
+            className="btn btn-header-dashboard"
             onClick={toggleTheme}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             aria-pressed={theme === "light"}
