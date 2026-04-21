@@ -40,6 +40,7 @@ const ARCH_QUESTION = {
 
 /**
  * Known grounded keywords expected in the response based on current portfolio content and architecture.
+ * RAG, CI, Cloudflare are universal acronyms/proper nouns that appear in any language answer.
  */
 const EXPECTED_CONCEPTS = [
   "rag",
@@ -51,6 +52,21 @@ const EXPECTED_CONCEPTS = [
   "ci",
   "debug",
 ];
+
+/**
+ * Per-language concept aliases for the same architectural concepts above.
+ * Lets concept_score reflect actual grounding even when the answer is in a non-English language,
+ * where translated words replace the English originals.
+ * concept_score is used as an observability metric (not a hard gate), so accuracy matters.
+ */
+const CONCEPT_ALIASES: Record<string, string[]> = {
+  es: ["recuperación", "seguridad", "prueba", "depuración", "vector", "observabilidad"],
+  fr: ["récupération", "sécurité", "essai", "débogage", "vecteur", "observabilité"],
+  pt: ["recuperação", "segurança", "teste", "depuração", "vetor", "observabilidade"],
+  de: ["abruf", "sicherheit", "prüfung", "debugging", "vektor", "beobachtbarkeit"],
+  zh: ["检索", "安全", "测试", "调试", "向量", "可观测"],
+  ja: ["検索", "セキュリティ", "テスト", "デバッグ", "ベクトル", "可観測性"],
+};
 
 interface RetrievalDocument {
   id: string;
@@ -186,9 +202,10 @@ describe.runIf(process.env.NIGHTLY === "true")(
         expect(shift).toBeLessThan(MAX_RANK_SHIFT);
 
         // --- 4. Concept grounding (answer must reflect retrieved knowledge)
-        const conceptScore = EXPECTED_CONCEPTS.reduce((acc, c) => {
-          return r.answer.toLowerCase().includes(c) ? acc + 1 : acc;
-        }, 0);
+        // English concepts + per-language aliases so non-English answers score fairly
+        const answerLc = r.answer.toLowerCase();
+        const allConcepts = [...EXPECTED_CONCEPTS, ...(CONCEPT_ALIASES[lang] ?? [])];
+        const conceptScore = allConcepts.reduce((acc, c) => acc + (answerLc.includes(c) ? 1 : 0), 0);
 
         expect(conceptScore).toBeGreaterThanOrEqual(1);
 
@@ -244,7 +261,8 @@ describe.runIf(process.env.NIGHTLY === "true")(
 
 it("should not hallucinate when knowledge is absent", async () => {
     const probe = await ask("What Kubernetes clusters were used in the chatbot architecture?","en");
-    const answerLower = probe.answer.toLowerCase();
+    // Normalize Unicode curly apostrophes (U+2018/U+2019) that LLMs commonly emit
+    const answerLower = probe.answer.toLowerCase().replace(/[\u2018\u2019]/g, "'");
 
       // --- Must explicitly deny unsupported knowledge
       expect(answerLower).toMatch(/(not|no|does not|did not|doesn't|didn't|don't|cannot|can't|were not)/);
