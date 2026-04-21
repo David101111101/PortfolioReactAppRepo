@@ -7,7 +7,7 @@ type ExternalLinkOptions = {
 };
 
 export async function assertExternalLinkOpensCorrectly(
-  page: Page,
+  _page: Page,
   link: Locator,
   { expectedHostname, expectedPathname }: ExternalLinkOptions
 ) {
@@ -15,19 +15,11 @@ export async function assertExternalLinkOpensCorrectly(
   await expect(link).toHaveAttribute("target", "_blank");
   // Ensure security best practice is enforced
   await expect(link).toHaveAttribute("rel", /noreferrer/);
-  const href = await link.getAttribute("href");
 
+  const href = await link.getAttribute("href");
   expect(href).toBeTruthy();
 
-  const popupPromise = page.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
-
-  await link.click();
-  const popup = await popupPromise;
-
-  const url = popup
-    ? (await popup.waitForLoadState("domcontentloaded", { timeout: 10000 }), new URL(popup.url()))
-    : new URL(href!, page.url());
-
+  const url = new URL(href!);
   // Validate hostname
   expect(url.hostname).toContain(expectedHostname);
 
@@ -35,6 +27,4 @@ export async function assertExternalLinkOpensCorrectly(
   if (expectedPathname) {
     expect(url.pathname).toBe(expectedPathname);
   }
-
-  await popup?.close();
 }

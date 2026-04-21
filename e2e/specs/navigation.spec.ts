@@ -6,6 +6,7 @@ test('Copy Email Header Button works', async ({ home, page }) => {
 await home.goto();
 const btnHeader = page.getByRole('button', { name: /^Copy email$/i }).first();
 await expect(btnHeader).toHaveText("Copy email");
+await btnHeader.scrollIntoViewIfNeeded();
 await btnHeader.click();
 await expect.poll(async () => (await btnHeader.textContent())?.trim()).toMatch(
   /^(Copied|Copy email)$/
@@ -16,6 +17,7 @@ test('Copy Email Footer Button works', async ({ home, page }) => {
 await home.goto();
 const btnFooter = page.getByRole("button", { name: /^Copy email$/i }).nth(1);
 await expect(btnFooter).toHaveText("Copy email");
+await btnFooter.scrollIntoViewIfNeeded();
 await btnFooter.click();
 await expect.poll(async () => (await btnFooter.textContent())?.trim()).toMatch(
   /^(Copied|Copy email)$/
@@ -33,10 +35,10 @@ const cases = [ //Objects for test cases, each with a nav item and the expected 
 for (const c of cases) {
   test(`nav "${c.nav}" navigates to "#${c.slug}"`, async ({ home, page}, testInfo) => {
     await home.goto();
+    const navItem = home.navItem(c.nav);
+    await navItem.scrollIntoViewIfNeeded();
     const start = Date.now();
-    await Promise.all([
-      home.navItem(c.nav).click()
-    ]);
+    await navItem.click();
     await testInfo.attach("interaction-metrics", {
       body: JSON.stringify({ interaction_ms: Date.now() - start }),
       contentType: "application/json",
