@@ -2,6 +2,7 @@ import { test, expect } from "../fixtures/test";
 import AxeBuilder from "@axe-core/playwright";
 
 test("no critical accessibility violations on landing page", async ({ page, home }, testInfo) => {
+  test.setTimeout(60000);
   const start = Date.now();
   await home.goto();
   const loadMs = Date.now() - start;

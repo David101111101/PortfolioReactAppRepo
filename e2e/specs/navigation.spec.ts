@@ -17,7 +17,7 @@ test('Copy Email Footer Button works', async ({ home, page }) => {
 await home.goto();
 const btnFooter = page.getByRole("button", { name: /^Copy email$/i }).nth(1);
 await expect(btnFooter).toHaveText("Copy email");
-await btnFooter.scrollIntoViewIfNeeded();
+await btnFooter.evaluate(el => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
 await btnFooter.click();
 await expect.poll(async () => (await btnFooter.textContent())?.trim()).toMatch(
   /^(Copied|Copy email)$/
