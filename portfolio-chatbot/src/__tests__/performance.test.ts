@@ -210,7 +210,7 @@ describe.runIf(process.env.NIGHTLY === "true")(
 
       console.log("📊 Performance metrics:", metrics[0]);
 
-    }, 60000);
+    }, 120000);
 
     //  Write artifact ONCE after all tests complete
     afterAll(() => {

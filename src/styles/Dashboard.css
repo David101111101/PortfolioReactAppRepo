@@ -254,7 +254,7 @@ h2 {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .dashboard-scroll-top:hover {
+  .dashboard-card:hover .dashboard-scroll-top {
     animation: float-idle-small 1.5s ease-in-out infinite;
   }
 }

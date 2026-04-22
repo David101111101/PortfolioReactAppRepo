@@ -195,8 +195,8 @@ function computeReliability(artifacts) {
       let minConfidence = 100;
       for (const m of a.metrics) {
         minConfidence = Math.min(minConfidence, m.confidence);
-        if (m.overlap_ratio < 0.5) retrievalScore -= 15;
-        if (m.rank_shift > 3) retrievalScore -= 15;
+        if (m.overlap_ratio !== null && m.overlap_ratio < 0.5) retrievalScore -= 15;
+        if (m.rank_shift !== null && m.rank_shift > 3) retrievalScore -= 15;
         if (m.confidence < 40) retrievalScore -= 15; // stronger penalty
         if (m.confidence < 25) retrievalScore -= 10; // critical failure
       }

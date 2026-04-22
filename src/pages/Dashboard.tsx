@@ -28,20 +28,14 @@ type Run = {
   run_timestamp: string;
   p95_latency: number;
   reliability_score: number;
+  release_confidence: number;
   min_confidence: number;
   avg_confidence: number;
   enforcement_rate: number;
   avg_rank_shift: number;
+  degradation_ratio: number;
 };
 
-type TestRun = {
-  id: number;
-  commit_sha: string;
-  workflow_name: string;
-  failed: number;
-  total_tests: number;
-  run_timestamp: string;
-};
 
 type FlakyTest = {
   test_name: string;
@@ -199,12 +193,6 @@ function getLanguageConfidenceStatus(value: number | null | undefined): SlaStatu
   return "green";
 }
 
-function getDriftStatus(label: string): SlaStatus {
-  if (label === "Regression") return "red";
-  if (label === "Drop") return "yellow";
-  if (label === "Improvement" || label === "Stable") return "green";
-  return null;
-}
 
 // Delta-based SLA status — direction tells us whether going up or down is bad
 function getDeltaStatus(
@@ -416,7 +404,6 @@ export default function Dashboard() {
   const [flakiness, setFlakiness] = useState<FlakinessRun | null>(null);
   const [flakinessTrend, setFlakinessTrend] = useState<FlakinessTrend[]>([]);
   const [flakyTests, setFlakyTests] = useState<FlakyTest[]>([]);
-  const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [languageTrend, setLanguageTrend] = useState<{ language: string; delta: number | null }[]>([]);
   const [e2eStability, setE2eStability] = useState<E2eWorkflowStability[]>([]);
   const [e2eChartRuns, setE2eChartRuns] = useState<Array<{ workflow_type: string; failed: number; total_tests: number; run_timestamp: string }>>([]);
@@ -457,24 +444,22 @@ export default function Dashboard() {
     };
 
     const loadCritical = async () => {
-      const [compRes, storyRes, runsRes, flakyTrendRes, flakyTestsRes, testRunsRes] =
+      const [compRes, storyRes, runsRes, flakyTrendRes, flakyTestsRes] =
         await Promise.all([
           fetch(`${supabaseUrl}/rest/v1/regression_run_comparison?order=run_id.desc&limit=1`, { headers }).catch(() => null),
           fetch(`${supabaseUrl}/rest/v1/regression_story?order=run_timestamp.desc&limit=1`, { headers }).catch(() => null),
           fetch(`${supabaseUrl}/rest/v1/regression_run_summary?order=run_timestamp.desc`, { headers }).catch(() => null),
           fetch(`${supabaseUrl}/rest/v1/flakiness_trend?order=run_timestamp.desc&limit=10`, { headers }).catch(() => null),
           fetch(`${supabaseUrl}/rest/v1/test_flakiness_enriched?order=flakiness_pct.desc&limit=15`, { headers }).catch(() => null),
-          fetch(`${supabaseUrl}/rest/v1/test_runs?order=run_timestamp.desc&limit=10`, { headers }).catch(() => null),
         ]);
 
-      const [compData, storyData, runsData, flakyTrendData, flakyTestsData, testRunsData] =
+      const [compData, storyData, runsData, flakyTrendData, flakyTestsData] =
         await Promise.all([
           safeJson(compRes),
           safeJson(storyRes),
           safeJson(runsRes),
           safeJson(flakyTrendRes),
           safeJson(flakyTestsRes),
-          safeJson(testRunsRes),
         ]);
 
       // DEV-only: log what columns each view returns to catch field-name mismatches
@@ -498,7 +483,6 @@ export default function Dashboard() {
       setSelectedRun(normalized[0]);
       setFlakinessTrend(Array.isArray(flakyTrendData) ? flakyTrendData : []);
       setFlakyTests(Array.isArray(flakyTestsData) ? flakyTestsData : []);
-      setTestRuns(Array.isArray(testRunsData) ? testRunsData : []);
       setIsLoadingRuns(false);
     };
 
@@ -750,55 +734,17 @@ export default function Dashboard() {
     );
   }
 
-  // ── Derived chart data ──────────────────────────────────────────────────────
-  const chronologicalTrend = [...trend].sort(
-    (a, b) => new Date(a.run_timestamp).getTime() - new Date(b.run_timestamp).getTime()
-  );
 
-  const chartData = chronologicalTrend.map((entry) => ({
-    date: formatDateTime(entry.run_timestamp),
-    latency: entry.p95_latency,
-    confidence: entry.avg_confidence,
-    reliability: entry.reliability_score,
-    rate: entry.enforcement_rate,
-  }));
-
-  // ── Failure correlation data ────────────────────────────────────────────────
-  // Join by closest timestamp since regression runs (UUID run_id) and test_runs
-  // (numeric id) share no common key — timestamp is the best available signal.
-  const correlationData = chronologicalTrend.map((entry) => {
-    const entryTime = new Date(entry.run_timestamp).getTime();
-    let closestTr: TestRun | null = null;
-    let minDiff = Infinity;
-    for (const tr of testRuns) {
-      const diff = Math.abs(new Date(tr.run_timestamp).getTime() - entryTime);
-      if (diff < minDiff) { minDiff = diff; closestTr = tr; }
-    }
-    const failure_rate_pct =
-      closestTr && isFiniteNumber(closestTr.failed) && isFiniteNumber(closestTr.total_tests) && closestTr.total_tests > 0
-        ? (closestTr.failed / closestTr.total_tests) * 100
-        : null;
-    return {
+  // ── Chart data for metric drill-down trend ──────────────────────────────────
+  const chartData = [...trend]
+    .sort((a, b) => new Date(a.run_timestamp).getTime() - new Date(b.run_timestamp).getTime())
+    .map((entry) => ({
       date: formatDateTime(entry.run_timestamp),
       latency: entry.p95_latency,
-      failure_rate_pct,
-    };
-  });
-
-  const hasCorrelationData = correlationData.some((d) => isFiniteNumber(d.latency));
-
-  const correlationInsight = (() => {
-    const valid = correlationData.filter(
-      (d): d is { date: string; latency: number; failure_rate_pct: number } =>
-        isFiniteNumber(d.latency) && isFiniteNumber(d.failure_rate_pct)
-    );
-    if (valid.length < 2) return null;
-    const last = valid[valid.length - 1];
-    const prev = valid[valid.length - 2];
-    return last.latency > prev.latency && last.failure_rate_pct > prev.failure_rate_pct
-      ? "Possible system-induced failures"
-      : "No clear correlation";
-  })();
+      confidence: entry.avg_confidence,
+      reliability: entry.reliability_score,
+      rate: entry.enforcement_rate,
+    }));
 
   // ── Other derived values ────────────────────────────────────────────────────
   const latest = trend[0];
@@ -814,6 +760,71 @@ export default function Dashboard() {
     .sort((a, b) => a.min_confidence - b.min_confidence);
   const worstLanguage = sortedLanguages.length > 0 ? sortedLanguages[0] : null;
   const hasLanguageMetrics = languageMetrics.length > 0;
+
+  // ── Anomaly detection — flag runs with z-score > 1.5 on latency or confidence ─
+  const anomalyRunIds = (() => {
+    if (trend.length < 3) return new Set<string>();
+    const lats = trend.map((r) => r.p95_latency).filter(isFiniteNumber) as number[];
+    const confs = trend.map((r) => r.avg_confidence).filter(isFiniteNumber) as number[];
+    const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const std = (arr: number[], m: number) =>
+      Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+    const latMean = mean(lats); const latStd = std(lats, latMean);
+    const confMean = mean(confs); const confStd = std(confs, confMean);
+    const out = new Set<string>();
+    for (const r of trend) {
+      const lz = latStd > 0 ? Math.abs((r.p95_latency - latMean) / latStd) : 0;
+      const cz = confStd > 0 ? Math.abs((r.avg_confidence - confMean) / confStd) : 0;
+      if (lz > 1.5 || cz > 1.5) out.add(r.run_id);
+    }
+    return out;
+  })();
+
+  // ── Consecutive breach streaks (trend is newest-first) ────────────────────────
+  const latencyStreak = (() => {
+    let n = 0;
+    for (let i = 0; i < trend.length - 1; i++) {
+      if (isFiniteNumber(trend[i].p95_latency) && isFiniteNumber(trend[i + 1].p95_latency) && trend[i].p95_latency > trend[i + 1].p95_latency) n++;
+      else break;
+    }
+    return n;
+  })();
+
+  const confidenceStreak = (() => {
+    let n = 0;
+    for (let i = 0; i < trend.length - 1; i++) {
+      if (isFiniteNumber(trend[i].avg_confidence) && isFiniteNumber(trend[i + 1].avg_confidence) && trend[i].avg_confidence < trend[i + 1].avg_confidence) n++;
+      else break;
+    }
+    return n;
+  })();
+
+  // ── Release gate — mirrors the exact penalty thresholds in regression_run_summary ─
+  const releaseGate = (() => {
+    const latStatus: SlaStatus =
+      !isFiniteNumber(selectedRun.p95_latency) ? null :
+      selectedRun.p95_latency <= 5400 ? "green" :
+      selectedRun.p95_latency <= 5800 ? "yellow" : "red";
+
+    const confStatus: SlaStatus =
+      !isFiniteNumber(selectedRun.avg_confidence) ? null :
+      selectedRun.avg_confidence >= 72 ? "green" :
+      selectedRun.avg_confidence >= 65 ? "yellow" : "red";
+
+    const rateDev = isFiniteNumber(selectedRun.enforcement_rate)
+      ? Math.abs(selectedRun.enforcement_rate - RATE_EXPECTED)
+      : null;
+    const rateStatus: SlaStatus = rateDev === null ? null : rateDev <= 0.05 ? "green" : "red";
+
+    const degStatus: SlaStatus =
+      !isFiniteNumber(selectedRun.degradation_ratio) ? null :
+      selectedRun.degradation_ratio <= 1.0 ? "green" :
+      selectedRun.degradation_ratio <= 1.20 ? "yellow" : "red";
+
+    const gates = [latStatus, confStatus, rateStatus, degStatus].filter(Boolean) as SlaStatus[];
+    const verdict: SlaStatus = gates.includes("red") ? "red" : gates.includes("yellow") ? "yellow" : gates.length > 0 ? "green" : null;
+    return { latStatus, confStatus, rateStatus, rateDev, degStatus, verdict };
+  })();
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -849,11 +860,8 @@ export default function Dashboard() {
               )}
           </div>
           <p className="dashboard-section-desc">
-            Historical intelligence layer built on top of a <strong>Multilingual Retrieval-Augmented Generation (RAG) system</strong>. <br />
-            It transforms raw QA metrics into actionable signals that answer:<br />
-            -Is the system accurate, by how much, why, and who is impacted?<br />
-
-            Sections with 💬 "Debug with AI" button inject real metric data directly into the chatbot context, turning this dashboard into an interactive debugging session.
+            This dashboard monitors the AI that powers it — a Multilingual RAG system trained on its own architecture and metrics.
+            Every 💬 button injects live run data directly into the chatbot below, turning observations into an interactive debugging session.
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <label htmlFor="run-selector">Select Run:</label>
@@ -863,17 +871,102 @@ export default function Dashboard() {
               value={selectedRun.run_id}
               onChange={(e) => handleRunChange(e.target.value)}
             >
-              {runs.map((run) => (
-                <option key={run.run_id} value={run.run_id}>
-                  Run {run.run_id.split("-").pop()} — {formatDateTime(run.run_timestamp)}
-                </option>
-              ))}
+              {runs.map((run) => {
+                const isAnomaly = anomalyRunIds.has(run.run_id);
+                return (
+                  <option key={run.run_id} value={run.run_id}>
+                    {isAnomaly ? "⚠️ " : ""}Run {run.run_id.split("-").pop()} — {formatDateTime(run.run_timestamp)}
+                  </option>
+                );
+              })}
             </select>
           </div>
+        </section>
+
+        {/* ── Release Gate Status ───────────────────────────────────────────── */}
+        <section className="dashboard-card" id={sectionId("Release Gate")}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>Release Gate</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  setChatContext(
+                    `Release Gate snapshot:\n` +
+                    `  P95 Latency: ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} (gate: ≤ 5,400 ms) — ${releaseGate.latStatus === "green" ? "PASS" : releaseGate.latStatus === "yellow" ? "WARN" : "FAIL"}\n` +
+                    `  Avg Confidence: ${formatFixed(selectedRun.avg_confidence, 1)} (gate: ≥ 72) — ${releaseGate.confStatus === "green" ? "PASS" : releaseGate.confStatus === "yellow" ? "WARN" : "FAIL"}\n` +
+                    `  Enforcement Rate: ${isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} (expected: ${(RATE_EXPECTED * 100).toFixed(1)}% ± 5%) — ${releaseGate.rateStatus === "green" ? "PASS" : "FAIL"}\n` +
+                    `  Degradation Ratio: ${formatFixed(selectedRun.degradation_ratio, 3)} (gate: ≤ 1.20) — ${releaseGate.degStatus === "green" ? "PASS" : releaseGate.degStatus === "yellow" ? "WARN" : "FAIL"}\n` +
+                    `  Verdict: ${releaseGate.verdict === "green" ? "PASS" : releaseGate.verdict === "yellow" ? "CONDITIONAL PASS" : "FAIL"}`
+                  );
+                  setChatQuery("Explain the release gate result for this run. Which gates failed or are at risk, and what should I investigate before promoting this to production?");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
           <p className="dashboard-section-desc">
-            Each run reflects a fully automated test suite
-            execution and AI regression analysis.
+            Automated go/no-go decision using the same thresholds that drive the weekly regression scoring formula.
+            Gates mirror the penalty logic in the <code>regression_run_summary</code> DB view.
           </p>
+          <section className="dashboard-row dashboard-row-3-col dashboard-row-header" style={{ fontSize: "12px", opacity: 0.65 }}>
+            <span>Gate</span>
+            <span className="dashboard-col-center">Actual → Threshold</span>
+            <span className="dashboard-col-right">Verdict</span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>P95 Latency</span>
+            <span className="dashboard-col-center">
+              {isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} → ≤ 5,400 ms
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.latStatus === "green" ? "PASS" : releaseGate.latStatus === "yellow" ? "WARN" : "FAIL"}
+              <StatusDot status={releaseGate.latStatus} />
+            </span>
+          </section>
+                    <section className="dashboard-row dashboard-row-3-col">
+            <span>Rate Enforcement</span>
+            <span className="dashboard-col-center">
+              {isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} → {(RATE_EXPECTED * 100).toFixed(1)}% ± 5%
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.rateStatus === "green" ? "PASS" : "FAIL"}
+              <StatusDot status={releaseGate.rateStatus} />
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Avg Confidence</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.avg_confidence, 1)} → ≥ 72
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.confStatus === "green" ? "PASS" : releaseGate.confStatus === "yellow" ? "WARN" : "FAIL"}
+              <StatusDot status={releaseGate.confStatus} />
+            </span>
+          </section>
+
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Concurrent Degradation</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.degradation_ratio, 3)}× → ≤ 1.20×
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.degStatus === "green" ? "PASS" : releaseGate.degStatus === "yellow" ? "WARN" : "FAIL"}
+              <StatusDot status={releaseGate.degStatus} />
+            </span>
+          </section>
+          <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 700 }}>Release Decision</span>
+            <span style={{ fontWeight: 700 }}>
+              {releaseGate.verdict === "green" ? "PASS — Safe to promote" : releaseGate.verdict === "yellow" ? "Pass but Monitor closely" : "FAIL — Do not promote"}
+              <StatusDot status={releaseGate.verdict} />
+            </span>
+          </div>
         </section>
 
         {/* ── System Health Overview ─────────────────────────────────────────── */}
@@ -1127,6 +1220,13 @@ export default function Dashboard() {
               Side-by-side delta vs the prior run. Investigate immediately if latency is rising or
               confidence is dropping.
             </p>
+            {(latencyStreak >= 2 || confidenceStreak >= 2) && (
+              <p className="dashboard-warning-text" style={{ marginBottom: "10px" }}>
+                {latencyStreak >= 2 && `⚠️ Latency has risen for ${latencyStreak} consecutive run${latencyStreak > 1 ? "s" : ""} — sustained trend, not a spike.`}
+                {latencyStreak >= 2 && confidenceStreak >= 2 && " "}
+                {confidenceStreak >= 2 && `⚠️ Confidence has dropped for ${confidenceStreak} consecutive run${confidenceStreak > 1 ? "s" : ""} — investigate retrieval quality.`}
+              </p>
+            )}
             <section className="dashboard-row dashboard-row-3-col dashboard-row-header">
               <span>Metric</span>
               <span className="dashboard-col-center">Change</span>
@@ -1184,72 +1284,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* ── Performance Trends ────────────────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("System Trends")}>
-          <h2>Performance Trends</h2>
-          <p className="dashboard-section-desc">
-            Historical view of latency, confidence, and reliability across the last 10 runs.
-            Sustained downward trends indicate systemic regression risk.
-          </p>
-          {chartData.length > 0 ? (
-            <LazyViewport minHeight={300} rootMargin="200px">
-              <div aria-hidden="true">
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickMargin={8} label={{ value: "Run Date", position: "insideBottom", offset: -5 }} />
-                  <YAxis width={60} />
-                  <Tooltip content={<PerformanceTrendTooltip />} />
-                  <Legend />
-                  <Line {...LINE_ANIMATION} type="monotone" name="Latency (ms)" dataKey="latency" />
-                  <Line {...LINE_ANIMATION} type="monotone" name="Confidence Score" dataKey="confidence" />
-                  <Line {...LINE_ANIMATION} type="monotone" name="Reliability Score" dataKey="reliability" />
-                </LineChart>
-              </ResponsiveContainer>
-              </div>
-            </LazyViewport>
-          ) : (
-            <p>No performance data available yet. Run a CI pipeline to populate metrics.</p>
-          )}
-        </section>
 
-        {/* ── Failure vs Latency Correlation ────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("Failure vs Latency Correlation")}>
-          <h2>Failure vs Latency Correlation</h2>
-          <p className="dashboard-section-desc">
-            Shows whether system performance degradation is causing test failures. Correlated spikes
-            may indicate infrastructure or backend issues.
-          </p>
-          {hasCorrelationData ? (
-            <>
-              {correlationInsight && (
-                <p className={correlationInsight === "Possible system-induced failures" ? "dashboard-warning-text" : "dashboard-insight-text"}>
-                  {correlationInsight === "Possible system-induced failures"
-                    ? `⚠️ ${correlationInsight} — may impact users`
-                    : `✓ ${correlationInsight}`}
-                </p>
-              )}
-              <LazyViewport minHeight={280} rootMargin="200px">
-                <div aria-hidden="true">
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={correlationData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickMargin={8} />
-                    <YAxis yAxisId="left" label={{ value: "Latency (ms)", angle: -90, position: "insideLeft", offset: 1 }} />
-                    <YAxis yAxisId="right" orientation="right" tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
-                    <Tooltip content={<CorrelationTooltip />} />
-                    <Legend />
-                    <Line {...LINE_ANIMATION} yAxisId="left" type="monotone" dataKey="latency" name="P95 Latency (ms)" stroke="var(--accent)" dot={false} />
-                    <Line {...LINE_ANIMATION} yAxisId="right" type="monotone" dataKey="failure_rate_pct" name="Failure Rate (%)" stroke="var(--warn)" dot={false} connectNulls={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-                </div>
-              </LazyViewport>
-            </>
-          ) : (
-            <p>No correlation data available. Ensure test_runs are linked to regression runs.</p>
-          )}
-        </section>
 
         {/* ── Multilingual Retrieval Quality ────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Multilingual Retrieval Intelligence")}>
@@ -1268,7 +1303,7 @@ export default function Dashboard() {
                     return `  ${getLanguageName(l.language)}: avg=${formatFixed(l.avg_confidence, 1)}, min=${formatFixed(l.min_confidence, 1)}, Δ=${isFiniteNumber(drift) ? `${drift >= 0 ? "+" : ""}${drift.toFixed(1)}` : "N/A"}, risk=${getLanguageRisk(l)}${isUnstable(l) ? " (unstable)" : ""}`;
                   }).join("\n");
                   setChatContext(`Multilingual Retrieval Quality snapshot:\n${langLines}\nRetrieval stability: ${formatFixed(selectedRun.avg_rank_shift, 3)} avg rank shift`);
-                  setChatQuery("Which languages are at risk and what might be causing low confidence scores for non-English queries?");
+                  setChatQuery("Which languages are at risk and what might be causing low confidence scores?");
                 }}
               >
                 💬
@@ -1285,7 +1320,7 @@ export default function Dashboard() {
               <section className="dashboard-row dashboard-row-header dashboard-row-language" style={{ fontSize: "12px", opacity: 0.65 }}>
                 <span>Language</span>
                 <span className="dashboard-col-center">avg | min confidence</span>
-                <span className="dashboard-col-center">Δ vs prev run</span>
+                <span className="dashboard-col-center">Delta vs prev run</span>
                 <span>Risk</span>
               </section>
               {sortedLanguages.map((language, i) => {
@@ -1325,81 +1360,24 @@ export default function Dashboard() {
           )}
 
           <h3>Retrieval Stability</h3>
-          <p>
-            {formatFixed(selectedRun.avg_rank_shift, 3)} — <b>{getRankShiftLabel(selectedRun.avg_rank_shift)}</b>
+          <p className="dashboard-section-desc" style={{ marginBottom: "8px" }}>
+            Average shift in document ranking position between queries. Lower values mean the embedding model consistently returns documents in the same order — a key signal for RAG determinism.
           </p>
+          <section className="dashboard-row dashboard-row-2-col">
+            <span>Avg Rank Shift</span>
+            <span className="dashboard-col-right">
+              <b>{formatFixed(selectedRun.avg_rank_shift, 3)} positions</b>
+              {" — "}
+              {getRankShiftLabel(selectedRun.avg_rank_shift)}
+              <StatusDot status={
+                !isFiniteNumber(selectedRun.avg_rank_shift) ? null :
+                selectedRun.avg_rank_shift < 0.2 ? "green" :
+                selectedRun.avg_rank_shift < 0.5 ? "yellow" : "red"
+              } />
+            </span>
+          </section>
         </section>
 
-        {/* ── Language Drift ────────────────────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("Language Drift")}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
-            <h2 style={{ margin: 0 }}>Language Drift</h2>
-            {runContext && (
-              <button
-                type="button"
-                className="dashboard-scroll-top"
-                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
-                aria-label="Debug with AI"
-                title="Debug with AI"
-                onClick={() => {
-                  const driftLines = languageMetrics.map((l) => {
-                    const delta = languageTrendMap.get(l.language) ?? null;
-                    const label = !isFiniteNumber(delta) ? "No data" : delta < -10 ? "Regression" : delta < -3 ? "Drop" : delta > 3 ? "Improvement" : "Stable";
-                    return `  ${getLanguageName(l.language)}: Δ=${isFiniteNumber(delta) ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}` : "N/A"} — ${label}`;
-                  }).join("\n");
-                  setChatContext(`Language Drift snapshot:\n${driftLines}`);
-                  setChatQuery("Which languages are regressing the most and does it suggest an embedding, chunking, or data coverage issue?");
-                }}
-              >
-                💬
-              </button>
-            )}
-          </div>
-          <p className="dashboard-section-desc">
-            Per-language confidence shift relative to the previous run, sourced from historical
-            retrieval data. Regressions in specific languages may point to embedding or chunking issues.
-          </p>
-          {hasLanguageMetrics ? (
-            <>
-              <section className="dashboard-row dashboard-row-3-col dashboard-row-header">
-                <span>Language</span>
-                <span className="dashboard-col-center">Delta</span>
-                <span className="dashboard-col-right">Signal</span>
-              </section>
-              {languageMetrics.map((language, i) => {
-                // Use actual per-language delta from retrieval_language_trend DB view
-                const delta = languageTrendMap.get(language.language) ?? null;
-
-                const label = !isFiniteNumber(delta)
-                  ? "No drift data"
-                  : delta < -10
-                    ? "Regression"
-                    : delta < -3
-                      ? "Drop"
-                      : delta > 3
-                        ? "Improvement"
-                        : "Stable";
-
-                const driftStatus = getDriftStatus(label);
-
-                return (
-                  <section key={language.language ?? i} className="dashboard-row dashboard-row-3-col">
-                    <span>{getLanguageName(language.language)}</span>
-                    <span className="dashboard-col-center">
-                      {isFiniteNumber(delta) ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}` : "—"}
-                    </span>
-                    <span className="dashboard-col-right">
-                      {label}
-                      <StatusDot status={driftStatus} />
-                    </span>
-                  </section>
-                );
-              })}
-            </>
-          ) : (
-            <p>No drift data available for this run.</p>
-          )}
-        </section>
 
         {/* ── AI System Intelligence ────────────────────────────────────────── */}
         {story && (
@@ -1595,6 +1573,7 @@ export default function Dashboard() {
               <p className="dashboard-section-desc" style={{ marginBottom: "8px" }}>
                 Failure rate (%) over time for each CI workflow pipeline.
               </p>
+              <LazyViewport minHeight={280} rootMargin="200px">
               <div aria-hidden="true">
               {e2eDualChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
@@ -1640,6 +1619,7 @@ export default function Dashboard() {
                 <p>No historical flakiness data available.</p>
               )}
               </div>
+              </LazyViewport>
             </>
           )}
         </section>
@@ -2002,26 +1982,6 @@ function TooltipShell({ label, children, footer }: { label?: string; children: R
   );
 }
 
-function PerformanceTrendTooltip({ active, payload, label }: ChartTooltipProps) {
-  if (!active || !payload || payload.length === 0) return null;
-  const latency = payload.find((p) => p.name === "Latency (ms)")?.value;
-  const confidence = payload.find((p) => p.name === "Confidence Score")?.value;
-  const reliability = payload.find((p) => p.name === "Reliability Score")?.value;
-  const total =
-    isFiniteNumber(latency) && isFiniteNumber(confidence) && isFiniteNumber(reliability)
-      ? latency + confidence + reliability
-      : null;
-  return (
-    <TooltipShell
-      label={label}
-      footer={isFiniteNumber(total) ? <>Total: <b>{total.toFixed(1)}</b></> : undefined}
-    >
-      {isFiniteNumber(confidence) && <div>Confidence Score: <b>{confidence.toFixed(1)}</b></div>}
-      {isFiniteNumber(latency) && <div>Latency: <b>{latency} ms</b></div>}
-      {isFiniteNumber(reliability) && <div>Reliability Score: <b>{reliability.toFixed(1)}</b></div>}
-    </TooltipShell>
-  );
-}
 
 function MetricDrillTooltip({ active, payload, label, metric }: ChartTooltipProps & { metric: MetricKey | null }) {
   if (!active || !payload || payload.length === 0) return null;
@@ -2038,17 +1998,6 @@ function MetricDrillTooltip({ active, payload, label, metric }: ChartTooltipProp
   );
 }
 
-function CorrelationTooltip({ active, payload, label }: ChartTooltipProps) {
-  if (!active || !payload || payload.length === 0) return null;
-  const latency = payload.find((p) => p.name === "P95 Latency (ms)")?.value;
-  const failureRate = payload.find((p) => p.name === "Failure Rate (%)")?.value;
-  return (
-    <TooltipShell label={label}>
-      {isFiniteNumber(latency) && <div>P95 Latency: <b>{latency} ms</b></div>}
-      {isFiniteNumber(failureRate) && <div>Failure Rate: <b>{failureRate.toFixed(1)}%</b></div>}
-    </TooltipShell>
-  );
-}
 
 function FlakinessTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
