@@ -80,7 +80,8 @@ function chunkCV(text: string, maxLength = 800): string[] {
     if (section.length <= maxLength) {
       chunks.push(section);
     } else {
-      for (let j = 0; j < section.length; j += maxLength) {
+      const step = Math.floor(maxLength * 0.85);
+      for (let j = 0; j < section.length; j += step) {
         chunks.push(section.slice(j, j + maxLength));
       }
     }
