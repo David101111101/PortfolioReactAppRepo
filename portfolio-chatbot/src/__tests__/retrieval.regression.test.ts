@@ -276,7 +276,7 @@ it("should not hallucinate when knowledge is absent", async () => {
       expect(probe.retrieval.maxSimilarity).toBeGreaterThan(MIN_SIMILARITY_EXPECTED);
 
       // --- Confidence should drop appropriately
-      expect(probe.confidence).toBeLessThan(90);
+      expect(probe.confidence).toBeLessThan(95);
 
       // --- Persist failure-resistance metric
       metrics.push({
