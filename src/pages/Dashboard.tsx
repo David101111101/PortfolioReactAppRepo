@@ -799,7 +799,7 @@ export default function Dashboard() {
     return n;
   })();
 
-  // ── Release gate — mirrors the exact penalty thresholds in regression_run_summary ─
+  // ── Production SLA compliance — mirrors exact penalty thresholds in regression_run_summary ─
   const releaseGate = (() => {
     const latStatus: SlaStatus =
       !isFiniteNumber(selectedRun.p95_latency) ? null :
@@ -821,9 +821,15 @@ export default function Dashboard() {
       selectedRun.degradation_ratio <= 1.0 ? "green" :
       selectedRun.degradation_ratio <= 1.20 ? "yellow" : "red";
 
-    const gates = [latStatus, confStatus, rateStatus, degStatus].filter(Boolean) as SlaStatus[];
+    // Worst-case language confidence — catches per-language breakdown hidden by averages
+    const minConfStatus: SlaStatus =
+      !isFiniteNumber(selectedRun.min_confidence) ? null :
+      selectedRun.min_confidence >= 60 ? "green" :
+      selectedRun.min_confidence >= 50 ? "yellow" : "red";
+
+    const gates = [latStatus, confStatus, rateStatus, degStatus, minConfStatus].filter(Boolean) as SlaStatus[];
     const verdict: SlaStatus = gates.includes("red") ? "red" : gates.includes("yellow") ? "yellow" : gates.length > 0 ? "green" : null;
-    return { latStatus, confStatus, rateStatus, rateDev, degStatus, verdict };
+    return { latStatus, confStatus, rateStatus, rateDev, degStatus, minConfStatus, verdict };
   })();
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -883,10 +889,10 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* ── Release Gate Status ───────────────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("Release Gate")}>
+        {/* ── Production SLA Compliance ─────────────────────────────────────── */}
+        <section className="dashboard-card" id={sectionId("Production SLA Compliance")}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
-            <h2 style={{ margin: 0 }}>Release Gate</h2>
+            <h2 style={{ margin: 0 }}>Production SLA Compliance</h2>
             {runContext && (
               <button
                 type="button"
@@ -896,14 +902,15 @@ export default function Dashboard() {
                 title="Debug with AI"
                 onClick={() => {
                   setChatContext(
-                    `Release Gate snapshot:\n` +
-                    `  P95 Latency: ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} (gate: ≤ 5,400 ms) — ${releaseGate.latStatus === "green" ? "PASS" : releaseGate.latStatus === "yellow" ? "WARN" : "FAIL"}\n` +
-                    `  Avg Confidence: ${formatFixed(selectedRun.avg_confidence, 1)} (gate: ≥ 72) — ${releaseGate.confStatus === "green" ? "PASS" : releaseGate.confStatus === "yellow" ? "WARN" : "FAIL"}\n` +
-                    `  Enforcement Rate: ${isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} (expected: ${(RATE_EXPECTED * 100).toFixed(1)}% ± 5%) — ${releaseGate.rateStatus === "green" ? "PASS" : "FAIL"}\n` +
-                    `  Degradation Ratio: ${formatFixed(selectedRun.degradation_ratio, 3)} (gate: ≤ 1.20) — ${releaseGate.degStatus === "green" ? "PASS" : releaseGate.degStatus === "yellow" ? "WARN" : "FAIL"}\n` +
-                    `  Verdict: ${releaseGate.verdict === "green" ? "PASS" : releaseGate.verdict === "yellow" ? "CONDITIONAL PASS" : "FAIL"}`
+                    `Production SLA Compliance snapshot:\n` +
+                    `  P95 Latency: ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} (SLA: ≤ 5,400 ms) — ${releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Rate Enforcement: ${isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} (expected: ${(RATE_EXPECTED * 100).toFixed(1)}% ± 5%) — ${releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}\n` +
+                    `  Avg Confidence: ${formatFixed(selectedRun.avg_confidence, 1)} (SLA: ≥ 72) — ${releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Min Confidence (worst language): ${formatFixed(selectedRun.min_confidence, 1)} (SLA: ≥ 60) — ${releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Concurrent Degradation: ${formatFixed(selectedRun.degradation_ratio, 3)}× (SLA: ≤ 1.20×) — ${releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  SLA Verdict: ${releaseGate.verdict === "green" ? "IN SLA" : releaseGate.verdict === "yellow" ? "SLA WATCH" : "SLA BREACH"}`
                   );
-                  setChatQuery("Explain the release gate result for this run. Which gates failed or are at risk, and what should I investigate before promoting this to production?");
+                  setChatQuery("Analyze the SLA compliance result for this run. Which thresholds were breached or are at risk, and what does that mean for user experience on the live production system?");
                 }}
               >
                 💬
@@ -911,13 +918,12 @@ export default function Dashboard() {
             )}
           </div>
           <p className="dashboard-section-desc">
-            Automated go/no-go decision using the same thresholds that drive the weekly regression scoring formula.
-            Gates mirror the penalty logic in the <code>regression_run_summary</code> DB view.
+            Weekly automated SLA audit of the live production API. Thresholds mirror the regression scoring formula — any breach triggers an investigation, not a deployment block.
           </p>
           <section className="dashboard-row dashboard-row-3-col dashboard-row-header" style={{ fontSize: "12px", opacity: 0.65 }}>
-            <span>Gate</span>
+            <span>SLA Gate</span>
             <span className="dashboard-col-center">Actual → Threshold</span>
-            <span className="dashboard-col-right">Verdict</span>
+            <span className="dashboard-col-right">Status</span>
           </section>
           <section className="dashboard-row dashboard-row-3-col">
             <span>P95 Latency</span>
@@ -925,17 +931,17 @@ export default function Dashboard() {
               {isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} → ≤ 5,400 ms
             </span>
             <span className="dashboard-col-right">
-              {releaseGate.latStatus === "green" ? "PASS" : releaseGate.latStatus === "yellow" ? "WARN" : "FAIL"}
+              {releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}
               <StatusDot status={releaseGate.latStatus} />
             </span>
           </section>
-                    <section className="dashboard-row dashboard-row-3-col">
+          <section className="dashboard-row dashboard-row-3-col">
             <span>Rate Enforcement</span>
             <span className="dashboard-col-center">
               {isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} → {(RATE_EXPECTED * 100).toFixed(1)}% ± 5%
             </span>
             <span className="dashboard-col-right">
-              {releaseGate.rateStatus === "green" ? "PASS" : "FAIL"}
+              {releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}
               <StatusDot status={releaseGate.rateStatus} />
             </span>
           </section>
@@ -945,25 +951,34 @@ export default function Dashboard() {
               {formatFixed(selectedRun.avg_confidence, 1)} → ≥ 72
             </span>
             <span className="dashboard-col-right">
-              {releaseGate.confStatus === "green" ? "PASS" : releaseGate.confStatus === "yellow" ? "WARN" : "FAIL"}
+              {releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}
               <StatusDot status={releaseGate.confStatus} />
             </span>
           </section>
-
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Min Confidence (worst language)</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.min_confidence, 1)} → ≥ 60
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}
+              <StatusDot status={releaseGate.minConfStatus} />
+            </span>
+          </section>
           <section className="dashboard-row dashboard-row-3-col">
             <span>Concurrent Degradation</span>
             <span className="dashboard-col-center">
               {formatFixed(selectedRun.degradation_ratio, 3)}× → ≤ 1.20×
             </span>
             <span className="dashboard-col-right">
-              {releaseGate.degStatus === "green" ? "PASS" : releaseGate.degStatus === "yellow" ? "WARN" : "FAIL"}
+              {releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}
               <StatusDot status={releaseGate.degStatus} />
             </span>
           </section>
           <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 700 }}>Release Decision</span>
+            <span style={{ fontWeight: 700 }}>SLA Verdict</span>
             <span style={{ fontWeight: 700 }}>
-              {releaseGate.verdict === "green" ? "PASS — Safe to promote" : releaseGate.verdict === "yellow" ? "Pass but Monitor closely" : "FAIL — Do not promote"}
+              {releaseGate.verdict === "green" ? "IN SLA — All thresholds met" : releaseGate.verdict === "yellow" ? "SLA WATCH — Approaching limits" : "SLA BREACH — Threshold exceeded"}
               <StatusDot status={releaseGate.verdict} />
             </span>
           </div>

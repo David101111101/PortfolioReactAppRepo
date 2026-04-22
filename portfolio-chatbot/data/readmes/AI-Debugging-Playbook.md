@@ -104,8 +104,8 @@ You do not need to copy numbers manually. Click 💬 and ask follow-up questions
 
 - System Health Overview → Retrieval Confidence card
 - Regression Impact → Avg Confidence row AND Min Confidence row
-- Multilingual Retrieval Quality → per-language table with Δ column
-- Language Drift → per-language true delta from DB
+- Multilingual Retrieval Quality → per-language table with Δ column (true per-language delta)
+- Production SLA Compliance → Min Confidence gate (worst-language floor)
 
 ---
 
@@ -147,40 +147,43 @@ You do not need to copy numbers manually. Click 💬 and ask follow-up questions
 
 - System Health Overview → Reliability Score card
 - Regression Impact → Reliability row (shows absolute point change, e.g. -3 pts)
-- Performance Trends chart → reliability line
+- Last 5 Runs Trend → clickable history showing reliability across recent runs
 
 ---
 
-# 4. Release Confidence Drop
+# 4. Production SLA Breach
 
 ## Symptom
 
+- one or more SLA gates showing BREACH or WATCH in Production SLA Compliance section
 - release_confidence below threshold
 
 ---
 
 ## Likely Causes
 
-- penalty triggered by:
-  - latency >5400 ms → -8 pts, >5800 ms → -15 pts
-  - confidence <81 → -8 pts, <78 → -15 pts
-  - rate limit deviation >0.05 → -10 pts
-  - degradation ratio >0.15 → -5 pts, >0.20 → -10 pts
+- **P95 Latency BREACH** (>5,800 ms) — backend slowdown, increased payload, model latency
+- **Avg Confidence BREACH** (<65) — retrieval quality drop, embedding drift, prompt changes
+- **Min Confidence BREACH** (<50) — per-language collapse hidden by averages — check Multilingual Retrieval Quality
+- **Rate Enforcement BREACH** (deviation >5%) — rate limiter logic error, warmup miscount
+- **Degradation BREACH** (>1.20×) — concurrency degradation under load
 
 ---
 
 ## What to Check
 
-1. Identify which penalty applied
+1. Identify which SLA gate is BREACH (check Production SLA Compliance section)
 2. Compare vs previous run in Regression Impact section
-3. Check thresholds crossed
+3. If Min Confidence breached — check Multilingual Retrieval Quality for the specific language
+4. Check release_confidence penalty computation — which threshold was crossed?
 
 ---
 
 ## Interpretation
 
-- small drop → caution
-- large drop → block release
+- WATCH → approaching limits, monitor next run
+- BREACH → active investigation required; the live production system is outside defined quality parameters
+- Multiple BREACHes → systemic issue, check System Risk Assessment primary signal
 
 ---
 
@@ -218,6 +221,7 @@ You do not need to copy numbers manually. Click 💬 and ask follow-up questions
 ## Dashboard Location
 
 - System Health Overview → Rate Limit Enforcement card (with AI button)
+- Production SLA Compliance → Rate Enforcement gate
 
 ---
 
@@ -293,24 +297,25 @@ If E2E workflows show "degrading" but the weekly run shows 0%, that is correct �
 ## What to Check
 
 1. Multilingual Retrieval Quality → identify which language has the lowest min_confidence
-2. Language Drift → which language has the largest negative delta?
+2. Multilingual Retrieval Quality → check the Δ column — which language has the largest negative delta?
 3. Check if the drift is in avg or only in min (instability flag: avg - min > 15)
-4. Inspect retrieval_metrics records for that language
+4. Production SLA Compliance → Min Confidence gate — is it BREACH or WATCH?
+5. Inspect retrieval_metrics records for that language
 
 ---
 
 ## Interpretation
 
-- All languages showing identical drift = data problem (old bug, now fixed with per-language DB view)
-- Specific language regressing = language-targeted issue
-- High instability (avg - min > 15) = inconsistent retrieval for that language
+- Specific language regressing = language-targeted issue (embedding, chunking, or data coverage)
+- High instability (avg - min > 15) = inconsistent retrieval within that language
+- Min Confidence SLA BREACH = at least one language is below 50 — users querying in that language may get near-useless responses
 
 ---
 
 ## Dashboard Location
 
-- Multilingual Retrieval Quality section (with AI button)
-- Language Drift section (with AI button)
+- Multilingual Retrieval Quality section (with AI button) — per-language avg/min/Δ/risk table
+- Production SLA Compliance → Min Confidence gate (system-level worst-case floor)
 - System Risk Assessment → Worst-case Confidence row (shows which language is the floor)
 
 ---
@@ -405,7 +410,7 @@ E2E workflows degrading + weekly run healthy
 ### Case F
 avg_confidence stable + min_confidence_delta strongly negative
 
-→ hidden language-specific regression — check Multilingual Quality and Language Drift
+→ hidden language-specific regression — check Multilingual Quality (Δ column) and Production SLA Compliance (Min Confidence gate)
 
 ---
 

@@ -38,7 +38,7 @@ It combines:
 - Rate Limit Enforcement (correctness)
 - Concurrency Degradation (stability)
 - Flakiness (test reliability)
-- Language Drift (multilingual quality)
+- Min Confidence (worst-case per-language retrieval quality)
 
 These signals are aggregated into higher-level indicators such as **Reliability Score**, **Release Confidence**, and **System Risk Assessment**.
 
@@ -107,25 +107,37 @@ Sends % latency and confidence deltas. AI identifies likely root causes and what
 
 ---
 
-## 3. Performance Trends
+## 3. Production SLA Compliance
 
-Line chart showing latency, confidence, and reliability across the last 10 runs.
+Weekly automated SLA audit of the live production API. Checks whether each run meets defined quality thresholds — any breach triggers an investigation, not a deployment block.
 
-Sustained downward trends indicate systemic regression risk rather than noise.
+### SLA Gates (5 thresholds)
+
+| Gate | Threshold | Status Labels |
+|------|-----------|---------------|
+| P95 Latency | ≤ 5,400 ms (WATCH > 5,800 ms) | IN SLA / WATCH / BREACH |
+| Rate Enforcement | ~30.8% ± 5% | IN SLA / BREACH |
+| Avg Confidence | ≥ 72 (WATCH ≥ 65) | IN SLA / WATCH / BREACH |
+| Min Confidence (worst language) | ≥ 60 (WATCH ≥ 50) | IN SLA / WATCH / BREACH |
+| Concurrent Degradation | ≤ 1.20× (WATCH ≤ 1.00×) | IN SLA / WATCH / BREACH |
+
+The overall **SLA Verdict** aggregates all five gates: a single BREACH makes the run non-compliant. WATCH means one or more metrics are approaching limits.
+
+### Why Min Confidence is the AI-specific gate
+
+`avg_confidence` can hide per-language collapse. A run where Portuguese drops to 0.35 while English stays at 0.85 may look healthy by average. The Min Confidence SLA catches it as a BREACH before it affects real users.
+
+### Data source
+
+`regression_run_summary` (same view that drives all other metric cards — no additional fetch).
+
+### AI button
+
+Sends the full 5-gate snapshot with actual vs threshold for each. AI explains which thresholds were breached, what the user-facing impact is, and what to investigate on the live production system.
 
 ---
 
-## 4. Failure vs Latency Correlation
-
-Dual-axis line chart comparing P95 latency (left axis) vs test failure rate % (right axis) over time.
-
-Correlated spikes — both rising together — suggest infrastructure or backend issues are causing test failures, not flaky code.
-
-Join strategy: regression runs and test runs are matched by closest timestamp since they use different key types (UUID vs numeric).
-
----
-
-## 5. Multilingual Retrieval Quality
+## 4. Multilingual Retrieval Quality
 
 Per-language retrieval confidence table for the currently selected run.
 
@@ -152,31 +164,7 @@ Asks which languages are at risk and what may be causing low confidence for non-
 
 ---
 
-## 6. Language Drift
-
-Per-language confidence change vs the previous run — using actual per-language historical deltas from the `retrieval_language_trend` DB view.
-
-### Why this is different from Multilingual Quality
-
-- **Multilingual Quality** = current run absolute values (avg, min)
-- **Language Drift** = change from prior run per language
-
-Each language gets its own true delta. All languages showing the same value would indicate a data problem.
-
-### Classification
-
-- delta > +3 → Improvement (green)
-- delta -3 to +3 → Stable (green)
-- delta -10 to -3 → Drop (yellow)
-- delta < -10 → Regression (red)
-
-### AI button
-
-Asks which languages are regressing and whether it's likely an embedding, chunking, or data coverage issue.
-
----
-
-## 7. AI System Intelligence
+## 5. AI System Intelligence
 
 Automated narrative generated from the `regression_story` DB view.
 
@@ -193,13 +181,13 @@ Sends severity and primary signal. AI explains likely root causes and recommende
 
 ---
 
-## 8. Last 5 Runs Trend
+## 6. Last 5 Runs Trend
 
 Clickable table of recent runs. Click a row to switch the selected run, then use 💬 on any section to ask the AI about that specific run.
 
 ---
 
-## 9. Test Suites Reliability
+## 7. Test Suites Reliability
 
 Tracks test instability across all CI workflows.
 
@@ -230,7 +218,7 @@ Injects the full snapshot as text: overall flakiness, workflow-by-workflow break
 
 ---
 
-## 10. Flaky Tests Breakdown
+## 8. Flaky Tests Breakdown
 
 Ranked table of individual flaky tests from `test_flakiness_enriched`:
 - Test name
@@ -243,7 +231,7 @@ High-severity + recent = active problem to prioritize.
 
 ---
 
-## 11. System Risk Assessment
+## 9. System Risk Assessment
 
 Aggregated risk scorecard combining retrieval and test stability signals.
 
@@ -274,13 +262,14 @@ Sends severity, primary signal, and user impact as text. AI explains what this m
 
 All baselines are derived from historical production runs:
 
-| Metric | Baseline | Degraded | Severe |
+| Metric | Baseline / IN SLA | Watch | Breach / Severe |
 |---|---|---|---|
-| P95 Latency | 5400 ms | >5400 ms | >5800 ms |
-| Avg Confidence | 81 | <75 | <60 |
-| Reliability Score | 91 | <88 | <85 |
-| Rate Limit | 30.8% | ±5% deviation | ±10% deviation |
-| Flakiness | <1% | 1–3% | >3% |
+| P95 Latency | ≤ 5,400 ms | > 5,400 ms | > 5,800 ms |
+| Avg Confidence | ≥ 72 | ≥ 65 | < 65 |
+| Min Confidence (SLA) | ≥ 60 | ≥ 50 | < 50 |
+| Reliability Score | ≥ 91 | 88–91 | < 85 |
+| Rate Limit | 30.8% ± 5% | — | > ±5% deviation |
+| Flakiness | < 1% | 1–3% | > 3% |
 
 ---
 
@@ -298,8 +287,8 @@ It enables:
 
 - early detection of AI behavioral regressions
 - per-language retrieval quality monitoring
+- automated SLA compliance auditing against the live production API
 - multi-workflow test stability tracking
-- data-driven release decisions
 - AI-powered root cause reasoning on real production data
 
 ---

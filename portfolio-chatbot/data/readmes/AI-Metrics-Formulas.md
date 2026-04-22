@@ -164,7 +164,7 @@ This is NOT a percentage. A delta of 3 means the score moved from 88 to 91 — a
 
 ## Definition
 
-Decision-oriented score indicating whether the system is safe to release.
+Composite score that summarizes how many penalty thresholds were crossed in a run. Used as a summary signal — not shown as a standalone section on the dashboard.
 
 ---
 
@@ -209,9 +209,51 @@ release_confidence = 100
 
 ## Interpretation
 
-- ≥95 → safe to release
-- 85–95 → caution
-- <85 → investigate before release
+- ≥95 → all signals healthy
+- 85–95 → one or more metrics slightly degraded
+- <85 → investigate — multiple thresholds crossed
+
+---
+
+# 4b. Production SLA Compliance Thresholds
+
+## Definition
+
+The Production SLA Compliance section applies five explicit thresholds to the current run and reports each gate as IN SLA / WATCH / BREACH. Unlike Release Confidence (a continuous score), SLA Compliance is a discrete status per gate.
+
+---
+
+## Gates and Thresholds
+
+| Gate | IN SLA | WATCH | BREACH |
+|------|--------|-------|--------|
+| P95 Latency | ≤ 5,400 ms | ≤ 5,800 ms | > 5,800 ms |
+| Rate Enforcement | deviation ≤ 5% | — | deviation > 5% |
+| Avg Confidence | ≥ 72 | ≥ 65 | < 65 |
+| Min Confidence (worst language) | ≥ 60 | ≥ 50 | < 50 |
+| Concurrent Degradation | ≤ 1.00× | ≤ 1.20× | > 1.20× |
+
+---
+
+## SLA Verdict
+
+The overall verdict is the worst status across all five gates:
+
+- Any BREACH → SLA BREACH
+- Any WATCH (no BREACH) → SLA WATCH
+- All IN SLA → IN SLA
+
+---
+
+## Why Min Confidence is the AI-specific gate
+
+avg_confidence can stay stable while a single language's retrieval collapses. A run with Portuguese at 0.35 and English at 0.85 produces an average near 0.70 — within normal range. The Min Confidence SLA surfaces this as a BREACH at the system level before it compounds.
+
+---
+
+## Data source
+
+All five values come from `regression_run_summary`. No additional fetch beyond what the rest of the dashboard already loads.
 
 ---
 
@@ -304,11 +346,11 @@ The weekly regression suite and E2E pipelines are separate `workflow_type` value
 
 ---
 
-# 7. Language Drift
+# 7. Language Drift (Per-Language Delta)
 
 ## Definition
 
-Per-language confidence change between runs.
+Per-language confidence change between runs. This delta is surfaced in the **Δ column of the Multilingual Retrieval Quality section** on the dashboard.
 
 ## Formula
 
@@ -342,6 +384,12 @@ The correct approach fetches `retrieval_language_trend` and uses its `delta` fie
 - delta -3 to +3 → Stable
 - delta -10 to -3 → Drop
 - delta < -10 → Regression
+
+---
+
+## Dashboard Location
+
+The per-language delta appears in the **Δ vs previous run** column of the Multilingual Retrieval Quality section. All four signals (avg, min, delta, risk) are shown in a single table — no separate section needed.
 
 ---
 

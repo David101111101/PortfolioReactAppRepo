@@ -42,7 +42,7 @@ An AI observability platform that:
 - tracks behavioral changes over time  
 - correlates performance, quality, and reliability signals  
 - explains why regressions happen  
-- helps teams make data-driven release decisions  
+- audits live production SLA compliance for non-deterministic AI behavior  
 
 ---
 

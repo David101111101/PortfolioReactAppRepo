@@ -9,7 +9,7 @@
 
 ---
 
-This system detects AI behavioral regressions in production, surfaces them in a live observability dashboard, and gates every release on measurable quality signals automatically, every week.
+This system detects AI behavioral regressions in production, surfaces them in a live observability dashboard, enforces production SLA compliance across five quality dimensions, and gates every release on measurable quality signals automatically, every week.
 
 It is a production-grade AI Quality Intelligence Platform for RAG (Retrieval-Augmented Generation) systems. Traditional pass/fail testing is not enough for AI: confidence drops instead of crashes, answers degrade instead of erroring, and quality drifts over time across languages. This platform addresses all three.
 
@@ -43,6 +43,7 @@ This platform implements a multi-signal regression intelligence system that:
 - detects statistical anomalies using z-score analysis
 - enforces flakiness budgets to keep test reliability measurable
 - computes a weighted reliability score per run
+- enforces production SLA compliance across five quality dimensions (latency, confidence, min confidence, rate enforcement, degradation)
 - ingests all signals into Supabase and exposes them through a live React dashboard
 
 The decision layer distills all signals into one question:
@@ -55,8 +56,9 @@ The decision layer distills all signals into one question:
 
 ### 1. Signal-Based Quality Assessment
 - Retrieval confidence scores instead of binary-only assertions
-- Worst-case detection (`min_confidence`) to surface real user risk, not just averages
+- Worst-case detection (`min_confidence`) to surface real user risk, not just averages — enforced as a dedicated SLA gate
 - Rate-limit enforcement correctness tracked as a measurable percentage
+- Five-gate production SLA compliance audit per weekly run (P95 latency, avg confidence, min confidence, rate enforcement, concurrency degradation)
 
 ### 2. Trend Detection Instead Of Single-Run Judgement
 - Regression deltas vs previous runs via `regression_run_comparison` Supabase view
@@ -219,14 +221,15 @@ This requires systems that can:
 
 | Panel | Data Source | What It Shows |
 |-------|-------------|---------------|
-| **P95 Latency** | `regression_run_comparison` | Deviation vs 5 400 ms baseline — Healthy / Slight degradation / Degraded / Severe |
-| **Retrieval Confidence** | `retrieval_language_summary` | avg and min confidence per language; risk bands Critical <60%, Risk 60–75%, Healthy ≥75% |
-| **Reliability Score** | `regression_run_comparison` | Weighted score trend (baseline 91) rendered as Recharts LineChart with SLA band overlays |
-| **Rate-Limit Enforcement** | `regression_run_comparison` | Measured block rate vs expected 30.8% — drift classified into four severity bands |
-| **Flakiness Trend** | `flakiness_run_summary` + `flakiness_trend` | Current flakiness % + 5-run sparkline; SLA: green <1%, yellow <3%, red ≥3% |
-| **Regression Story** | `regression_story` | Narrative: trend direction, severity, primary signal, user impact, analysis confidence |
-| **Test Run Table** | `e2e_workflow_stability` | Per-workflow pass/fail with commit SHA and timestamp |
-| **Flaky Test Detail** | `test_flakiness_enriched` | Per-test flakiness %, severity, recency, last seen |
+| **System Health Overview** | `regression_run_summary` | 4 KPI cards: P95 Latency, Reliability Score, Retrieval Confidence, Rate Limit Enforcement — each with status dot and click-to-drill trend chart |
+| **Regression Impact** | `regression_run_comparison` | Run-over-run deltas: latency %, avg confidence %, reliability pts, min confidence pts — with consecutive-breach streak warnings |
+| **Production SLA Compliance** | `regression_run_summary` | 5 SLA gates (P95 latency, rate enforcement, avg confidence, min confidence, concurrent degradation) with IN SLA / WATCH / BREACH verdict per gate |
+| **Multilingual Retrieval Quality** | `retrieval_language_summary` + `retrieval_language_trend` | Per-language avg/min confidence, true per-language Δ vs previous run, risk classification (Healthy / Risk / Critical), retrieval rank stability |
+| **AI System Intelligence** | `regression_story` | Automated narrative: trend direction, severity, primary signal, user impact, analysis confidence |
+| **Last 5 Runs Trend** | `regression_run_summary` | Clickable run history — anomaly-flagged runs (⚠️ z-score outliers) surfaced in selector; click any row to switch the active run |
+| **Test Suites Reliability** | `flakiness_run_summary` + `e2e_workflow_stability` | Flakiness current state, per-workflow breakdown (PR E2E / Deploy E2E) with delta and trend, historical flakiness chart |
+| **Flaky Tests Breakdown** | `test_flakiness_enriched` | Per-test flakiness %, severity, recency — ranked instability table |
+| **System Risk Assessment** | `regression_story` + `retrieval_language_summary` | Aggregated risk: severity, user impact, primary signal, analysis confidence, worst-case language confidence floor |
 
 ### Observability Data Pipeline
 
@@ -399,7 +402,7 @@ This project is a working system, building it required integrating a wide range 
 | **CI/CD Engineering** | 4 GitHub Actions workflows, tiered quality gates (lint → PR → deploy → weekly), flakiness budget enforcement, JUnit in Checks UI, artifact telemetry pipeline |
 | **Full-Stack Engineering** | React + TypeScript SPA, Vite, Cloudflare Workers, Durable Objects (rate limiting), Supabase pgvector, OpenAI streaming SSE |
 | **Security Engineering** | Defense-in-depth prompt guards (injection, PII, SQL, XSS, SSRF, encoded payloads), CORS enforcement, rate limiting, retrieval grounding, safe fallback responses |
-| **Observability Engineering** | Supabase SQL analytics views, live React dashboard, Recharts visualizations with SLA band overlays, four-band SLA status system, deviation-from-baseline scoring |
+| **Observability Engineering** | Supabase SQL analytics views, live React dashboard, Recharts visualizations, production SLA compliance auditing (5 gates, IN SLA / WATCH / BREACH verdict), z-score anomaly detection, deviation-from-baseline scoring |
 | **Test Framework Design** | Playwright POM architecture, deterministic test-mode rendering contract, axe-core WCAG accessibility testing, Lighthouse CI performance budgets, per-test flakiness tracking |
 | **Database Engineering** | pgvector similarity search, SQL analytics views as a stable analytics layer, Supabase REST API integration, metrics ingestion pipeline design |
 
