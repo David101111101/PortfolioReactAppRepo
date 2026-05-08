@@ -395,7 +395,7 @@ export default function Dashboard() {
   }, []);
 
   const [trend, setTrend] = useState<Run[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>("Latency");
   const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [story, setStory] = useState<RegressionStory | null>(null);
@@ -889,106 +889,11 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* ── Production SLA Compliance ─────────────────────────────────────── */}
-        <section className="dashboard-card" id={sectionId("Production SLA Compliance")}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
-            <h2 style={{ margin: 0 }}>Production SLA Compliance</h2>
-            {runContext && (
-              <button
-                type="button"
-                className="dashboard-scroll-top"
-                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
-                aria-label="Debug with AI"
-                title="Debug with AI"
-                onClick={() => {
-                  setChatContext(
-                    `Production SLA Compliance snapshot:\n` +
-                    `  P95 Latency: ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} (SLA: ≤ 5,400 ms) — ${releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
-                    `  Rate Enforcement: ${isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} (expected: ${(RATE_EXPECTED * 100).toFixed(1)}% ± 5%) — ${releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}\n` +
-                    `  Avg Confidence: ${formatFixed(selectedRun.avg_confidence, 1)} (SLA: ≥ 72) — ${releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
-                    `  Min Confidence (worst language): ${formatFixed(selectedRun.min_confidence, 1)} (SLA: ≥ 60) — ${releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
-                    `  Concurrent Degradation: ${formatFixed(selectedRun.degradation_ratio, 3)}× (SLA: ≤ 1.20×) — ${releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
-                    `  SLA Verdict: ${releaseGate.verdict === "green" ? "IN SLA" : releaseGate.verdict === "yellow" ? "SLA WATCH" : "SLA BREACH"}`
-                  );
-                  setChatQuery("Analyze the SLA compliance result for this run. Which thresholds were breached or are at risk, and what does that mean for user experience on the live production system?");
-                }}
-              >
-                💬
-              </button>
-            )}
-          </div>
-          <p className="dashboard-section-desc">
-            Weekly automated SLA audit of the live production API. Thresholds mirror the regression scoring formula — any breach triggers an investigation, not a deployment block.
-          </p>
-          <section className="dashboard-row dashboard-row-3-col dashboard-row-header" style={{ fontSize: "12px", opacity: 0.65 }}>
-            <span>SLA Gate</span>
-            <span className="dashboard-col-center">Actual → Threshold</span>
-            <span className="dashboard-col-right">Status</span>
-          </section>
-          <section className="dashboard-row dashboard-row-3-col">
-            <span>P95 Latency</span>
-            <span className="dashboard-col-center">
-              {isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} → ≤ 5,400 ms
-            </span>
-            <span className="dashboard-col-right">
-              {releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}
-              <StatusDot status={releaseGate.latStatus} />
-            </span>
-          </section>
-          <section className="dashboard-row dashboard-row-3-col">
-            <span>Rate Enforcement</span>
-            <span className="dashboard-col-center">
-              {isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} → {(RATE_EXPECTED * 100).toFixed(1)}% ± 5%
-            </span>
-            <span className="dashboard-col-right">
-              {releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}
-              <StatusDot status={releaseGate.rateStatus} />
-            </span>
-          </section>
-          <section className="dashboard-row dashboard-row-3-col">
-            <span>Avg Confidence</span>
-            <span className="dashboard-col-center">
-              {formatFixed(selectedRun.avg_confidence, 1)} → ≥ 72
-            </span>
-            <span className="dashboard-col-right">
-              {releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}
-              <StatusDot status={releaseGate.confStatus} />
-            </span>
-          </section>
-          <section className="dashboard-row dashboard-row-3-col">
-            <span>Min Confidence (worst language)</span>
-            <span className="dashboard-col-center">
-              {formatFixed(selectedRun.min_confidence, 1)} → ≥ 60
-            </span>
-            <span className="dashboard-col-right">
-              {releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}
-              <StatusDot status={releaseGate.minConfStatus} />
-            </span>
-          </section>
-          <section className="dashboard-row dashboard-row-3-col">
-            <span>Concurrent Degradation</span>
-            <span className="dashboard-col-center">
-              {formatFixed(selectedRun.degradation_ratio, 3)}× → ≤ 1.20×
-            </span>
-            <span className="dashboard-col-right">
-              {releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}
-              <StatusDot status={releaseGate.degStatus} />
-            </span>
-          </section>
-          <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 700 }}>SLA Verdict</span>
-            <span style={{ fontWeight: 700 }}>
-              {releaseGate.verdict === "green" ? "IN SLA — All thresholds met" : releaseGate.verdict === "yellow" ? "SLA WATCH — Approaching limits" : "SLA BREACH — Threshold exceeded"}
-              <StatusDot status={releaseGate.verdict} />
-            </span>
-          </div>
-        </section>
-
         {/* ── System Health Overview ─────────────────────────────────────────── */}
         <section className="dashboard-card" id={sectionId("Key Metrics")}>
           <h2>System Health Overview</h2>
           <p className="dashboard-section-desc">
-            Key performance indicators for reliability, latency, and retrieval quality. Click any
+            Click any
             card to drill into its historical trend.
           </p>
           <section className="dashboard-grid">
@@ -1098,7 +1003,45 @@ export default function Dashboard() {
         {/* ── Metric Drill-down Trend ────────────────────────────────────────── */}
         {selectedMetric && (
           <section className="dashboard-card" id={sectionId(`${selectedMetric} Trend`)}>
-            <h2>{selectedMetric} Trend</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+              <h2 style={{ margin: 0 }}>{selectedMetric} Trend</h2>
+              {runContext && chartData.length > 0 && (
+                <button
+                  type="button"
+                  className="dashboard-scroll-top"
+                  style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                  aria-label={`Ask AI about ${selectedMetric} trend`}
+                  title={`Ask AI about ${selectedMetric} trend`}
+                  onClick={() => {
+                    const trendLines = chartData.map((entry) => {
+                      if (selectedMetric === "Latency") return `  ${entry.date}: ${isFiniteNumber(entry.latency) ? `${entry.latency} ms` : "N/A"}`;
+                      if (selectedMetric === "Confidence") return `  ${entry.date}: ${isFiniteNumber(entry.confidence) ? entry.confidence.toFixed(1) : "N/A"}`;
+                      if (selectedMetric === "Reliability") return `  ${entry.date}: ${isFiniteNumber(entry.reliability) ? entry.reliability.toFixed(1) : "N/A"}`;
+                      return `  ${entry.date}: ${isFiniteNumber(entry.rate) ? `${(entry.rate * 100).toFixed(1)}%` : "N/A"}`;
+                    }).join("\n");
+                    const baseline =
+                      selectedMetric === "Latency" ? `${LATENCY_EXPECTED} ms` :
+                      selectedMetric === "Confidence" ? String(CONFIDENCE_EXPECTED) :
+                      selectedMetric === "Reliability" ? String(RELIABILITY_EXPECTED) :
+                      `${(RATE_EXPECTED * 100).toFixed(1)}%`;
+                    setChatContext(
+                      `${selectedMetric} Trend — last ${chartData.length} runs (oldest → newest):\n${trendLines}\n\nBaseline: ${baseline}`
+                    );
+                    const query =
+                      selectedMetric === "Latency"
+                        ? "Analyze the P95 latency trend across these runs. Is it heading toward a threshold breach? What pattern do you see and what should be investigated?"
+                        : selectedMetric === "Confidence"
+                        ? "Analyze the retrieval confidence trend across these runs. Is confidence stable, improving, or degrading? What does the pattern suggest about retrieval quality?"
+                        : selectedMetric === "Reliability"
+                        ? "Analyze the reliability score trend across these runs. Is the system stabilizing or showing signs of sustained degradation over time?"
+                        : "Analyze the rate limit enforcement trend across these runs. Is enforcement consistent or drifting away from the 30.8% baseline? What does any drift indicate?";
+                    setChatQuery(query);
+                  }}
+                >
+                  💬
+                </button>
+              )}
+            </div>
             {latencySpike && selectedMetric === "Latency" && (
               <p className="dashboard-warning-text">⚠️ Latency increased more than 20% vs previous run — investigate regression</p>
             )}
@@ -1767,6 +1710,101 @@ export default function Dashboard() {
               <StatusDot status={languageMetrics.some(isUnstable) || (isFiniteNumber(effectiveFlakinessPct) && effectiveFlakinessPct > 2) ? "red" : "green"} />
             </span>
           </section>
+        </section>
+
+        {/* ── Production SLA Compliance ─────────────────────────────────────── */}
+        <section className="dashboard-card" id={sectionId("Production SLA Compliance")}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+            <h2 style={{ margin: 0 }}>Production SLA Compliance</h2>
+            {runContext && (
+              <button
+                type="button"
+                className="dashboard-scroll-top"
+                style={{ position: "static", width: 28, height: 28, fontSize: 14 }}
+                aria-label="Debug with AI"
+                title="Debug with AI"
+                onClick={() => {
+                  setChatContext(
+                    `Production SLA Compliance snapshot:\n` +
+                    `  P95 Latency: ${isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} (SLA: ≤ 5,400 ms) — ${releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Rate Enforcement: ${isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} (expected: ${(RATE_EXPECTED * 100).toFixed(1)}% ± 5%) — ${releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}\n` +
+                    `  Avg Confidence: ${formatFixed(selectedRun.avg_confidence, 1)} (SLA: ≥ 72) — ${releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Min Confidence (worst language): ${formatFixed(selectedRun.min_confidence, 1)} (SLA: ≥ 60) — ${releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  Concurrent Degradation: ${formatFixed(selectedRun.degradation_ratio, 3)}× (SLA: ≤ 1.20×) — ${releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}\n` +
+                    `  SLA Verdict: ${releaseGate.verdict === "green" ? "IN SLA" : releaseGate.verdict === "yellow" ? "SLA WATCH" : "SLA BREACH"}`
+                  );
+                  setChatQuery("Analyze the SLA compliance result for this run. Which thresholds were breached or are at risk, and what does that mean for user experience on the live production system?");
+                }}
+              >
+                💬
+              </button>
+            )}
+          </div>
+          <p className="dashboard-section-desc">
+            Weekly automated SLA audit of the live production API. Thresholds mirror the regression scoring formula — any breach triggers an investigation, not a deployment block.
+          </p>
+          <section className="dashboard-row dashboard-row-3-col dashboard-row-header" style={{ fontSize: "12px", opacity: 0.65 }}>
+            <span>SLA Gate</span>
+            <span className="dashboard-col-center">Actual → Threshold</span>
+            <span className="dashboard-col-right">Status</span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>P95 Latency</span>
+            <span className="dashboard-col-center">
+              {isFiniteNumber(selectedRun.p95_latency) ? `${selectedRun.p95_latency} ms` : "N/A"} → ≤ 5,400 ms
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.latStatus === "green" ? "IN SLA" : releaseGate.latStatus === "yellow" ? "WATCH" : "BREACH"}
+              <StatusDot status={releaseGate.latStatus} />
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Rate Enforcement</span>
+            <span className="dashboard-col-center">
+              {isFiniteNumber(selectedRun.enforcement_rate) ? `${(selectedRun.enforcement_rate * 100).toFixed(1)}%` : "N/A"} → {(RATE_EXPECTED * 100).toFixed(1)}% ± 5%
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.rateStatus === "green" ? "IN SLA" : "BREACH"}
+              <StatusDot status={releaseGate.rateStatus} />
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Avg Confidence</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.avg_confidence, 1)} → ≥ 72
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.confStatus === "green" ? "IN SLA" : releaseGate.confStatus === "yellow" ? "WATCH" : "BREACH"}
+              <StatusDot status={releaseGate.confStatus} />
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Min Confidence (worst language)</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.min_confidence, 1)} → ≥ 60
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.minConfStatus === "green" ? "IN SLA" : releaseGate.minConfStatus === "yellow" ? "WATCH" : "BREACH"}
+              <StatusDot status={releaseGate.minConfStatus} />
+            </span>
+          </section>
+          <section className="dashboard-row dashboard-row-3-col">
+            <span>Concurrent Degradation</span>
+            <span className="dashboard-col-center">
+              {formatFixed(selectedRun.degradation_ratio, 3)}× → ≤ 1.20×
+            </span>
+            <span className="dashboard-col-right">
+              {releaseGate.degStatus === "green" ? "IN SLA" : releaseGate.degStatus === "yellow" ? "WATCH" : "BREACH"}
+              <StatusDot status={releaseGate.degStatus} />
+            </span>
+          </section>
+          <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 700 }}>SLA Verdict</span>
+            <span style={{ fontWeight: 700 }}>
+              {releaseGate.verdict === "green" ? "IN SLA — All thresholds met" : releaseGate.verdict === "yellow" ? "SLA WATCH — Approaching limits" : "SLA BREACH — Threshold exceeded"}
+              <StatusDot status={releaseGate.verdict} />
+            </span>
+          </div>
         </section>
         <div style={{ height: "2rem" }} aria-hidden="true" />
       </main>
